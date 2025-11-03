@@ -3,7 +3,7 @@
 ## Liens de déploiement
 
 - API (Render) : https://server-jeux-millionnaire.onrender.com
-- Client (Vercel) : ajoute ici l’URL Vercel une fois en ligne (ex: https://client-jeux-millionnaire.vercel.app)
+- Client (Vercel) : https://client-jeux-millionnaire.vercel.app/
 
 ## Configuration
 

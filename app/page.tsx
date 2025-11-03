@@ -269,7 +269,7 @@ export default function DashboardPage() {
       ) : (
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Gestion de partie</h2>
-        <div className="flex flex-wrap gap-3 items-end">
+  <div className="flex flex-wrap gap-3 items-end">
           <button onClick={handleCreate} className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500">Créer une partie</button>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <input
@@ -297,6 +297,21 @@ export default function DashboardPage() {
           </div>
           <button onClick={handleStart} disabled={!gameId || !isAdmin} className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 disabled:opacity-50">Démarrer (admin)</button>
           <button onClick={handleClearSession} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Effacer session</button>
+          <button
+            onClick={async () => {
+              try {
+                await apiFetch<{ ok: boolean }>("/api/auth/logout", { method: "POST" });
+              } catch {}
+              // Nettoyage local et redirection login
+              clearSession();
+              setIsLoggedIn(false);
+              setIsAdmin(false);
+              router.replace("/login");
+            }}
+            className="px-4 py-2 rounded bg-rose-700 hover:bg-rose-600"
+          >
+            Se déconnecter
+          </button>
         </div>
         {gameCode && <p className="text-sm text-neutral-300">Code de partie: <span className="font-mono text-lg">{gameCode}</span></p>}
         {playerId && <p className="text-xs text-neutral-400">Votre playerId: {playerId}</p>}

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#0b1220"/>
+  <g transform="translate(120,60)">
+    <rect x="0" y="40" width="400" height="220" rx="8" fill="#10b981"/>
+    <rect x="170" y="0" width="60" height="40" fill="#065f46"/>
+    <rect x="190" y="180" width="40" height="80" fill="#064e3b"/>
+    <rect x="60" y="80" width="80" height="60" fill="#a7f3d0"/>
+    <rect x="260" y="80" width="80" height="60" fill="#a7f3d0"/>
+  </g>
+  <text x="320" y="330" text-anchor="middle" fill="#9ca3af" font-family="Arial" font-size="18">Duplex (2)</text>
+</svg>

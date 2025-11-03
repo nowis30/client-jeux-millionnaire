@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#0b1220"/>
+  <g transform="translate(80,40)">
+    <rect x="0" y="80" width="480" height="240" rx="8" fill="#ef4444"/>
+    <rect x="220" y="30" width="60" height="50" fill="#7f1d1d"/>
+    <rect x="240" y="230" width="40" height="90" fill="#7f1d1d"/>
+    <rect x="20" y="120" width="80" height="60" fill="#fecaca"/>
+    <rect x="120" y="120" width="80" height="60" fill="#fecaca"/>
+    <rect x="220" y="120" width="80" height="60" fill="#fecaca"/>
+    <rect x="320" y="120" width="80" height="60" fill="#fecaca"/>
+    <rect x="420" y="120" width="80" height="60" fill="#fecaca"/>
+  </g>
+  <text x="320" y="330" text-anchor="middle" fill="#9ca3af" font-family="Arial" font-size="18">5 logements</text>
+</svg>

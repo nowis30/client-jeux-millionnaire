@@ -304,9 +304,30 @@ export default function DashboardPage() {
           <h3 className="text-lg font-semibold">Joueurs</h3>
           <ul className="mt-2 space-y-1 text-sm text-neutral-300">
             {players.map((p) => (
-              <li key={p.id} className="flex justify-between border border-neutral-800 rounded px-3 py-2 bg-neutral-900">
+              <li key={p.id} className="flex items-center justify-between border border-neutral-800 rounded px-3 py-2 bg-neutral-900 gap-3">
                 <span>{p.nickname}</span>
-                <span>Cash: ${p.cash.toLocaleString()} | Net: ${p.netWorth.toLocaleString()}</span>
+                <div className="flex items-center gap-2">
+                  <span>Cash: ${p.cash.toLocaleString()} | Net: ${p.netWorth.toLocaleString()}</span>
+                  {isAdmin && (
+                    <button
+                      title="Supprimer ce joueur"
+                      onClick={async () => {
+                        if (!gameId) return;
+                        if (!window.confirm(`Supprimer ${p.nickname} ? Tous ses biens, annonces et positions seront effacés.`)) return;
+                        try {
+                          await apiFetch(`/api/games/${gameId}/players/${p.id}`, { method: 'DELETE' });
+                          setMessage(`Joueur supprimé: ${p.nickname}`);
+                          updateState();
+                        } catch (err) {
+                          setError(err instanceof Error ? err.message : 'Échec de suppression');
+                        }
+                      }}
+                      className="px-2 py-1 rounded bg-red-700 hover:bg-red-600 text-xs"
+                    >
+                      Poubelle
+                    </button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

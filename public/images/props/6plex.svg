@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 192" width="256" height="192">
+  <defs>
+    <linearGradient id="roof6" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#087f5b"/>
+      <stop offset="100%" stop-color="#12b886"/>
+    </linearGradient>
+    <linearGradient id="wall6" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8f9fa"/>
+      <stop offset="100%" stop-color="#f1f3f5"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="256" height="192" fill="#0b0f14"/>
+  <g transform="translate(8,14)">
+    <polygon points="120,0 0,50 240,50" fill="url(#roof6)"/>
+    <rect x="12" y="50" width="216" height="120" rx="6" fill="url(#wall6)"/>
+    <!-- rangée 1 -->
+    <rect x="24" y="68" width="48" height="22" rx="3" fill="#74c0fc"/>
+    <rect x="88" y="68" width="48" height="22" rx="3" fill="#74c0fc"/>
+    <rect x="152" y="68" width="48" height="22" rx="3" fill="#74c0fc"/>
+    <!-- rangée 2 -->
+    <rect x="24" y="98" width="48" height="22" rx="3" fill="#74c0fc"/>
+    <rect x="88" y="98" width="48" height="22" rx="3" fill="#74c0fc"/>
+    <rect x="152" y="98" width="48" height="22" rx="3" fill="#74c0fc"/>
+    <!-- porte -->
+    <rect x="112" y="116" width="40" height="54" rx="3" fill="#343a40"/>
+    <circle cx="148" cy="144" r="2" fill="#868e96"/>
+  </g>
+</svg>

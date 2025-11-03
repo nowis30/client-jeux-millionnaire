@@ -120,7 +120,7 @@ export default function BoursePage() {
     <main className="space-y-6">
       <section>
         <h2 className="text-xl font-semibold">Bourse</h2>
-        <p className="text-sm text-neutral-300">Investissez dans l'OR, le PÉTROLE, le S&P 500 et le TSX.</p>
+        <p className="text-sm text-neutral-300">Investissez dans l'OR, le PÉTROLE, le S&P 500, le TSX et des OBLIGATIONS MONDIALES (pour stabiliser le portefeuille).</p>
       </section>
 
       {nickname && (

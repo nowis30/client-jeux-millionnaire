@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { apiFetch } from "../../lib/api";
 
 export default function UserBadge() {
+  const pathname = usePathname();
   const [email, setEmail] = useState<string>("");
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   useEffect(() => {
@@ -14,6 +16,11 @@ export default function UserBadge() {
       } catch {}
     })();
   }, []);
+
+  // Ne rien afficher sur les pages d'auth (évite tout affichage de profil sur /login, /forgot, /reset)
+  if (pathname === "/login" || pathname === "/forgot" || pathname === "/reset") {
+    return null;
+  }
   return (
     <div className="text-sm text-neutral-300 flex items-center gap-2">
       {email ? (

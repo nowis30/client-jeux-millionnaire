@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "../../lib/api";
 
 type Template = {
@@ -31,6 +31,58 @@ export default function ImmobilierPage() {
   const [downPaymentPercent, setDownPaymentPercent] = useState(0.2);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showHoldings, setShowHoldings] = useState(false);
+  const [holdings, setHoldings] = useState<any[]>([]);
+  const purchaseRef = useRef<HTMLDivElement | null>(null);
+  const [economy, setEconomy] = useState<{ baseMortgageRate: number; appreciationAnnual: number; schedule: number[] } | null>(null);
+  const [scenario, setScenario] = useState<"prudent" | "central" | "optimiste">("central");
+
+  // --- Helpers projection 10 ans ---
+  const formatCurrency = (n: number) => {
+    if (!isFinite(n)) return "$0";
+    return n >= 1_000_000
+      ? `${(n / 1_000_000).toFixed(2)} M$`
+      : n >= 1_000
+      ? `${(n / 1_000).toFixed(1)} k$`
+      : `$${Math.round(n)}`;
+  };
+
+  type YearPoint = { year: number; net: number };
+  const adjustedSchedule = useMemo(() => {
+    const base = economy?.schedule ?? [];
+    if (!base.length) return [] as number[];
+    const delta = scenario === "prudent" ? -0.005 : scenario === "optimiste" ? 0.005 : 0;
+    return base.map((v) => Math.max(0.02, Math.min(0.05, v + delta)));
+  }, [economy, scenario]);
+
+  const projection: YearPoint[] = useMemo(() => {
+    if (!holdings || holdings.length === 0) return [];
+    const YEARS = 10;
+    const schedule = adjustedSchedule.length ? adjustedSchedule : Array.from({ length: YEARS }, () => 0.02);
+    const usedRate = economy?.baseMortgageRate ?? 0.05;
+    // Copie mutable des valeurs pour simulation
+    const sims = holdings.map((h) => ({
+      value: Number(h.currentValue ?? 0),
+      debt: Number(h.mortgageDebt ?? 0),
+      rate: usedRate,
+      payW: Number(h.weeklyPayment ?? 0),
+    }));
+    const out: YearPoint[] = [];
+    let net0 = sims.reduce((sum, s) => sum + (s.value - s.debt), 0);
+    out.push({ year: 0, net: net0 });
+    for (let y = 1; y <= YEARS; y++) {
+      for (const s of sims) {
+        const annualPayment = s.payW * 52;
+        const interest = s.debt * s.rate;
+        const principal = Math.max(0, annualPayment - interest);
+        s.debt = Math.max(0, s.debt - principal);
+        s.value = s.value * (1 + (schedule[y - 1] ?? 0.02));
+      }
+      const net = sims.reduce((sum, s) => sum + (s.value - s.debt), 0);
+      out.push({ year: y, net });
+    }
+    return out;
+  }, [holdings, economy, adjustedSchedule]);
 
   // Résolution automatique du gameId global puis du player (via cookie invité/auth)
   useEffect(() => {
@@ -78,6 +130,34 @@ export default function ImmobilierPage() {
     loadTemplates();
   }, [loadTemplates]);
 
+  const loadHoldings = useCallback(async () => {
+    if (!gameId || !playerId) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/holdings/${playerId}`);
+      if (!res.ok) throw new Error(`Erreur ${res.status}`);
+      const data = await res.json();
+      setHoldings(data.holdings ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de charger le parc immobilier");
+    }
+  }, [gameId, playerId]);
+
+  const loadEconomy = useCallback(async () => {
+    if (!gameId) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/games/${gameId}/economy`);
+      if (!res.ok) throw new Error(`Erreur ${res.status}`);
+      const data = await res.json();
+      setEconomy(data);
+      // Synchroniser le champ de taux hypothécaire du formulaire avec le taux courant du jeu
+      if (typeof data?.baseMortgageRate === "number") {
+        setMortgageRate(Number(data.baseMortgageRate));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de charger les paramètres économiques");
+    }
+  }, [gameId]);
+
   const handlePurchase = useCallback(async () => {
     if (!gameId || !playerId || !selectedTemplate) {
       setError("Sélectionnez un immeuble");
@@ -111,18 +191,19 @@ export default function ImmobilierPage() {
         <p className="text-sm text-neutral-300">Achetez, vendez et gérez vos immeubles.</p>
       </section>
 
-      <section className="space-y-3">
+      <section ref={purchaseRef} className="space-y-3">
         {nickname && <p className="text-sm text-neutral-300">Pseudo: <span className="font-medium">{nickname}</span></p>}
 
         <div className="grid gap-3 md:grid-cols-3">
           <label className="text-sm text-neutral-300 flex flex-col gap-1">
-            Taux hypothécaire (ex: 0.05)
+            Taux hypothécaire (défini par le jeu)
             <input
               type="number"
-              step="0.005"
+              step="0.0001"
               value={mortgageRate}
-              onChange={(e) => setMortgageRate(Number(e.target.value))}
-              className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm"
+              readOnly
+              className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm opacity-80 cursor-not-allowed"
+              title="Le taux est variable et défini par le jeu (2% à 7%), ajusté mensuellement par pas de 0.25%."
             />
           </label>
           <label className="text-sm text-neutral-300 flex flex-col gap-1">
@@ -155,10 +236,86 @@ export default function ImmobilierPage() {
 
         <button onClick={handlePurchase} className="px-4 py-2 rounded bg-sky-600 hover:bg-sky-500">Acheter</button>
         <button onClick={loadTemplates} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Actualiser les immeubles</button>
+        <button
+          onClick={async () => { setShowHoldings((v) => !v); if (!showHoldings) { await Promise.all([loadHoldings(), loadEconomy()]); } }}
+          className="px-4 py-2 rounded bg-emerald-700 hover:bg-emerald-600"
+        >
+          {showHoldings ? "Masquer mon parc" : "Voir mon parc immobilier"}
+        </button>
         
         {message && <p className="text-sm text-emerald-400">{message}</p>}
         {error && <p className="text-sm text-red-400">{error}</p>}
       </section>
+
+      {showHoldings && (
+        <section className="space-y-2">
+          <h3 className="text-lg font-semibold">Mon parc immobilier</h3>
+          {holdings.length === 0 ? (
+            <p className="text-sm text-neutral-400">Aucun bien pour le moment.</p>
+          ) : (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                {holdings.map((h) => (
+                  <article key={h.id} className="border border-neutral-800 rounded-lg bg-neutral-900 p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold">{h.template?.name ?? "Bien"}</h4>
+                      <span className="text-sm text-neutral-400">{h.template?.city ?? ""}</span>
+                    </div>
+                    <p className="text-sm text-neutral-300">Valeur actuelle: ${Number(h.currentValue ?? 0).toLocaleString()}</p>
+                    <p className="text-sm text-neutral-300">Loyer actuel: ${Number(h.currentRent ?? 0).toLocaleString()}</p>
+                    <p className="text-xs text-neutral-500">Dette hypothécaire: ${Number(h.mortgageDebt ?? 0).toLocaleString()} — Taux: {(Number(h.mortgageRate ?? 0) * 100).toFixed(2)}%</p>
+                  </article>
+                ))}
+              </div>
+
+              {projection.length > 0 && (
+                <div className="mt-6 space-y-2">
+                  <div className="flex items-baseline justify-between">
+                    <h4 className="text-md font-semibold">Projection 10 ans (valeur nette immobilière)</h4>
+                    <span className="text-sm text-neutral-400">De {formatCurrency(projection[0].net)} à {formatCurrency(projection[projection.length - 1].net)}</span>
+                  </div>
+                  {economy && (
+                    <div className="flex flex-wrap items-end gap-3 mb-2">
+                      <label className="text-sm text-neutral-300 flex flex-col gap-1">
+                        Scénario
+                        <select value={scenario} onChange={(e) => setScenario(e.target.value as any)} className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm">
+                          <option value="prudent">Prudent (biais -0,5 pt)</option>
+                          <option value="central">Central</option>
+                          <option value="optimiste">Optimiste (biais +0,5 pt)</option>
+                        </select>
+                      </label>
+                      <div className="text-xs text-neutral-400">
+                        Taux jeu actuel: {(economy.baseMortgageRate * 100).toFixed(2)}% · Appréciation courante: {(economy.appreciationAnnual * 100).toFixed(2)}%
+                      </div>
+                    </div>
+                  )}
+                  <ProjectionChart data={projection} />
+                  {adjustedSchedule.length > 0 && (
+                    <div className="overflow-x-auto">
+                      <table className="mt-3 w-full text-sm bg-neutral-900 border border-neutral-800 rounded">
+                        <thead>
+                          <tr className="text-left">
+                            <th className="p-2">Année</th>
+                            <th className="p-2">Appréciation</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {adjustedSchedule.map((v, i) => (
+                            <tr key={i} className="border-t border-neutral-800">
+                              <td className="p-2">{i + 1}</td>
+                              <td className="p-2">{(v * 100).toFixed(2)}%</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      )}
 
       <section className="space-y-2">
         <h3 className="text-lg font-semibold">Immeubles disponibles</h3>
@@ -191,7 +348,7 @@ export default function ImmobilierPage() {
                 <p className="text-xs text-neutral-400 mt-1">{tpl.description}</p>
               )}
               <button
-                onClick={() => setSelectedTemplate(tpl.id)}
+                onClick={() => { setSelectedTemplate(tpl.id); if (purchaseRef.current) purchaseRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
                 className="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-sm"
               >
                 Sélectionner
@@ -202,5 +359,52 @@ export default function ImmobilierPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+// Petit graphique SVG inline, responsive
+function ProjectionChart({ data }: { data: { year: number; net: number }[] }) {
+  const w = 800, h = 200, pad = 28;
+  const minY = Math.min(...data.map((d) => d.net));
+  const maxY = Math.max(...data.map((d) => d.net));
+  const y0 = minY === maxY ? minY * 0.95 : minY * 0.98;
+  const y1 = minY === maxY ? maxY * 1.05 : maxY * 1.02;
+  const x = (i: number) => pad + (i * (w - pad * 2)) / (data.length - 1);
+  const y = (v: number) => h - pad - ((v - y0) * (h - pad * 2)) / Math.max(1, (y1 - y0));
+  const points = data.map((d, i) => `${x(i)},${y(d.net)}`).join(" ");
+  const ticks = [0, 2, 4, 6, 8, 10];
+
+  const fmt = (n: number) => {
+    if (!isFinite(n)) return "$0";
+    return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)} M$` : n >= 1_000 ? `${(n / 1_000).toFixed(1)} k$` : `$${Math.round(n)}`;
+  };
+
+  return (
+    <div className="w-full overflow-x-auto">
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-48 bg-neutral-950 border border-neutral-800 rounded">
+        {/* Axes */}
+        <line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke="#333" />
+        <line x1={pad} y1={pad} x2={pad} y2={h - pad} stroke="#333" />
+        {/* Y labels */}
+        <text x={pad} y={pad - 8} fill="#9ca3af" fontSize="10" textAnchor="start">{fmt(y1)}</text>
+        <text x={pad} y={h - pad + 12} fill="#9ca3af" fontSize="10" textAnchor="start">{fmt(y0)}</text>
+        {/* X ticks */}
+        {ticks.map((t) => {
+          const xi = x((t / 10) * (data.length - 1));
+          return (
+            <g key={t}>
+              <line x1={xi} y1={h - pad} x2={xi} y2={h - pad + 4} stroke="#555" />
+              <text x={xi} y={h - pad + 14} fill="#9ca3af" fontSize="10" textAnchor="middle">{t} ans</text>
+            </g>
+          );
+        })}
+        {/* Courbe */}
+        <polyline fill="none" stroke="#22c55e" strokeWidth={2} points={points} />
+        {/* Points */}
+        {data.map((d, i) => (
+          <circle key={i} cx={x(i)} cy={y(d.net)} r={2} fill="#22c55e" />
+        ))}
+      </svg>
+    </div>
   );
 }

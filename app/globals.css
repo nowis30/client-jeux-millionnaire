@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 16 16 20;
+}
+
+body { @apply bg-neutral-950 text-neutral-100; }
+
+a { @apply text-sky-400 hover:underline; }

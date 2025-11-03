@@ -12,6 +12,7 @@ type Template = {
   insurance: number;
   maintenance: number;
   imageUrl: string;
+  description?: string;
   units?: number;
   plumbingState?: string;
   electricityState?: string;
@@ -211,6 +212,9 @@ export default function ImmobilierPage() {
               <p className="text-sm text-neutral-300">Loyer unitaire: ${tpl.baseRent.toLocaleString()} {tpl.units ? `× ${tpl.units} log.` : ''}</p>
               <p className="text-xs text-neutral-500">Charges: taxes ${tpl.taxes}/an, assurance ${tpl.insurance}/an, entretien ${tpl.maintenance}/an</p>
               <p className="text-xs text-neutral-500">État — Plomberie: {tpl.plumbingState ?? 'n/a'}, Électricité: {tpl.electricityState ?? 'n/a'}, Toiture: {tpl.roofState ?? 'n/a'}</p>
+              {tpl.description && (
+                <p className="text-xs text-neutral-400 mt-1">{tpl.description}</p>
+              )}
               <button
                 onClick={() => setSelectedTemplate(tpl.id)}
                 className="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-sm"

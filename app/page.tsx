@@ -1,17 +1,37 @@
 "use client";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import { clearSession, loadSession, saveSession } from "../lib/session";
+import { apiFetch, API_BASE } from "../lib/api";
 
 type Entry = { playerId: string; nickname: string; netWorth: number };
 type GamePlayer = { id: string; nickname: string; cash: number; netWorth: number };
 type LobbySummary = { id: string; code: string; status: string; players: number; createdAt: string };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
+// API_BASE fourni par lib/api
 const DEFAULT_STATUS = "lobby";
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  // Vérifier la session utilisateur (auth)
+  useEffect(() => {
+    (async () => {
+      try {
+        const me = await apiFetch<{ id: string; email: string; isAdmin: boolean }>("/api/auth/me");
+        setIsLoggedIn(true);
+        setIsAdmin(!!me.isAdmin);
+      } catch {
+        setIsLoggedIn(false);
+        setIsAdmin(false);
+        // Redirection automatique vers /login si non connecté
+        router.replace("/login");
+      }
+    })();
+  }, [router]);
   const [leaderboard, setLeaderboard] = useState<Entry[]>([]);
   const [gameId, setGameId] = useState("");
   const [playerId, setPlayerId] = useState("");
@@ -52,9 +72,7 @@ export default function DashboardPage() {
   const updateState = useCallback(async () => {
     if (!gameId) return;
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/state`);
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data: { status: string; players: GamePlayer[]; code: string } = await res.json();
+  const data = await apiFetch<{ status: string; players: GamePlayer[]; code: string }>(`/api/games/${gameId}/state`);
       setGameStatus(data.status);
       setPlayers(data.players ?? []);
       setGameCode(data.code ?? "");
@@ -66,9 +84,7 @@ export default function DashboardPage() {
 
   const loadLobbies = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/games?status=lobby`);
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data: { games: LobbySummary[] } = await res.json();
+      const data = await apiFetch<{ games: LobbySummary[] }>(`/api/games?status=lobby`);
       setLobbies(data.games ?? []);
     } catch (err) {
       console.warn("Impossible de récupérer les lobbies", err);
@@ -84,9 +100,11 @@ export default function DashboardPage() {
   const handleCreate = useCallback(async () => {
     try {
       const payload: any = nickname ? { hostNickname: nickname } : {};
-      const res = await fetch(`${API_BASE}/api/games`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data: { id: string; code: string; status: string; playerId?: string } = await res.json();
+      const data = await apiFetch<{ id: string; code: string; status: string; playerId?: string }>(`/api/games`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
       setGameId(data.id);
       setGameStatus(data.status);
       setPlayers([]);
@@ -108,13 +126,11 @@ export default function DashboardPage() {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/join`, {
+      const data = await apiFetch<{ playerId: string; code: string }>(`/api/games/${gameId}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nickname }),
       });
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data: { playerId: string; code: string } = await res.json();
       setPlayerId(data.playerId);
       setKnownNickname(nickname);
       setNickname("");
@@ -135,13 +151,11 @@ export default function DashboardPage() {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/api/games/code/${gameCodeInput}/join`, {
+      const data = await apiFetch<{ playerId: string; gameId: string; code: string }>(`/api/games/code/${gameCodeInput}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nickname }),
       });
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data: { playerId: string; gameId: string; code: string } = await res.json();
       setGameId(data.gameId);
       setPlayerId(data.playerId);
       setGameCode(data.code);
@@ -161,9 +175,7 @@ export default function DashboardPage() {
   const handleStart = useCallback(async () => {
     if (!gameId) return;
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/start`, { method: "POST" });
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data: { status: string } = await res.json();
+  const data = await apiFetch<{ status: string }>(`/api/games/${gameId}/start`, { method: "POST" });
       setGameStatus(data.status);
       setError(null);
       setMessage("Partie démarrée");
@@ -196,7 +208,7 @@ export default function DashboardPage() {
 
   // Socket: classement et mises à jour lobby en temps réel
   useEffect(() => {
-    const socket: Socket = io(API_BASE, gameId ? { query: { gameId } } : undefined);
+  const socket: Socket = io(API_BASE, { withCredentials: true, ...(gameId ? { query: { gameId } } : {}) });
     socket.on("hourly-tick", (payload: { leaderboard: Entry[] }) => {
       setLeaderboard(payload.leaderboard);
     });
@@ -229,13 +241,12 @@ export default function DashboardPage() {
     if (!gameId || playerId) return;
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/games/${gameId}/me`);
-        if (res.ok) {
-          const data: { player: { id: string; nickname: string } } = await res.json();
+        try {
+          const data = await apiFetch<{ player: { id: string; nickname: string } }>(`/api/games/${gameId}/me`);
           setPlayerId(data.player.id);
           if (data.player.nickname) setKnownNickname(data.player.nickname);
           refreshSession({ gameId, playerId: data.player.id, nickname: data.player.nickname });
-        }
+        } catch {}
       } catch {}
     })();
   }, [gameId, playerId, refreshSession]);
@@ -249,6 +260,13 @@ export default function DashboardPage() {
 
   return (
     <main className="space-y-6">
+      {!isLoggedIn ? (
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">Connexion requise</h2>
+          <p className="text-neutral-300">Veuillez vous connecter pour créer ou rejoindre une partie.</p>
+          <a href="/login" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 inline-block">Aller à la page de connexion</a>
+        </section>
+      ) : (
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Gestion de partie</h2>
         <div className="flex flex-wrap gap-3 items-end">
@@ -277,7 +295,7 @@ export default function DashboardPage() {
             />
             <button onClick={handleJoinByCode} className="px-4 py-2 rounded bg-sky-600 hover:bg-sky-500">Rejoindre (code)</button>
           </div>
-          <button onClick={handleStart} disabled={!gameId} className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 disabled:opacity-50">Démarrer</button>
+          <button onClick={handleStart} disabled={!gameId || !isAdmin} className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 disabled:opacity-50">Démarrer (admin)</button>
           <button onClick={handleClearSession} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Effacer session</button>
         </div>
         {gameCode && <p className="text-sm text-neutral-300">Code de partie: <span className="font-mono text-lg">{gameCode}</span></p>}
@@ -285,7 +303,8 @@ export default function DashboardPage() {
         {knownNickname && <p className="text-xs text-neutral-400">Pseudo enregistré: {knownNickname}</p>}
         {message && <p className="text-sm text-emerald-400">{message}</p>}
         {error && <p className="text-sm text-red-400">{error}</p>}
-      </section>
+  </section>
+  )}
 
       <section>
         <h2 className="text-xl font-semibold">Tableau de bord</h2>

@@ -257,6 +257,7 @@ export default function DashboardPage() {
           <button
             onClick={async () => {
               try { await apiFetch<{ ok: boolean }>("/api/auth/logout", { method: "POST" }); } catch {}
+              try { if (typeof window !== "undefined") window.localStorage.removeItem("HM_TOKEN"); } catch {}
               clearSession(); setIsLoggedIn(false); setIsAdmin(false); router.replace("/login");
             }}
             className="px-4 py-2 rounded bg-rose-700 hover:bg-rose-600"

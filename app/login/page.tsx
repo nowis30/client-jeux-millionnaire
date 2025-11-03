@@ -15,11 +15,14 @@ export default function LoginPage() {
     setError(null);
     try {
       const path = mode === "login" ? "/api/auth/login" : "/api/auth/register";
-      await apiFetch(path, {
+      const resp = await apiFetch<{ id: string; email: string; isAdmin: boolean; token?: string }>(path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
+      if (typeof window !== "undefined" && resp?.token) {
+        try { window.localStorage.setItem("HM_TOKEN", resp.token); } catch {}
+      }
       router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Échec de l'authentification");

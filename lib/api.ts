@@ -1,6 +1,12 @@
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
 
 let CSRF_TOKEN: string | null = null;
+const TOKEN_KEY = "HM_TOKEN";
+
+function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try { return window.localStorage.getItem(TOKEN_KEY); } catch { return null; }
+}
 
 async function ensureCsrf(): Promise<string | null> {
   try {
@@ -22,6 +28,8 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
     const token = await ensureCsrf();
     if (token) headers["x-csrf-token"] = token;
   }
+  const bearer = getToken();
+  if (bearer) headers["Authorization"] = `Bearer ${bearer}`;
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: "include",
     ...init,

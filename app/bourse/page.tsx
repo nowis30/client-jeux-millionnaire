@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { MARKET_ASSETS } from "@hm/shared";
+import { MARKET_ASSETS } from "../../lib/constants";
 import { loadSession } from "../../lib/session";
 
 type Price = { symbol: string; price: number; at: string };

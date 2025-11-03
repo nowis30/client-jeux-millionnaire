@@ -45,6 +45,7 @@ export default function DashboardPage() {
   const [lobbies, setLobbies] = useState<LobbySummary[]>([]);
   const [knownNickname, setKnownNickname] = useState("");
   const [events, setEvents] = useState<Array<{ at: string; text: string }>>([]);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
 
   useEffect(() => {
     const session = loadSession();
@@ -112,7 +113,42 @@ export default function DashboardPage() {
 
   // Ancien join par code: retiré
 
-  // Démarrer n'est plus utile en partie unique (toujours running)
+  // Actions admin (start/restart)
+  const adminStart = useCallback(async () => {
+    try {
+      let gid = gameId;
+      if (!gid) {
+        const list = await apiFetch<{ games: { id: string }[] }>("/api/games");
+        gid = list.games?.[0]?.id ?? "";
+        if (!gid) throw new Error("Partie introuvable");
+        setGameId(gid);
+      }
+      await apiFetch(`/api/games/${gid}/start`, { method: "POST" });
+      setMessage("Partie démarrée");
+      updateState();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Échec du démarrage");
+    }
+  }, [gameId, updateState]);
+
+  const adminRestart = useCallback(async () => {
+    try {
+      if (!window.confirm("Redémarrer la partie effacera joueurs, annonces, positions et historique. Continuer ?")) return;
+      let gid = gameId;
+      if (!gid) {
+        const list = await apiFetch<{ games: { id: string }[] }>("/api/games");
+        gid = list.games?.[0]?.id ?? "";
+        if (!gid) throw new Error("Partie introuvable");
+        setGameId(gid);
+      }
+      await apiFetch(`/api/games/${gid}/restart`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: true }) });
+      setMessage("Partie redémarrée");
+      setError(null);
+      updateState();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Échec du redémarrage");
+    }
+  }, [gameId, updateState]);
 
   const handleClearSession = useCallback(() => {
     clearSession();
@@ -125,6 +161,26 @@ export default function DashboardPage() {
     setGameStatus(DEFAULT_STATUS);
     setMessage("Session effacée");
   }, []);
+
+  const shareUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const handleShare = useCallback(async () => {
+    const url = shareUrl;
+    const title = "Rejoins le jeu du Millionnaire";
+    const text = "Clique pour te connecter et rejoindre la partie globale.";
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+        setShareStatus("Lien partagé");
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+        setShareStatus("Lien copié dans le presse-papiers");
+      } else {
+        setShareStatus("Partage non supporté. Copiez l'URL du navigateur.");
+      }
+    } catch (e) {
+      setShareStatus("Partage annulé");
+    }
+  }, [shareUrl]);
 
   useEffect(() => {
     if (!gameId) return;
@@ -205,8 +261,11 @@ export default function DashboardPage() {
             }}
             className="px-4 py-2 rounded bg-rose-700 hover:bg-rose-600"
           >Se déconnecter</button>
+          <button onClick={handleShare} className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500">Partager le jeu</button>
+          <a href={`mailto:?subject=${encodeURIComponent("Rejoins le jeu du Millionnaire")}&body=${encodeURIComponent("Rejoins-moi: " + shareUrl)}`} className="px-4 py-2 rounded bg-indigo-700 hover:bg-indigo-600 text-center">Inviter par email</a>
         </div>
-        {gameCode && <p className="text-sm text-neutral-300">Code de la partie: <span className="font-mono text-lg">{gameCode}</span></p>}
+        {shareStatus && <p className="text-xs text-neutral-400">{shareStatus}</p>}
+        {/* Ne plus afficher le code ou les identifiants */}
         {/* Ne plus afficher le playerId technique */}
         {knownNickname && <p className="text-xs text-neutral-400">Pseudo enregistré: {knownNickname}</p>}
         {message && <p className="text-sm text-emerald-400">{message}</p>}
@@ -250,6 +309,17 @@ export default function DashboardPage() {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {isAdmin && (
+        <section className="space-y-2 border border-red-900/40 bg-red-950/20 rounded p-3">
+          <h3 className="text-lg font-semibold text-red-300">Admin</h3>
+          <p className="text-sm text-red-200/80">Contrôles réservés à l'administrateur. Le redémarrage efface toutes les données de la partie.</p>
+          <div className="flex gap-2">
+            <button onClick={adminStart} className="px-3 py-2 rounded bg-orange-600 hover:bg-orange-500 text-sm">Démarrer</button>
+            <button onClick={adminRestart} className="px-3 py-2 rounded bg-red-700 hover:bg-red-600 text-sm">Redémarrer (destructif)</button>
+          </div>
         </section>
       )}
 

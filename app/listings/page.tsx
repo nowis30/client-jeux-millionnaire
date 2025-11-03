@@ -1,9 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import { loadSession } from "../../lib/session";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
+import { apiFetch, API_BASE } from "../../lib/api";
 
 type Holding = {
   id: string;
@@ -28,6 +26,7 @@ type Listing = {
 export default function ListingsPage() {
   const [gameId, setGameId] = useState("");
   const [playerId, setPlayerId] = useState("");
+  const [nickname, setNickname] = useState("");
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [selectedHoldingId, setSelectedHoldingId] = useState("");
@@ -35,13 +34,28 @@ export default function ListingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  // Résoudre automatiquement la partie globale puis mon joueur
   useEffect(() => {
-    const s = loadSession();
-    if (s) {
-      setGameId(s.gameId);
-      setPlayerId(s.playerId);
-    }
-  }, []);
+    (async () => {
+      try {
+        if (!gameId) {
+          const list = await apiFetch<{ games: { id: string }[] }>("/api/games");
+          const g = list.games?.[0];
+          if (g?.id) setGameId(g.id);
+        }
+      } catch {}
+    })();
+  }, [gameId]);
+  useEffect(() => {
+    if (!gameId || playerId) return;
+    (async () => {
+      try {
+        const me = await apiFetch<{ player: { id: string; nickname: string } }>(`/api/games/${gameId}/me`);
+        setPlayerId(me.player.id);
+        setNickname(me.player.nickname ?? "");
+      } catch {}
+    })();
+  }, [gameId, playerId]);
 
   const refreshHoldings = useCallback(async () => {
     if (!gameId || !playerId) return;
@@ -100,12 +114,11 @@ export default function ListingsPage() {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/listings`, {
+      await apiFetch(`/api/games/${gameId}/listings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sellerId: playerId, holdingId: selectedHoldingId, price })
       });
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
       setMessage("Annonce créée");
       setError(null);
       setSelectedHoldingId("");
@@ -120,12 +133,11 @@ export default function ListingsPage() {
   const handleCancel = useCallback(async (id: string) => {
     if (!gameId || !playerId) return;
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/listings/${id}/cancel`, {
+      await apiFetch(`/api/games/${gameId}/listings/${id}/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sellerId: playerId })
       });
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
       setMessage("Annonce annulée");
       setError(null);
       refreshListings();
@@ -139,12 +151,11 @@ export default function ListingsPage() {
   const handleAccept = useCallback(async (id: string) => {
     if (!gameId || !playerId) return;
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/listings/${id}/accept`, {
+      await apiFetch(`/api/games/${gameId}/listings/${id}/accept`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ buyerId: playerId })
       });
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
       setMessage("Achat effectué via annonce");
       setError(null);
       refreshListings();
@@ -160,6 +171,7 @@ export default function ListingsPage() {
       <section>
         <h2 className="text-xl font-semibold">Annonces P2P</h2>
         <p className="text-sm text-neutral-400">Publiez vos biens ou achetez ceux des autres joueurs.</p>
+        {nickname && <p className="text-xs text-neutral-400 mt-1">Connecté en tant que <span className="font-medium">{nickname}</span></p>}
       </section>
 
       <section className="space-y-2">
@@ -185,8 +197,8 @@ export default function ListingsPage() {
           {myListings.map((l) => (
             <article key={l.id} className="border border-neutral-800 rounded bg-neutral-900 p-3 flex items-center justify-between">
               <div className="text-sm">
-                <div>ID: {l.id.slice(0,8)}… Prix: ${l.price.toLocaleString()}</div>
-                <div className="text-xs text-neutral-400">Holding: {l.holdingId ?? "-"} • Publiée: {new Date(l.createdAt).toLocaleTimeString()}</div>
+                <div>Prix: ${l.price.toLocaleString()}</div>
+                <div className="text-xs text-neutral-400">Publiée: {new Date(l.createdAt).toLocaleTimeString()}</div>
               </div>
               <button onClick={() => handleCancel(l.id)} className="px-3 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm">Annuler</button>
             </article>
@@ -201,8 +213,8 @@ export default function ListingsPage() {
           {othersListings.map((l) => (
             <article key={l.id} className="border border-neutral-800 rounded bg-neutral-900 p-3 flex items-center justify-between">
               <div className="text-sm">
-                <div>ID: {l.id.slice(0,8)}… Prix: ${l.price.toLocaleString()}</div>
-                <div className="text-xs text-neutral-400">Holding: {l.holdingId ?? "-"} • Publiée: {new Date(l.createdAt).toLocaleTimeString()}</div>
+                <div>Prix: ${l.price.toLocaleString()}</div>
+                <div className="text-xs text-neutral-400">Publiée: {new Date(l.createdAt).toLocaleTimeString()}</div>
               </div>
               <button onClick={() => handleAccept(l.id)} className="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-sm">Acheter</button>
             </article>

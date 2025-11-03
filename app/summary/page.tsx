@@ -1,28 +1,32 @@
 "use client";
 import { useEffect, useState } from "react";
-import { loadSession } from "../../lib/session";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
+import { apiFetch } from "../../lib/api";
 
 type Entry = { playerId: string; nickname: string; netWorth: number };
 
 export default function SummaryPage() {
   const [gameId, setGameId] = useState("");
-  const [summary, setSummary] = useState<{ status: string; winner: Entry | null; leaderboard: Entry[]; code: string } | null>(null);
+  const [summary, setSummary] = useState<{ status: string; winner: Entry | null; leaderboard: Entry[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Résoudre automatiquement la partie globale
   useEffect(() => {
-    const s = loadSession();
-    if (s?.gameId) setGameId(s.gameId);
-  }, []);
+    (async () => {
+      try {
+        if (!gameId) {
+          const list = await apiFetch<{ games: { id: string }[] }>("/api/games");
+          const g = list.games?.[0];
+          if (g?.id) setGameId(g.id);
+        }
+      } catch {}
+    })();
+  }, [gameId]);
 
   useEffect(() => {
     if (!gameId) return;
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/games/${gameId}/summary`);
-        if (!res.ok) throw new Error(`Erreur ${res.status}`);
-        const data = await res.json();
+        const data = await apiFetch<{ status: string; winner: Entry | null; leaderboard: Entry[] }>(`/api/games/${gameId}/summary`);
         setSummary(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Impossible de charger le résumé");
@@ -36,7 +40,7 @@ export default function SummaryPage() {
       {error && <p className="text-sm text-red-400">{error}</p>}
       {summary && (
         <div className="space-y-4">
-          <p className="text-sm text-neutral-300">Code: <span className="font-mono">{summary.code}</span> • Statut: {summary.status}</p>
+          <p className="text-sm text-neutral-300">Statut: {summary.status}</p>
           <div className="border border-neutral-800 rounded bg-neutral-900 p-3">
             <h3 className="font-semibold">Vainqueur</h3>
             {summary.winner ? (

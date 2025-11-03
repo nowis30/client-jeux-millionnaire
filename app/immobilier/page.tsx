@@ -322,18 +322,13 @@ export default function ImmobilierPage() {
         <div className="grid gap-4 md:grid-cols-2">
           {templates.map((tpl) => (
             <article key={tpl.id} className="border border-neutral-800 rounded-lg bg-neutral-900 overflow-hidden">
-              <div className="aspect-video w-full bg-neutral-800">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={tpl.imageUrl}
-                  alt={tpl.name}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const t = e.currentTarget as HTMLImageElement;
-                    t.onerror = null;
-                    t.src = "https://picsum.photos/640/360?blur=2";
-                  }}
-                />
+              <div className="aspect-video w-full bg-neutral-800 flex items-center justify-center text-neutral-500">
+                {tpl.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={tpl.imageUrl} alt={tpl.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs">Pas de photo</span>
+                )}
               </div>
               <div className="p-4 space-y-2">
               <div className="flex items-center justify-between">

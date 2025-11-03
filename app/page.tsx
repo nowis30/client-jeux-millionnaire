@@ -82,110 +82,47 @@ export default function DashboardPage() {
     }
   }, [gameId]);
 
-  const loadLobbies = useCallback(async () => {
-    try {
-      const data = await apiFetch<{ games: LobbySummary[] }>(`/api/games?status=lobby`);
-      setLobbies(data.games ?? []);
-    } catch (err) {
-      console.warn("Impossible de récupérer les lobbies", err);
-    }
-  }, []);
+  // Partie unique: plus de lobbies à charger
 
-  useEffect(() => {
-    loadLobbies();
-    const timer = setInterval(loadLobbies, 30_000);
-    return () => clearInterval(timer);
-  }, [loadLobbies]);
-
-  const handleCreate = useCallback(async () => {
-    try {
-      const payload: any = nickname ? { hostNickname: nickname } : {};
-      const data = await apiFetch<{ id: string; code: string; status: string; playerId?: string }>(`/api/games`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      setGameId(data.id);
-      setGameStatus(data.status);
-      setPlayers([]);
-      setPlayerId(data.playerId ?? "");
-      setGameCode(data.code);
-      refreshSession({ gameId: data.id, playerId: data.playerId ?? "", nickname: nickname || knownNickname });
-      setMessage(`Partie créée avec le code ${data.code}${data.playerId ? " et joueur associé" : ""}`);
-      setError(null);
-      loadLobbies();
-    } catch (err) {
-      setMessage(null);
-      setError(err instanceof Error ? err.message : "Impossible de créer la partie");
-    }
-  }, [loadLobbies, refreshSession]);
-
-  const handleJoin = useCallback(async () => {
-    if (!gameId || !nickname) {
-      setError("Fournissez gameId et pseudo");
+  // Partie unique: bouton "Rejoindre la partie" -> récupère GLOBAL et rejoint
+  const handleJoinGlobal = useCallback(async () => {
+    if (!nickname) {
+      setError("Fournissez un pseudo");
       return;
     }
     try {
-      const data = await apiFetch<{ playerId: string; code: string }>(`/api/games/${gameId}/join`, {
+      const list = await apiFetch<{ games: { id: string; code: string; status: string }[] }>(`/api/games`);
+      const g = list.games?.[0];
+      if (!g) throw new Error("Partie introuvable");
+      const data = await apiFetch<{ playerId: string; code: string }>(`/api/games/${g.id}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nickname }),
       });
+      setGameId(g.id);
       setPlayerId(data.playerId);
+      setGameCode(g.code);
       setKnownNickname(nickname);
       setNickname("");
-      refreshSession({ gameId, playerId: data.playerId, nickname });
+      refreshSession({ gameId: g.id, playerId: data.playerId, nickname: knownNickname || nickname });
       setError(null);
-      setMessage(`Rejoint la partie ${data.code}`);
+      setMessage(`Rejoint la partie ${g.code}`);
       updateState();
-      loadLobbies();
-    } catch (err) {
+    } catch (err: any) {
       setMessage(null);
-      setError(err instanceof Error ? err.message : "Impossible de rejoindre la partie");
+      if (err instanceof Error && /409/.test(err.message)) {
+        setError("Ce pseudo est déjà utilisé. Choisissez-en un autre.");
+      } else {
+        setError(err instanceof Error ? err.message : "Impossible de rejoindre la partie");
+      }
     }
-  }, [gameId, nickname, updateState, refreshSession, loadLobbies]);
+  }, [nickname, knownNickname, refreshSession, updateState]);
 
-  const handleJoinByCode = useCallback(async () => {
-    if (!gameCodeInput || !nickname) {
-      setError("Fournissez le code et un pseudo");
-      return;
-    }
-    try {
-      const data = await apiFetch<{ playerId: string; gameId: string; code: string }>(`/api/games/code/${gameCodeInput}/join`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nickname }),
-      });
-      setGameId(data.gameId);
-      setPlayerId(data.playerId);
-      setGameCode(data.code);
-      setKnownNickname(nickname);
-      setNickname("");
-      refreshSession({ gameId: data.gameId, playerId: data.playerId, nickname });
-      setError(null);
-      setMessage(`Rejoint la partie ${data.code}`);
-      updateState();
-      loadLobbies();
-    } catch (err) {
-      setMessage(null);
-      setError(err instanceof Error ? err.message : "Impossible de rejoindre par code");
-    }
-  }, [gameCodeInput, nickname, refreshSession, updateState, loadLobbies]);
+  // Ancien join par gameId: inutile en mode partie unique
 
-  const handleStart = useCallback(async () => {
-    if (!gameId) return;
-    try {
-  const data = await apiFetch<{ status: string }>(`/api/games/${gameId}/start`, { method: "POST" });
-      setGameStatus(data.status);
-      setError(null);
-      setMessage("Partie démarrée");
-      updateState();
-      loadLobbies();
-    } catch (err) {
-      setMessage(null);
-      setError(err instanceof Error ? err.message : "Impossible de démarrer la partie");
-    }
-  }, [gameId, updateState, loadLobbies]);
+  // Ancien join par code: retiré
+
+  // Démarrer n'est plus utile en partie unique (toujours running)
 
   const handleClearSession = useCallback(() => {
     clearSession();
@@ -213,7 +150,6 @@ export default function DashboardPage() {
       setLeaderboard(payload.leaderboard);
     });
     socket.on("lobby-update", () => {
-      loadLobbies();
       if (gameId) updateState();
     });
     socket.on("event-feed", (e: any) => {
@@ -234,7 +170,7 @@ export default function DashboardPage() {
     return () => {
       socket.disconnect();
     };
-  }, [gameId, loadLobbies, updateState]);
+  }, [gameId, updateState]);
 
   // Tente de récupérer mon joueur courant si playerId manquant
   useEffect(() => {
@@ -268,58 +204,31 @@ export default function DashboardPage() {
         </section>
       ) : (
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold">Gestion de partie</h2>
-  <div className="flex flex-wrap gap-3 items-end">
-          <button onClick={handleCreate} className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500">Créer une partie</button>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <input
-              value={gameId}
-              onChange={(e) => setGameId(e.target.value)}
-              placeholder="Game ID"
-              className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm"
-            />
-            <input
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              placeholder="Pseudo"
-              className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm"
-            />
-            <button onClick={handleJoin} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500">Rejoindre (ID)</button>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <input
-              value={gameCodeInput}
-              onChange={(e) => setGameCodeInput(e.target.value.toUpperCase())}
-              placeholder="Code (ABC123)"
-              className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm uppercase"
-            />
-            <button onClick={handleJoinByCode} className="px-4 py-2 rounded bg-sky-600 hover:bg-sky-500">Rejoindre (code)</button>
-          </div>
-          <button onClick={handleStart} disabled={!gameId || !isAdmin} className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 disabled:opacity-50">Démarrer (admin)</button>
+        <h2 className="text-xl font-semibold">Rejoindre la partie mondiale</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <input
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            placeholder="Votre pseudo"
+            className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm"
+          />
+          <button onClick={handleJoinGlobal} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500">Rejoindre</button>
           <button onClick={handleClearSession} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Effacer session</button>
           <button
             onClick={async () => {
-              try {
-                await apiFetch<{ ok: boolean }>("/api/auth/logout", { method: "POST" });
-              } catch {}
-              // Nettoyage local et redirection login
-              clearSession();
-              setIsLoggedIn(false);
-              setIsAdmin(false);
-              router.replace("/login");
+              try { await apiFetch<{ ok: boolean }>("/api/auth/logout", { method: "POST" }); } catch {}
+              clearSession(); setIsLoggedIn(false); setIsAdmin(false); router.replace("/login");
             }}
             className="px-4 py-2 rounded bg-rose-700 hover:bg-rose-600"
-          >
-            Se déconnecter
-          </button>
+          >Se déconnecter</button>
         </div>
-        {gameCode && <p className="text-sm text-neutral-300">Code de partie: <span className="font-mono text-lg">{gameCode}</span></p>}
-  {/* Ne plus afficher le playerId technique */}
+        {gameCode && <p className="text-sm text-neutral-300">Code de la partie: <span className="font-mono text-lg">{gameCode}</span></p>}
+        {/* Ne plus afficher le playerId technique */}
         {knownNickname && <p className="text-xs text-neutral-400">Pseudo enregistré: {knownNickname}</p>}
         {message && <p className="text-sm text-emerald-400">{message}</p>}
         {error && <p className="text-sm text-red-400">{error}</p>}
-  </section>
-  )}
+      </section>
+      )}
 
       <section>
         <h2 className="text-xl font-semibold">Tableau de bord</h2>
@@ -360,40 +269,7 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {lobbies.length > 0 && (
-        <section className="space-y-2">
-          <h3 className="text-lg font-semibold">Lobbies publics</h3>
-          <div className="grid gap-2 md:grid-cols-2">
-            {lobbies.map((lobby) => (
-              <article key={lobby.id} className="border border-neutral-800 rounded bg-neutral-900 p-3 flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold">Code {lobby.code}</span>
-                  <span className="text-xs text-neutral-400">{new Date(lobby.createdAt).toLocaleTimeString()}</span>
-                </div>
-                <p className="text-sm text-neutral-300">Joueurs: {lobby.players}</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setGameId(lobby.id);
-                      setGameCode(lobby.code);
-                      refreshSession({ gameId: lobby.id });
-                    }}
-                    className="px-3 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm"
-                  >
-                    Utiliser l'ID
-                  </button>
-                  <button
-                    onClick={() => setGameCodeInput(lobby.code)}
-                    className="px-3 py-2 rounded bg-sky-600 hover:bg-sky-500 text-sm"
-                  >
-                    Copier le code
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Lobbies publics supprimés en mode partie unique */}
 
       {events.length > 0 && (
         <section className="space-y-2">

@@ -53,7 +53,13 @@ export default function ImmobilierPage() {
         const data = await apiFetch<{ player: { id: string; nickname: string } }>(`/api/games/${gameId}/me`);
         setPlayerId(data.player.id);
         if (data.player.nickname) setNickname(data.player.nickname);
-      } catch {}
+      } catch {
+        // Fallback mobile: si le cookie invité n'est pas envoyé (third‑party), tenter un join explicite qui réutilisera le joueur (pseudo=email)
+        try {
+          const j = await apiFetch<{ playerId: string }>(`/api/games/${gameId}/join`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+          setPlayerId(j.playerId);
+        } catch {}
+      }
     })();
   }, [gameId, playerId]);
 

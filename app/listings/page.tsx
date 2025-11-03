@@ -53,7 +53,13 @@ export default function ListingsPage() {
         const me = await apiFetch<{ player: { id: string; nickname: string } }>(`/api/games/${gameId}/me`);
         setPlayerId(me.player.id);
         setNickname(me.player.nickname ?? "");
-      } catch {}
+      } catch {
+        // Fallback: tenter un join explicite
+        try {
+          const j = await apiFetch<{ playerId: string }>(`/api/games/${gameId}/join`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+          setPlayerId(j.playerId);
+        } catch {}
+      }
     })();
   }, [gameId, playerId]);
 

@@ -40,7 +40,13 @@ export default function BoursePage() {
         const data = await apiFetch<{ player: { id: string; nickname: string } }>(`/api/games/${gameId}/me`);
         setPlayerId(data.player.id);
         if (data.player.nickname) setNickname(data.player.nickname);
-      } catch {}
+      } catch {
+        // Fallback: tenter un join explicite si /me échoue (cookies tiers bloqués)
+        try {
+          const j = await apiFetch<{ playerId: string }>(`/api/games/${gameId}/join`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+          setPlayerId(j.playerId);
+        } catch {}
+      }
     })();
   }, [gameId, playerId]);
 
@@ -85,13 +91,11 @@ export default function BoursePage() {
         return;
       }
       try {
-        const res = await fetch(`${API_BASE}/api/games/${gameId}/markets/${type}`, {
+        const data = await apiFetch<{ price: number }>(`/api/games/${gameId}/markets/${type}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ playerId, symbol, quantity }),
         });
-        if (!res.ok) throw new Error(`Erreur ${res.status}`);
-        const data = await res.json();
         setMessage(`${type === "buy" ? "Achat" : "Vente"} réalisé à ${data.price.toFixed(2)}$`);
         setError(null);
         await Promise.all([loadPrices(), loadHoldings()]);

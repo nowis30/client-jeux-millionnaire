@@ -20,6 +20,15 @@ export default function BoursePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Préparer les cookies cross‑site (hm_guest + hm_csrf) le plus tôt possible
+  useEffect(() => {
+    (async () => {
+      try {
+        await fetch(`${API_BASE}/api/auth/csrf`, { credentials: "include" });
+      } catch {}
+    })();
+  }, []);
+
   // Résoudre automatiquement le game id global
   useEffect(() => {
     (async () => {

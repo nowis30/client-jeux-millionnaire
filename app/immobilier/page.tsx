@@ -37,6 +37,15 @@ export default function ImmobilierPage() {
   const [economy, setEconomy] = useState<{ baseMortgageRate: number; appreciationAnnual: number; schedule: number[] } | null>(null);
   const [scenario, setScenario] = useState<"prudent" | "central" | "optimiste">("central");
 
+  // Préparer les cookies cross‑site (hm_guest + hm_csrf) le plus tôt possible
+  useEffect(() => {
+    (async () => {
+      try {
+        await fetch(`${API_BASE}/api/auth/csrf`, { credentials: "include" });
+      } catch {}
+    })();
+  }, []);
+
   // --- Helpers projection 10 ans ---
   const formatCurrency = (n: number) => {
     if (!isFinite(n)) return "$0";
@@ -318,7 +327,7 @@ export default function ImmobilierPage() {
       )}
 
       <section className="space-y-2">
-        <h3 className="text-lg font-semibold">Immeubles disponibles</h3>
+        <h3 className="text-lg font-semibold">Immeubles disponibles {templates.length ? <span className="text-sm text-neutral-400">({templates.length})</span> : null}</h3>
         <div className="grid gap-4 md:grid-cols-2">
           {templates.map((tpl) => (
             <article key={tpl.id} className="border border-neutral-800 rounded-lg bg-neutral-900 overflow-hidden">

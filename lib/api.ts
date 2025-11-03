@@ -36,8 +36,18 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
     headers,
   });
   if (!res.ok) {
-    const status = res.status;
-    throw new Error(`Erreur ${status}`);
+    // Essayer d'extraire le message d'erreur JSON renvoyé par le serveur
+    try {
+      const ct = res.headers.get("content-type") || "";
+      if (ct.includes("application/json")) {
+        const data = (await res.json()) as any;
+        const msg = (data && (data.error || data.message)) ? String(data.error || data.message) : `Erreur ${res.status}`;
+        throw new Error(msg);
+      }
+    } catch {
+      // ignore parsing error
+    }
+    throw new Error(`Erreur ${res.status}`);
   }
   if (res.status === 204) return undefined as unknown as T;
   return (await res.json()) as T;

@@ -15,6 +15,7 @@ export default function BoursePage() {
   const [symbol, setSymbol] = useState<string>(MARKET_ASSETS[0]);
   const [quantity, setQuantity] = useState(1);
   const [prices, setPrices] = useState<Price[]>([]);
+  const [returns, setReturns] = useState<Record<string, Record<string, number>> | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +64,18 @@ export default function BoursePage() {
     }
   }, [gameId]);
 
+  const loadReturns = useCallback(async () => {
+    if (!gameId) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/games/${gameId}/markets/returns?windows=1d,7d,30d,ytd`);
+      if (!res.ok) throw new Error(`Erreur ${res.status}`);
+      const data: { returns: Record<string, Record<string, number>> } = await res.json();
+      setReturns(data.returns ?? null);
+    } catch (err) {
+      // non bloquant
+    }
+  }, [gameId]);
+
   const loadHoldings = useCallback(async () => {
     if (!gameId || !playerId) return;
     try {
@@ -78,7 +91,8 @@ export default function BoursePage() {
 
   useEffect(() => {
     loadPrices();
-  }, [loadPrices]);
+    loadReturns();
+  }, [loadPrices, loadReturns]);
 
   useEffect(() => {
     loadHoldings();
@@ -161,7 +175,7 @@ export default function BoursePage() {
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       <section className="space-y-3">
-        <h3 className="text-lg font-semibold">Prix simulés</h3>
+  <h3 className="text-lg font-semibold">Prix simulés</h3>
         <table className="w-full text-sm bg-neutral-900 border border-neutral-800 rounded">
           <thead>
             <tr className="text-left">
@@ -181,6 +195,40 @@ export default function BoursePage() {
           </tbody>
         </table>
       </section>
+
+      {returns && (
+        <section className="space-y-3">
+          <h3 className="text-lg font-semibold">Rendement par actif</h3>
+          <table className="w-full text-sm bg-neutral-900 border border-neutral-800 rounded">
+            <thead>
+              <tr className="text-left">
+                <th className="p-2">Actif</th>
+                <th className="p-2">1j</th>
+                <th className="p-2">7j</th>
+                <th className="p-2">30j</th>
+                <th className="p-2">YTD</th>
+              </tr>
+            </thead>
+            <tbody>
+              {MARKET_ASSETS.map((asset) => {
+                const r = returns?.[asset] || {};
+                const cells = ["1d","7d","30d","ytd"].map((k) => {
+                  const v = (r as any)[k] ?? 0;
+                  const pct = (v * 100).toFixed(2) + "%";
+                  const cls = v >= 0 ? "text-emerald-400" : "text-rose-400";
+                  return <td key={k} className={`p-2 ${cls}`}>{pct}</td>;
+                });
+                return (
+                  <tr key={asset} className="border-t border-neutral-800">
+                    <td className="p-2">{asset}</td>
+                    {cells}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       {enrichedHoldings.length > 0 && (
         <section className="space-y-3">

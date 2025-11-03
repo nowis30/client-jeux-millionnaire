@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 192" width="256" height="192">
+  <defs>
+    <linearGradient id="roof2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5f3dc4"/>
+      <stop offset="100%" stop-color="#7048e8"/>
+    </linearGradient>
+    <linearGradient id="wall2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f1f3f5"/>
+      <stop offset="100%" stop-color="#e9ecef"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="256" height="192" fill="#0b0f14"/>
+  <g transform="translate(12,18)">
+    <polygon points="116,0 0,56 232,56" fill="url(#roof2)"/>
+    <rect x="18" y="56" width="196" height="100" rx="6" fill="url(#wall2)"/>
+    <!-- étage 1 -->
+    <rect x="32" y="76" width="56" height="26" rx="3" fill="#74c0fc"/>
+    <rect x="148" y="76" width="56" height="26" rx="3" fill="#74c0fc"/>
+    <!-- étage 2 -->
+    <rect x="32" y="108" width="56" height="26" rx="3" fill="#74c0fc"/>
+    <rect x="148" y="108" width="56" height="26" rx="3" fill="#74c0fc"/>
+    <!-- portes -->
+    <rect x="98" y="96" width="36" height="60" rx="3" fill="#343a40"/>
+    <circle cx="130" cy="126" r="2" fill="#868e96"/>
+  </g>
+</svg>

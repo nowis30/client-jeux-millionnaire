@@ -314,7 +314,7 @@ export default function DashboardPage() {
           </button>
         </div>
         {gameCode && <p className="text-sm text-neutral-300">Code de partie: <span className="font-mono text-lg">{gameCode}</span></p>}
-        {playerId && <p className="text-xs text-neutral-400">Votre playerId: {playerId}</p>}
+  {/* Ne plus afficher le playerId technique */}
         {knownNickname && <p className="text-xs text-neutral-400">Pseudo enregistré: {knownNickname}</p>}
         {message && <p className="text-sm text-emerald-400">{message}</p>}
         {error && <p className="text-sm text-red-400">{error}</p>}

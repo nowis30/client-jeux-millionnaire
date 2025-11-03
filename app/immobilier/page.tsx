@@ -106,7 +106,7 @@ export default function ImmobilierPage() {
       </section>
 
       <section className="space-y-3">
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-1">
           <label className="text-sm text-neutral-300 flex flex-col gap-1">
             Game ID
             <input
@@ -114,15 +114,6 @@ export default function ImmobilierPage() {
               onChange={(e) => setGameId(e.target.value)}
               className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm"
               placeholder="cuid de la partie"
-            />
-          </label>
-          <label className="text-sm text-neutral-300 flex flex-col gap-1">
-            Player ID
-            <input
-              value={playerId}
-              onChange={(e) => setPlayerId(e.target.value)}
-              className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm"
-              placeholder="cuid du joueur"
             />
           </label>
         </div>

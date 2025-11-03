@@ -44,6 +44,11 @@ export default function LoginPage() {
       <button onClick={() => setMode(mode === "login" ? "register" : "login")} className="text-sm text-neutral-300 underline">
         {mode === "login" ? "Créer un compte" : "J'ai déjà un compte"}
       </button>
+      {mode === "login" && (
+        <p className="text-sm text-neutral-400">
+          <a href="/forgot" className="underline">Mot de passe oublié ?</a>
+        </p>
+      )}
     </main>
   );
 }

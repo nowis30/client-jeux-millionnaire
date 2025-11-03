@@ -36,7 +36,7 @@ export default function DashboardPage() {
   const [gameId, setGameId] = useState("");
   const [playerId, setPlayerId] = useState("");
   const [gameCode, setGameCode] = useState("");
-  const [nickname, setNickname] = useState("");
+  // Pseudo n'est plus saisi: il sera l'email de l'utilisateur connecté
   const [gameStatus, setGameStatus] = useState(DEFAULT_STATUS);
   const [players, setPlayers] = useState<GamePlayer[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -86,10 +86,6 @@ export default function DashboardPage() {
 
   // Partie unique: bouton "Rejoindre la partie" -> récupère GLOBAL et rejoint
   const handleJoinGlobal = useCallback(async () => {
-    if (!nickname) {
-      setError("Fournissez un pseudo");
-      return;
-    }
     try {
       const list = await apiFetch<{ games: { id: string; code: string; status: string }[] }>(`/api/games`);
       const g = list.games?.[0];
@@ -97,26 +93,20 @@ export default function DashboardPage() {
       const data = await apiFetch<{ playerId: string; code: string }>(`/api/games/${g.id}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nickname }),
+        body: JSON.stringify({}),
       });
       setGameId(g.id);
       setPlayerId(data.playerId);
       setGameCode(g.code);
-      setKnownNickname(nickname);
-      setNickname("");
-      refreshSession({ gameId: g.id, playerId: data.playerId, nickname: knownNickname || nickname });
+      refreshSession({ gameId: g.id, playerId: data.playerId });
       setError(null);
       setMessage(`Rejoint la partie ${g.code}`);
       updateState();
     } catch (err: any) {
       setMessage(null);
-      if (err instanceof Error && /409/.test(err.message)) {
-        setError("Ce pseudo est déjà utilisé. Choisissez-en un autre.");
-      } else {
-        setError(err instanceof Error ? err.message : "Impossible de rejoindre la partie");
-      }
+      setError(err instanceof Error ? err.message : "Impossible de rejoindre la partie");
     }
-  }, [nickname, knownNickname, refreshSession, updateState]);
+  }, [refreshSession, updateState]);
 
   // Ancien join par gameId: inutile en mode partie unique
 
@@ -206,13 +196,7 @@ export default function DashboardPage() {
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Rejoindre la partie mondiale</h2>
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <input
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            placeholder="Votre pseudo"
-            className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm"
-          />
-          <button onClick={handleJoinGlobal} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500">Rejoindre</button>
+          <button onClick={handleJoinGlobal} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500">Rejoindre (pseudo = votre email)</button>
           <button onClick={handleClearSession} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Effacer session</button>
           <button
             onClick={async () => {

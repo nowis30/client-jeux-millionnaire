@@ -60,9 +60,7 @@ export default function ImmobilierPage() {
   const loadTemplates = useCallback(async () => {
     try {
       const query = gameId ? `?gameId=${encodeURIComponent(gameId)}` : "";
-      const res = await fetch(`${API_BASE}/api/properties/templates${query}`);
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data: { templates: Template[] } = await res.json();
+      const data = await apiFetch<{ templates: Template[] }>(`/api/properties/templates${query}`);
       setTemplates(data.templates ?? []);
       setError(null);
     } catch (err) {
@@ -80,7 +78,7 @@ export default function ImmobilierPage() {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/purchase`, {
+      await apiFetch(`/api/games/${gameId}/properties/purchase`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -90,8 +88,6 @@ export default function ImmobilierPage() {
           downPaymentPercent,
         }),
       });
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      await res.json();
       setMessage(`Immeuble acheté!`);
       setError(null);
       // Rafraîchir la liste des immeubles disponibles (exclure celui acheté)

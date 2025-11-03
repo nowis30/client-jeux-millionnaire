@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MARKET_ASSETS } from "../../lib/constants";
-import { loadSession } from "../../lib/session";
+import { apiFetch } from "../../lib/api";
 
 type Price = { symbol: string; price: number; at: string };
 type Holding = { id: string; symbol: string; quantity: number; avgPrice: number };
@@ -11,6 +11,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
 export default function BoursePage() {
   const [gameId, setGameId] = useState("");
   const [playerId, setPlayerId] = useState("");
+  const [nickname, setNickname] = useState("");
   const [symbol, setSymbol] = useState<string>(MARKET_ASSETS[0]);
   const [quantity, setQuantity] = useState(1);
   const [prices, setPrices] = useState<Price[]>([]);
@@ -18,24 +19,27 @@ export default function BoursePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Résoudre automatiquement le game id global
   useEffect(() => {
-    const session = loadSession();
-    if (session) {
-      if (session.gameId) setGameId((prev) => prev || session.gameId);
-      if (session.playerId) setPlayerId((prev) => prev || session.playerId);
-    }
-  }, []);
+    (async () => {
+      try {
+        if (!gameId) {
+          const list = await apiFetch<{ games: { id: string; code: string }[] }>("/api/games");
+          const g = list.games?.[0];
+          if (g?.id) setGameId(g.id);
+        }
+      } catch {}
+    })();
+  }, [gameId]);
 
   // Résoudre automatiquement le player via cookie invité si absent
   useEffect(() => {
     if (!gameId || playerId) return;
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/games/${gameId}/me`);
-        if (res.ok) {
-          const data: { player: { id: string } } = await res.json();
-          setPlayerId(data.player.id);
-        }
+        const data = await apiFetch<{ player: { id: string; nickname: string } }>(`/api/games/${gameId}/me`);
+        setPlayerId(data.player.id);
+        if (data.player.nickname) setNickname(data.player.nickname);
       } catch {}
     })();
   }, [gameId, playerId]);
@@ -77,7 +81,7 @@ export default function BoursePage() {
   const handleTrade = useCallback(
     async (type: "buy" | "sell") => {
       if (!gameId || !playerId) {
-        setError("Renseignez gameId et playerId");
+        setError("Connexion en cours… réessayez dans un instant");
         return;
       }
       try {
@@ -115,16 +119,11 @@ export default function BoursePage() {
         <p className="text-sm text-neutral-300">Investissez dans l'OR, le PÉTROLE, le S&P 500 et le TSX.</p>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-2">
-        <label className="text-sm text-neutral-300 flex flex-col gap-1">
-          Game ID
-          <input value={gameId} onChange={(e) => setGameId(e.target.value)} className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm" />
-        </label>
-        <label className="text-sm text-neutral-300 flex flex-col gap-1">
-          Player ID
-          <input value={playerId} onChange={(e) => setPlayerId(e.target.value)} className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm" />
-        </label>
-      </section>
+      {nickname && (
+        <section>
+          <p className="text-sm text-neutral-300">Pseudo: <span className="font-medium">{nickname}</span></p>
+        </section>
+      )}
 
   <section className="flex flex-wrap gap-3 items-end">
         <label className="text-sm text-neutral-300 flex flex-col gap-1">
@@ -152,19 +151,6 @@ export default function BoursePage() {
         <button onClick={() => handleTrade("sell")} className="px-4 py-2 rounded bg-rose-600 hover:bg-rose-500">Vendre</button>
         <button onClick={loadPrices} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Actualiser prix</button>
         <button onClick={loadHoldings} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Actualiser positions</button>
-        <button
-          onClick={() => {
-            const session = loadSession();
-            if (session) {
-              if (session.gameId) setGameId(session.gameId);
-              if (session.playerId) setPlayerId(session.playerId);
-              setMessage("Session appliquée aux champs");
-            }
-          }}
-          className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600"
-        >
-          Utiliser session sauvegardée
-        </button>
       </section>
 
       {message && <p className="text-sm text-emerald-400">{message}</p>}

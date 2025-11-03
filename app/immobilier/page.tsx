@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { loadSession } from "../../lib/session";
+import { apiFetch } from "../../lib/api";
 
 type Template = {
   id: string;
@@ -25,30 +25,34 @@ export default function ImmobilierPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [gameId, setGameId] = useState("");
   const [playerId, setPlayerId] = useState("");
+  const [nickname, setNickname] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [mortgageRate, setMortgageRate] = useState(0.05);
   const [downPaymentPercent, setDownPaymentPercent] = useState(0.2);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Résolution automatique du gameId global puis du player (via cookie invité/auth)
   useEffect(() => {
-    const session = loadSession();
-    if (session) {
-      if (session.gameId) setGameId((prev) => prev || session.gameId);
-      if (session.playerId) setPlayerId((prev) => prev || session.playerId);
-    }
-  }, []);
+    (async () => {
+      try {
+        if (!gameId) {
+          const list = await apiFetch<{ games: { id: string; code: string }[] }>("/api/games");
+          const g = list.games?.[0];
+          if (g?.id) setGameId(g.id);
+        }
+      } catch {}
+    })();
+  }, [gameId]);
 
   // Tente de résoudre automatiquement le player via cookie invité
   useEffect(() => {
     if (!gameId || playerId) return;
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/games/${gameId}/me`);
-        if (res.ok) {
-          const data: { player: { id: string } } = await res.json();
-          setPlayerId(data.player.id);
-        }
+        const data = await apiFetch<{ player: { id: string; nickname: string } }>(`/api/games/${gameId}/me`);
+        setPlayerId(data.player.id);
+        if (data.player.nickname) setNickname(data.player.nickname);
       } catch {}
     })();
   }, [gameId, playerId]);
@@ -72,7 +76,7 @@ export default function ImmobilierPage() {
 
   const handlePurchase = useCallback(async () => {
     if (!gameId || !playerId || !selectedTemplate) {
-      setError("Renseignez gameId, playerId et immeuble");
+      setError("Sélectionnez un immeuble");
       return;
     }
     try {
@@ -87,8 +91,8 @@ export default function ImmobilierPage() {
         }),
       });
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data: { holdingId: string } = await res.json();
-      setMessage(`Immeuble acheté! Holding ${data.holdingId}`);
+      await res.json();
+      setMessage(`Immeuble acheté!`);
       setError(null);
       // Rafraîchir la liste des immeubles disponibles (exclure celui acheté)
       loadTemplates();
@@ -106,17 +110,7 @@ export default function ImmobilierPage() {
       </section>
 
       <section className="space-y-3">
-        <div className="grid gap-3 md:grid-cols-1">
-          <label className="text-sm text-neutral-300 flex flex-col gap-1">
-            Game ID
-            <input
-              value={gameId}
-              onChange={(e) => setGameId(e.target.value)}
-              className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm"
-              placeholder="cuid de la partie"
-            />
-          </label>
-        </div>
+        {nickname && <p className="text-sm text-neutral-300">Pseudo: <span className="font-medium">{nickname}</span></p>}
 
         <div className="grid gap-3 md:grid-cols-3">
           <label className="text-sm text-neutral-300 flex flex-col gap-1">
@@ -159,19 +153,7 @@ export default function ImmobilierPage() {
 
         <button onClick={handlePurchase} className="px-4 py-2 rounded bg-sky-600 hover:bg-sky-500">Acheter</button>
         <button onClick={loadTemplates} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Actualiser les immeubles</button>
-        <button
-          onClick={() => {
-            const session = loadSession();
-            if (session) {
-              if (session.gameId) setGameId(session.gameId);
-              if (session.playerId) setPlayerId(session.playerId);
-              setMessage("Session appliquée aux champs");
-            }
-          }}
-          className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600"
-        >
-          Utiliser session sauvegardée
-        </button>
+        
         {message && <p className="text-sm text-emerald-400">{message}</p>}
         {error && <p className="text-sm text-red-400">{error}</p>}
       </section>

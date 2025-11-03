@@ -8,6 +8,8 @@ export default withPWA({
   experimental: {
     appDir: true,
   },
+  // Assure la transpilation du paquet local partagé en environnements CI (Vercel)
+  transpilePackages: ['@hm/shared'],
   images: {
     // Autoriser les images distantes (photos réalistes) depuis picsum.photos (ou à remplacer par vos domaines)
     domains: ['picsum.photos'],

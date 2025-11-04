@@ -2,7 +2,6 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { io, Socket } from "socket.io-client";
 import { clearSession, loadSession, saveSession } from "../lib/session";
 import { apiFetch, API_BASE } from "../lib/api";
 
@@ -44,7 +43,7 @@ export default function DashboardPage() {
   const [gameCodeInput, setGameCodeInput] = useState("");
   const [lobbies, setLobbies] = useState<LobbySummary[]>([]);
   const [knownNickname, setKnownNickname] = useState("");
-  const [events, setEvents] = useState<Array<{ at: string; text: string }>>([]);
+  // Plus de suivi client: on retire le feed d'événements temps réel
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [portfolioPlayer, setPortfolioPlayer] = useState<GamePlayer | null>(null);
   const [portfolioProps, setPortfolioProps] = useState<any[]>([]);
@@ -52,6 +51,8 @@ export default function DashboardPage() {
   const [priceMap, setPriceMap] = useState<Record<string, number>>({});
   const [economy, setEconomy] = useState<{ baseMortgageRate: number; appreciationAnnual: number; schedule: number[] } | null>(null);
   const [proj, setProj] = useState<Array<{ year: number; net: number }>>([]);
+  const [projLoading, setProjLoading] = useState(false);
+  const [projRequested, setProjRequested] = useState(false);
 
   useEffect(() => {
     const session = loadSession();
@@ -61,8 +62,6 @@ export default function DashboardPage() {
       if (session.nickname) setKnownNickname(session.nickname);
     }
   }, []);
-
-  // La connexion socket est initialisée après la définition des callbacks
 
   const refreshSession = useCallback(
     (partial?: Partial<{ gameId: string; playerId: string; nickname: string }>) => {
@@ -159,8 +158,7 @@ export default function DashboardPage() {
     }
   }
 
-  useEffect(() => {
-    // Calcule une projection 10 ans de la valeur nette totale (immo + bourse + cash statique)
+  const computeProjection = useCallback(() => {
     if (!portfolioPlayer) { setProj([]); return; }
     const YEARS = 10;
     const sched = (economy?.schedule && economy.schedule.length ? economy.schedule : Array.from({ length: YEARS }, () => 0.02)).slice(0, YEARS);
@@ -206,6 +204,18 @@ export default function DashboardPage() {
     }
     setProj(out);
   }, [portfolioPlayer, portfolioProps, portfolioMkts, priceMap, economy]);
+
+  // Ne pas calculer automatiquement: uniquement à la demande
+  useEffect(() => {
+    if (!projRequested) { setProj([]); return; }
+    setProjLoading(true);
+    try {
+      computeProjection();
+    } finally {
+      setProjLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projRequested, portfolioPlayer, portfolioProps, portfolioMkts, priceMap, economy]);
 
   function PortfolioProjectionChart({ data }: { data: { year: number; net: number }[] }) {
     if (!data || data.length === 0) return null;
@@ -330,48 +340,12 @@ export default function DashboardPage() {
     }
   }, [shareUrl]);
 
+  // Ne plus faire de polling: un seul chargement + bouton manuel
   useEffect(() => {
     if (!gameId) return;
     updateState();
-    const timer = setInterval(updateState, 10_000);
-    return () => clearInterval(timer);
   }, [gameId, updateState]);
 
-  // Socket: classement et mises à jour lobby en temps réel
-  useEffect(() => {
-  const socket: Socket = io(API_BASE, { withCredentials: true, ...(gameId ? { query: { gameId } } : {}) });
-    socket.on("hourly-tick", (payload: { leaderboard: Entry[] }) => {
-      setLeaderboard(payload.leaderboard);
-    });
-    socket.on("lobby-update", () => {
-      if (gameId) updateState();
-    });
-    socket.on("event-feed", (e: any) => {
-      const text = (() => {
-        if (e.type === "property:purchase") return `Achat immobilier (template ${e.templateId})`;
-        if (e.type === "property:refinance") return `Refinancement propriété ${e.holdingId} à ${(e.newRate * 100).toFixed(2)}%`;
-        if (e.type === "property:sell") return `Vente propriété ${e.holdingId} (+$${Number(e.proceeds ?? 0).toLocaleString()})`;
-        if (e.type === "market:buy") return `Achat ${e.quantity} ${e.symbol} @ $${Number(e.price ?? 0).toFixed(2)}`;
-        if (e.type === "market:sell") return `Vente ${e.quantity} ${e.symbol} @ $${Number(e.price ?? 0).toFixed(2)}`;
-        if (e.type === "market:dividend") return `Dividende ${e.symbol} +$${Number(e.amount ?? 0).toFixed(2)} (Rdt ${(Number(e.yieldA ?? 0) * 100).toFixed(2)}%/an)`;
-        if (e.type === "market:dividend-agg") {
-          const total = Number(e.amount ?? 0).toFixed(2);
-          const details = e.details ? Object.entries(e.details as Record<string, number>).map(([s, a]) => `${s} $${Number(a).toFixed(2)}`).join(" · ") : "";
-          return `Dividendes +$${total}${details ? ` (${details})` : ""}`;
-        }
-        if (e.type === "listing:create") return `Nouvelle annonce publiée`;
-        if (e.type === "listing:cancel") return `Annonce annulée`;
-        if (e.type === "listing:accept") return `Annonce acceptée (achat)`;
-        if (e.type === "cash:margin-interest") return `Intérêts de marge -$${Number(e.amount ?? 0).toFixed(2)} (taux ${(Number(e.rate ?? 0) * 100).toFixed(2)}%)`;
-        return e.type ?? "événement";
-      })();
-      setEvents((prev) => [{ at: e.at ?? new Date().toISOString(), text }, ...prev].slice(0, 20));
-    });
-    if (gameId) socket.emit("join-game", gameId);
-    return () => {
-      socket.disconnect();
-    };
-  }, [gameId, updateState]);
 
   // Tente de récupérer mon joueur courant si playerId manquant
   useEffect(() => {
@@ -431,7 +405,10 @@ export default function DashboardPage() {
 
       <section>
         <h2 className="text-xl font-semibold">Tableau de bord</h2>
-        <p className="text-sm text-neutral-300">Classement en temps réel (statut: {gameStatus})</p>
+        <p className="text-sm text-neutral-300">Classement (rafraîchissement manuel) — statut: {gameStatus}</p>
+        <div className="mt-2 flex gap-2">
+          <button onClick={updateState} className="px-3 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm">Actualiser</button>
+        </div>
         <div className="mt-4 bg-neutral-900 rounded border border-neutral-800">
           <table className="w-full text-sm">
             <thead>
@@ -509,19 +486,7 @@ export default function DashboardPage() {
 
       {/* Lobbies publics supprimés en mode partie unique */}
 
-      {events.length > 0 && (
-        <section className="space-y-2">
-          <h3 className="text-lg font-semibold">Activité</h3>
-          <ul className="text-sm space-y-1">
-            {events.map((ev, idx) => (
-              <li key={idx} className="border border-neutral-800 rounded bg-neutral-900 px-3 py-2 flex justify-between">
-                <span>{ev.text}</span>
-                <span className="text-xs text-neutral-400">{new Date(ev.at).toLocaleTimeString()}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* Activité temps réel retirée (pas de suivi client) */}
 
       <section className="flex gap-4">
         <Link href="/immobilier" className="px-4 py-2 rounded bg-sky-600 hover:bg-sky-500">Immobilier</Link>
@@ -596,15 +561,24 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="px-4 pb-4">
-              {proj.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  <div className="flex items-baseline justify-between">
-                    <h5 className="font-semibold">Projection 10 ans (valeur nette totale)</h5>
-                    <span className="text-xs text-neutral-400">de ${Math.round(proj[0].net).toLocaleString()} à ${Math.round(proj[proj.length - 1].net).toLocaleString()}</span>
-                  </div>
-                  <PortfolioProjectionChart data={proj} />
-                </div>
-              )}
+              <div className="mt-2 space-y-2">
+                <button
+                  className="px-3 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm"
+                  onClick={() => setProjRequested(true)}
+                  disabled={projRequested && projLoading}
+                >
+                  {projRequested ? (projLoading ? "Calcul en cours…" : "Recalculer la projection") : "Afficher la projection 10 ans"}
+                </button>
+                {projRequested && proj.length > 0 && (
+                  <>
+                    <div className="flex items-baseline justify-between">
+                      <h5 className="font-semibold">Projection 10 ans (valeur nette totale)</h5>
+                      <span className="text-xs text-neutral-400">de ${Math.round(proj[0].net).toLocaleString()} à ${Math.round(proj[proj.length - 1].net).toLocaleString()}</span>
+                    </div>
+                    <PortfolioProjectionChart data={proj} />
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

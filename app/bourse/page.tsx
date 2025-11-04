@@ -5,7 +5,7 @@ import { apiFetch } from "../../lib/api";
 
 type Price = { symbol: string; price: number; at: string };
 type Holding = { id: string; symbol: string; quantity: number; avgPrice: number };
-type HistoryPoint = { at: string; price: number };
+// Historique supprimé (on ne trace plus le graphique)
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
 // Affichage indicatif des rendements de dividendes (alignés au serveur)
@@ -27,7 +27,7 @@ export default function BoursePage() {
   const [returns, setReturns] = useState<Record<string, Record<string, number>> | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [economy, setEconomy] = useState<{ baseMortgageRate: number } | null>(null);
-  const [history, setHistory] = useState<HistoryPoint[]>([]);
+  // plus d'historique
   const [divKpi, setDivKpi] = useState<{ "24h": number; "7d": number; ytd: number } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -128,17 +128,7 @@ export default function BoursePage() {
     }
   }, [gameId]);
 
-  const loadHistory = useCallback(async (sym: string, yrs = 10) => {
-    if (!gameId || !sym) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/markets/history/${encodeURIComponent(sym)}?years=${yrs}`);
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data: { symbol: string; data: HistoryPoint[] } = await res.json();
-      setHistory(data.data ?? []);
-    } catch (err) {
-      // non bloquant
-    }
-  }, [gameId]);
+  // plus de chargement d'historique
 
   const loadReturns = useCallback(async () => {
     if (!gameId) return;
@@ -184,16 +174,10 @@ export default function BoursePage() {
     loadHoldings();
   }, [loadHoldings]);
 
-  useEffect(() => {
-    loadDividendsKpi();
-    const id = setInterval(loadDividendsKpi, 60_000);
-    return () => clearInterval(id);
-  }, [loadDividendsKpi]);
+  // KPI dividendes: rafraîchissement uniquement à la demande (pas d'intervalle automatique)
+  // Utiliser le bouton "Actualiser dividendes" plus bas.
 
-  // Charger l'historique lorsqu'on change d'actif
-  useEffect(() => {
-    if (symbol) loadHistory(symbol);
-  }, [symbol, loadHistory]);
+  // historique désactivé
 
   // Charger l'économie pour afficher le taux de marge (base + 5 pts)
   useEffect(() => {
@@ -282,11 +266,14 @@ export default function BoursePage() {
               </p>
             )}
           </div>
-          {divKpi && (
-            <div className="mt-1 text-xs text-neutral-400">
-              Dividendes reçus: 24h ${divKpi["24h"].toFixed(2)} · 7j ${divKpi["7d"].toFixed(2)} · YTD ${divKpi.ytd.toFixed(2)}
-            </div>
-          )}
+          <div className="mt-1 text-xs text-neutral-400 flex items-center gap-2">
+            <button onClick={loadDividendsKpi} className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700">Actualiser dividendes</button>
+            {divKpi ? (
+              <span>Dividendes reçus: 24h ${divKpi["24h"].toFixed(2)} · 7j ${divKpi["7d"].toFixed(2)} · YTD ${divKpi.ytd.toFixed(2)}</span>
+            ) : (
+              <span className="text-neutral-500">Cliquer pour charger les dividendes</span>
+            )}
+          </div>
         </section>
       )}
 
@@ -365,7 +352,7 @@ export default function BoursePage() {
           </thead>
           <tbody>
             {prices.map((p) => (
-              <tr key={p.symbol} className="border-t border-neutral-800 hover:bg-neutral-800/40 cursor-pointer" onClick={() => { setSymbol(p.symbol); loadHistory(p.symbol); }}>
+              <tr key={p.symbol} className="border-t border-neutral-800 hover:bg-neutral-800/40 cursor-pointer" onClick={() => { setSymbol(p.symbol); }}>
                 <td className="p-2">{p.symbol}</td>
                 <td className="p-2">${p.price.toFixed(2)}</td>
                 <td className="p-2 text-neutral-400">{new Date(p.at).toLocaleString()}</td>
@@ -375,21 +362,6 @@ export default function BoursePage() {
           </tbody>
         </table>
       </section>
-
-      {history.length > 0 && (
-        <section className="space-y-2">
-          <div className="flex items-baseline justify-between">
-            <h3 className="text-lg font-semibold">Historique {symbol}</h3>
-            <div className="text-xs text-neutral-400">
-              <button className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700" onClick={() => loadHistory(symbol, 1)}>1 an</button>
-              <button className="ml-1 px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700" onClick={() => loadHistory(symbol, 5)}>5 ans</button>
-              <button className="ml-1 px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700" onClick={() => loadHistory(symbol, 10)}>10 ans</button>
-              <button className="ml-1 px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700" onClick={() => loadHistory(symbol, 25)}>25 ans</button>
-            </div>
-          </div>
-          <HistoryChart data={history} />
-        </section>
-      )}
 
       {returns && (
         <section className="space-y-3">
@@ -453,31 +425,5 @@ export default function BoursePage() {
         </section>
       )}
     </main>
-  );
-}
-
-function HistoryChart({ data }: { data: HistoryPoint[] }) {
-  const w = 800, h = 200, pad = 28;
-  const prices = data.map((d) => d.price);
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
-  const y0 = min === max ? min * 0.95 : min * 0.98;
-  const y1 = min === max ? max * 1.05 : max * 1.02;
-  const points = prices.map((v, i) => {
-    const x = pad + (i * (w - pad * 2)) / Math.max(1, data.length - 1);
-    const y = h - pad - ((v - y0) * (h - pad * 2)) / Math.max(1, (y1 - y0));
-    return `${x},${y}`;
-  }).join(" ");
-  const fmt = (n: number) => (n >= 1000 ? `$${(n/1000).toFixed(1)}k` : `$${n.toFixed(2)}`);
-  return (
-    <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-48 bg-neutral-950 border border-neutral-800 rounded">
-        <line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke="#333" />
-        <line x1={pad} y1={pad} x2={pad} y2={h - pad} stroke="#333" />
-        <text x={pad} y={pad - 8} fill="#9ca3af" fontSize="10" textAnchor="start">{fmt(y1)}</text>
-        <text x={pad} y={h - pad + 12} fill="#9ca3af" fontSize="10" textAnchor="start">{fmt(y0)}</text>
-        <polyline fill="none" stroke="#38bdf8" strokeWidth={2} points={points} />
-      </svg>
-    </div>
   );
 }

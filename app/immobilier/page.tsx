@@ -44,6 +44,7 @@ export default function ImmobilierPage() {
   const purchaseRef = useRef<HTMLDivElement | null>(null);
   const [economy, setEconomy] = useState<{ baseMortgageRate: number; appreciationAnnual: number; schedule: number[] } | null>(null);
   const [scenario, setScenario] = useState<"prudent" | "central" | "optimiste">("central");
+  const [showProjection, setShowProjection] = useState(false);
 
   // Préparer les cookies cross‑site (hm_guest + hm_csrf) le plus tôt possible
   useEffect(() => {
@@ -73,7 +74,7 @@ export default function ImmobilierPage() {
   }, [economy, scenario]);
 
   const projection: YearPoint[] = useMemo(() => {
-    if (!holdings || holdings.length === 0) return [];
+    if (!showProjection || !holdings || holdings.length === 0) return [];
     const YEARS = 10;
     const schedule = adjustedSchedule.length ? adjustedSchedule : Array.from({ length: YEARS }, () => 0.02);
     const usedRate = economy?.baseMortgageRate ?? 0.05;
@@ -99,7 +100,7 @@ export default function ImmobilierPage() {
       out.push({ year: y, net });
     }
     return out;
-  }, [holdings, economy, adjustedSchedule]);
+  }, [showProjection, holdings, economy, adjustedSchedule]);
 
   // Résolution automatique du gameId global puis du player (via cookie invité/auth)
   useEffect(() => {
@@ -462,50 +463,58 @@ export default function ImmobilierPage() {
                 ))}
               </div>
 
-              {projection.length > 0 && (
-                <div className="mt-6 space-y-2">
-                  <div className="flex items-baseline justify-between">
-                    <h4 className="text-md font-semibold">Projection 10 ans (valeur nette immobilière)</h4>
-                    <span className="text-sm text-neutral-400">De {formatCurrency(projection[0].net)} à {formatCurrency(projection[projection.length - 1].net)}</span>
-                  </div>
-                  {economy && (
-                    <div className="flex flex-wrap items-end gap-3 mb-2">
-                      <label className="text-sm text-neutral-300 flex flex-col gap-1">
-                        Scénario
-                        <select value={scenario} onChange={(e) => setScenario(e.target.value as any)} className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm">
-                          <option value="prudent">Prudent (biais -0,5 pt)</option>
-                          <option value="central">Central</option>
-                          <option value="optimiste">Optimiste (biais +0,5 pt)</option>
-                        </select>
-                      </label>
-                      <div className="text-xs text-neutral-400">
-                        Taux jeu actuel: {(economy.baseMortgageRate * 100).toFixed(2)}% · Appréciation courante: {(economy.appreciationAnnual * 100).toFixed(2)}%
+              <div className="mt-6 space-y-2">
+                <button
+                  className="px-3 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm"
+                  onClick={() => setShowProjection((v) => !v)}
+                >
+                  {showProjection ? "Masquer projection 10 ans" : "Afficher projection 10 ans"}
+                </button>
+                {showProjection && projection.length > 0 && (
+                  <>
+                    <div className="flex items-baseline justify-between">
+                      <h4 className="text-md font-semibold">Projection 10 ans (valeur nette immobilière)</h4>
+                      <span className="text-sm text-neutral-400">De {formatCurrency(projection[0].net)} à {formatCurrency(projection[projection.length - 1].net)}</span>
+                    </div>
+                    {economy && (
+                      <div className="flex flex-wrap items-end gap-3 mb-2">
+                        <label className="text-sm text-neutral-300 flex flex-col gap-1">
+                          Scénario
+                          <select value={scenario} onChange={(e) => setScenario(e.target.value as any)} className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm">
+                            <option value="prudent">Prudent (biais -0,5 pt)</option>
+                            <option value="central">Central</option>
+                            <option value="optimiste">Optimiste (biais +0,5 pt)</option>
+                          </select>
+                        </label>
+                        <div className="text-xs text-neutral-400">
+                          Taux jeu actuel: {(economy.baseMortgageRate * 100).toFixed(2)}% · Appréciation courante: {(economy.appreciationAnnual * 100).toFixed(2)}%
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  <ProjectionChart data={projection} />
-                  {adjustedSchedule.length > 0 && (
-                    <div className="overflow-x-auto">
-                      <table className="mt-3 w-full text-sm bg-neutral-900 border border-neutral-800 rounded">
-                        <thead>
-                          <tr className="text-left">
-                            <th className="p-2">Année</th>
-                            <th className="p-2">Appréciation</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {adjustedSchedule.map((v, i) => (
-                            <tr key={i} className="border-t border-neutral-800">
-                              <td className="p-2">{i + 1}</td>
-                              <td className="p-2">{(v * 100).toFixed(2)}%</td>
+                    )}
+                    <ProjectionChart data={projection} />
+                    {adjustedSchedule.length > 0 && (
+                      <div className="overflow-x-auto">
+                        <table className="mt-3 w-full text-sm bg-neutral-900 border border-neutral-800 rounded">
+                          <thead>
+                            <tr className="text-left">
+                              <th className="p-2">Année</th>
+                              <th className="p-2">Appréciation</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
+                          </thead>
+                          <tbody>
+                            {adjustedSchedule.map((v, i) => (
+                              <tr key={i} className="border-t border-neutral-800">
+                                <td className="p-2">{i + 1}</td>
+                                <td className="p-2">{(v * 100).toFixed(2)}%</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </>
           )}
         </section>
@@ -640,6 +649,7 @@ function TemplatePreview({
   downPaymentPercent: number;
   economy: { baseMortgageRate: number; appreciationAnnual: number; schedule: number[] } | null;
 }) {
+  const [showTplProjection, setShowTplProjection] = useState(false);
   const [vacancyRate, setVacancyRate] = useState<number>(0.05); // 5% par défaut
   const [reservePerUnitMonthly, setReservePerUnitMonthly] = useState<number>(50); // 50$/logement/mois par défaut
 
@@ -664,23 +674,25 @@ function TemplatePreview({
   const annualInterest = loan * mortgageRate;
   const roc = downPayment > 0 ? (noiAnnual - annualInterest) / downPayment : 0;
 
-  // Projection 10 ans sur valeur nette = valeur - dette
-  const schedule = (economy?.schedule && economy.schedule.length ? economy.schedule : Array.from({ length: 10 }, () => 0.02)).slice(0, 10);
-  const YEARS = schedule.length;
-  let value = Number(tpl.price);
-  let debt = loan;
-  const data: { year: number; net: number }[] = [];
-  data.push({ year: 0, net: value - debt });
-  for (let y = 1; y <= YEARS; y++) {
-    // amortissement annuel approximé
-    const annualPayment = weekly * 52;
-    const interest = debt * mortgageRate;
-    const principal = Math.max(0, annualPayment - interest);
-    debt = Math.max(0, debt - principal);
-    // appréciation de la valeur
-    value = value * (1 + (schedule[y - 1] ?? 0.02));
-    data.push({ year: y, net: value - debt });
-  }
+  // Projection 10 ans (à la demande)
+  const data = useMemo(() => {
+    if (!showTplProjection) return [] as { year: number; net: number }[];
+    const schedule = (economy?.schedule && economy.schedule.length ? economy.schedule : Array.from({ length: 10 }, () => 0.02)).slice(0, 10);
+    const YEARS = schedule.length;
+    let value = Number(tpl.price);
+    let debt = loan;
+    const d: { year: number; net: number }[] = [];
+    d.push({ year: 0, net: value - debt });
+    for (let y = 1; y <= YEARS; y++) {
+      const annualPayment = weekly * 52;
+      const interest = debt * mortgageRate;
+      const principal = Math.max(0, annualPayment - interest);
+      debt = Math.max(0, debt - principal);
+      value = value * (1 + (schedule[y - 1] ?? 0.02));
+      d.push({ year: y, net: value - debt });
+    }
+    return d;
+  }, [showTplProjection, economy, tpl.price, loan, weekly, mortgageRate]);
 
   const fmt = (n: number) => n.toLocaleString();
 
@@ -729,9 +741,19 @@ function TemplatePreview({
         <li>Cashflow estimé: <span className={cashflowMonthly >= 0 ? 'text-emerald-400' : 'text-red-400'}>${fmt(Math.round(cashflowMonthly))}/mois</span></li>
         <li>Rendement sur capital (année 1): <span className={roc >= 0 ? 'text-emerald-400' : 'text-red-400'}>{(roc * 100).toFixed(2)}%</span></li>
       </ul>
-      <div>
-        <h6 className="text-xs text-neutral-400 mb-1">Projection 10 ans (valeur nette)</h6>
-        <ProjectionChart data={data} />
+      <div className="space-y-2">
+        <button
+          className="px-3 py-1.5 rounded bg-neutral-700 hover:bg-neutral-600 text-xs"
+          onClick={() => setShowTplProjection((v) => !v)}
+        >
+          {showTplProjection ? "Masquer projection 10 ans" : "Afficher projection 10 ans"}
+        </button>
+        {showTplProjection && (
+          <>
+            <h6 className="text-xs text-neutral-400 mb-1">Projection 10 ans (valeur nette)</h6>
+            <ProjectionChart data={data} />
+          </>
+        )}
       </div>
     </div>
   );

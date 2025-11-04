@@ -32,6 +32,36 @@ export default function BoursePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Prix sélectionné et calculs d'achat
+  const selectedPrice = useMemo(() => {
+    const p = prices.find((x) => x.symbol === symbol);
+    return p ? Number(p.price) : null;
+  }, [prices, symbol]);
+  const estimatedCost = useMemo(() => (selectedPrice ? Number(quantity) * selectedPrice : 0), [selectedPrice, quantity]);
+  const buyingPower = useMemo(() => (typeof cash === 'number' ? Math.max(0, cash) : 0), [cash]);
+  const maxBuyQty = useMemo(() => {
+    if (!selectedPrice) return 0;
+    const encaisse = typeof cash === 'number' ? cash : 0;
+    if (encaisse <= 0) return 0;
+    // Quantité au pas de 0.01
+    const q = Math.max(0, Math.floor((encaisse / selectedPrice) * 100) / 100);
+    return q;
+  }, [cash, selectedPrice]);
+  const canBuy = useMemo(() => {
+    if (!selectedPrice || !quantity || quantity <= 0) return false;
+    if (typeof cash !== 'number') return false;
+    if (cash <= 0) return false; // pas d'achat si marge ou négatif
+    return estimatedCost > 0 && estimatedCost <= cash;
+  }, [cash, selectedPrice, quantity, estimatedCost]);
+  const selectedHoldingQty = useMemo(() => {
+    const h = holdings.find((h) => h.symbol === symbol);
+    return h ? Number(h.quantity) : 0;
+  }, [holdings, symbol]);
+  const canSell = useMemo(() => {
+    if (!quantity || quantity <= 0) return false;
+    return selectedHoldingQty >= quantity;
+  }, [selectedHoldingQty, quantity]);
+
   // Préparer les cookies cross‑site (hm_guest + hm_csrf) le plus tôt possible
   useEffect(() => {
     (async () => {
@@ -184,6 +214,22 @@ export default function BoursePage() {
         setError("Connexion en cours… réessayez dans un instant");
         return;
       }
+      if (type === 'buy') {
+        if (typeof cash !== 'number' || cash <= 0) {
+          setError("Encaisse négative (marge): achat désactivé");
+          return;
+        }
+        if (!canBuy) {
+          setError("Encaisse insuffisante pour cet achat");
+          return;
+        }
+      }
+      if (type === 'sell') {
+        if (!canSell) {
+          setError("Quantité insuffisante pour vendre");
+          return;
+        }
+      }
       try {
         const data = await apiFetch<{ price: number }>(`/api/games/${gameId}/markets/${type}`, {
           method: "POST",
@@ -255,19 +301,50 @@ export default function BoursePage() {
             ))}
           </select>
         </label>
-        <label className="text-sm text-neutral-300 flex flex-col gap-1">
-          Quantité
-          <input
-            type="number"
-            min={0.01}
-            step={0.01}
-            value={quantity}
-            onChange={(e) => setQuantity(Number(e.target.value))}
-            className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm"
-          />
-        </label>
-        <button onClick={() => handleTrade("buy")} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500">Acheter</button>
-        <button onClick={() => handleTrade("sell")} className="px-4 py-2 rounded bg-rose-600 hover:bg-rose-500">Vendre</button>
+        <div className="text-sm text-neutral-300 flex flex-col gap-1">
+          <label>Quantité</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={0.01}
+              step={0.01}
+              value={quantity}
+              onChange={(e) => setQuantity(Number(e.target.value))}
+              className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => setQuantity(maxBuyQty)}
+              disabled={!selectedPrice || maxBuyQty <= 0}
+              title={!selectedPrice ? 'Prix indisponible' : (maxBuyQty <= 0 ? 'Encaisse insuffisante' : 'Remplir au maximum achetable')}
+              className={`px-2 py-1 rounded text-xs ${(!selectedPrice || maxBuyQty <= 0) ? 'bg-neutral-700 text-neutral-300 cursor-not-allowed' : 'bg-neutral-600 hover:bg-neutral-500'}`}
+            >
+              Max
+            </button>
+          </div>
+        </div>
+        <div className="text-xs text-neutral-400 min-w-[220px]">
+          <div>Prix: {selectedPrice != null ? `$${selectedPrice.toFixed(2)}` : '—'}</div>
+          <div>Coût estimé: {estimatedCost > 0 ? `$${estimatedCost.toFixed(2)}` : '—'}</div>
+          <div>Encaisse: {typeof cash === 'number' ? (cash < 0 ? <span className="text-rose-400">${cash.toLocaleString()}</span> : <span className="text-emerald-400">${cash.toLocaleString()}</span>) : '—'}</div>
+          <div>Achat max: {selectedPrice ? (Math.max(0, (cash ?? 0)) / selectedPrice).toFixed(2) : '—'}</div>
+        </div>
+        <button
+          onClick={() => handleTrade("buy")}
+          disabled={!canBuy}
+          title={!canBuy ? (typeof cash === 'number' && cash <= 0 ? 'Encaisse négative (marge): achat désactivé' : 'Encaisse insuffisante pour cet achat') : ''}
+          className={`px-4 py-2 rounded ${canBuy ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-neutral-700 text-neutral-300 cursor-not-allowed'}`}
+        >
+          Acheter
+        </button>
+        <button
+          onClick={() => handleTrade("sell")}
+          disabled={!canSell}
+          title={!canSell ? 'Quantité insuffisante' : ''}
+          className={`px-4 py-2 rounded ${canSell ? 'bg-rose-600 hover:bg-rose-500' : 'bg-neutral-700 text-neutral-300 cursor-not-allowed'}`}
+        >
+          Vendre
+        </button>
         <button onClick={loadPrices} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Actualiser prix</button>
         <button onClick={loadHoldings} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Actualiser positions</button>
       </section>

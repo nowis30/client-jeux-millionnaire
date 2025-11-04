@@ -27,6 +27,7 @@ export default function ImmobilierPage() {
   const [playerId, setPlayerId] = useState("");
   const [nickname, setNickname] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [expandedTemplateId, setExpandedTemplateId] = useState<string>("");
   const [mortgageRate, setMortgageRate] = useState(0.05);
   const [downPaymentPercent, setDownPaymentPercent] = useState(0.2);
   const [message, setMessage] = useState<string | null>(null);
@@ -139,6 +140,8 @@ export default function ImmobilierPage() {
     loadTemplates();
   }, [loadTemplates]);
 
+  // (déplacé plus bas après la déclaration de loadEconomy)
+
   const loadHoldings = useCallback(async () => {
     if (!gameId || !playerId) return;
     try {
@@ -166,6 +169,11 @@ export default function ImmobilierPage() {
       setError(err instanceof Error ? err.message : "Impossible de charger les paramètres économiques");
     }
   }, [gameId]);
+
+  // Charger l'économie globale tôt pour alimenter les prévisualisations
+  useEffect(() => {
+    (async () => { if (gameId) await loadEconomy(); })();
+  }, [gameId, loadEconomy]);
 
   const handlePurchase = useCallback(async () => {
     if (!gameId || !playerId || !selectedTemplate) {
@@ -330,7 +338,10 @@ export default function ImmobilierPage() {
         <h3 className="text-lg font-semibold">Immeubles disponibles {templates.length ? <span className="text-sm text-neutral-400">({templates.length})</span> : null}</h3>
         <div className="grid gap-4 md:grid-cols-2">
           {templates.map((tpl) => (
-            <article key={tpl.id} className="border border-neutral-800 rounded-lg bg-neutral-900 overflow-hidden">
+            <article
+              key={tpl.id}
+              className="border border-neutral-800 rounded-lg bg-neutral-900 overflow-hidden"
+            >
               <div className="aspect-video w-full bg-neutral-800 flex items-center justify-center text-neutral-500">
                 {tpl.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -351,12 +362,29 @@ export default function ImmobilierPage() {
               {tpl.description && (
                 <p className="text-xs text-neutral-400 mt-1">{tpl.description}</p>
               )}
-              <button
-                onClick={() => { setSelectedTemplate(tpl.id); if (purchaseRef.current) purchaseRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
-                className="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-sm"
-              >
-                Sélectionner
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setSelectedTemplate(tpl.id); if (purchaseRef.current) purchaseRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+                  className="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-sm"
+                >
+                  Sélectionner
+                </button>
+                <button
+                  onClick={() => setExpandedTemplateId((v) => v === tpl.id ? "" : tpl.id)}
+                  className="px-3 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm"
+                >
+                  {expandedTemplateId === tpl.id ? "Masquer bilan" : "Voir bilan"}
+                </button>
+              </div>
+
+              {expandedTemplateId === tpl.id && (
+                <TemplatePreview
+                  tpl={tpl}
+                  mortgageRate={mortgageRate}
+                  downPaymentPercent={downPaymentPercent}
+                  economy={economy}
+                />
+              )}
               </div>
             </article>
           ))}
@@ -412,3 +440,79 @@ function ProjectionChart({ data }: { data: { year: number; net: number }[] }) {
     </div>
   );
 }
+
+// Paiement hebdo sur 25 ans (approximation): r = taux annuel/52, n = 52*années
+function computeWeeklyMortgage(principal: number, annualRate: number, years = 25): number {
+  const n = Math.max(1, Math.round(52 * years));
+  const r = annualRate / 52;
+  if (principal <= 0) return 0;
+  if (r <= 0) return principal / n;
+  const a = r * principal;
+  const b = 1 - Math.pow(1 + r, -n);
+  return a / b;
+}
+
+function TemplatePreview({
+  tpl,
+  mortgageRate,
+  downPaymentPercent,
+  economy,
+}: {
+  tpl: Template;
+  mortgageRate: number;
+  downPaymentPercent: number;
+  economy: { baseMortgageRate: number; appreciationAnnual: number; schedule: number[] } | null;
+}) {
+  const units = Math.max(1, Number(tpl.units ?? 1));
+  const rentMonthly = Number(tpl.baseRent ?? 0) * units;
+  const expensesAnnual = Number(tpl.taxes ?? 0) + Number(tpl.insurance ?? 0) + Number(tpl.maintenance ?? 0);
+  const expensesMonthly = expensesAnnual / 12;
+  const noiAnnual = Math.max(0, rentMonthly * 12 - expensesAnnual);
+  const capRate = tpl.price ? noiAnnual / tpl.price : 0;
+
+  const downPayment = tpl.price * downPaymentPercent;
+  const loan = Math.max(0, tpl.price - downPayment);
+  const weekly = computeWeeklyMortgage(loan, mortgageRate, 25);
+  const monthlyPayment = (weekly * 52) / 12;
+  const cashflowMonthly = rentMonthly - expensesMonthly - monthlyPayment;
+
+  // Projection 10 ans sur valeur nette = valeur - dette
+  const schedule = (economy?.schedule && economy.schedule.length ? economy.schedule : Array.from({ length: 10 }, () => 0.02)).slice(0, 10);
+  const YEARS = schedule.length;
+  let value = Number(tpl.price);
+  let debt = loan;
+  const data: { year: number; net: number }[] = [];
+  data.push({ year: 0, net: value - debt });
+  for (let y = 1; y <= YEARS; y++) {
+    // amortissement annuel approximé
+    const annualPayment = weekly * 52;
+    const interest = debt * mortgageRate;
+    const principal = Math.max(0, annualPayment - interest);
+    debt = Math.max(0, debt - principal);
+    // appréciation de la valeur
+    value = value * (1 + (schedule[y - 1] ?? 0.02));
+    data.push({ year: y, net: value - debt });
+  }
+
+  const fmt = (n: number) => n.toLocaleString();
+
+  return (
+    <div className="mt-3 border-t border-neutral-800 pt-3 space-y-2">
+      <h5 className="font-semibold text-sm">Bilan</h5>
+      <ul className="text-xs text-neutral-300 grid md:grid-cols-2 gap-2">
+        <li>Unités: {units}</li>
+        <li>Loyer total: ${fmt(rentMonthly)}/mois</li>
+        <li>Charges: ${fmt(Math.round(expensesMonthly))}/mois ({fmt(Math.round(expensesAnnual))}/an)</li>
+        <li>NOI: ${fmt(Math.round(noiAnnual))}/an · Cap rate: {(capRate * 100).toFixed(2)}%</li>
+        <li>Mise de fonds: ${fmt(Math.round(downPayment))} ({Math.round(downPaymentPercent * 100)}%)</li>
+        <li>Hypothèque: ${fmt(Math.round(loan))} — Paiement: ${fmt(Math.round(monthlyPayment))}/mois</li>
+        <li>Cashflow estimé: <span className={cashflowMonthly >= 0 ? 'text-emerald-400' : 'text-red-400'}>${fmt(Math.round(cashflowMonthly))}/mois</span></li>
+      </ul>
+      <div>
+        <h6 className="text-xs text-neutral-400 mb-1">Projection 10 ans (valeur nette)</h6>
+        <ProjectionChart data={data} />
+      </div>
+    </div>
+  );
+}
+

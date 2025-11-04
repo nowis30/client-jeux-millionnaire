@@ -26,6 +26,7 @@ export default function ImmobilierPage() {
   const [gameId, setGameId] = useState("");
   const [playerId, setPlayerId] = useState("");
   const [nickname, setNickname] = useState("");
+  const [cash, setCash] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [expandedTemplateId, setExpandedTemplateId] = useState<string>("");
   const [mortgageRate, setMortgageRate] = useState(0.05);
@@ -34,6 +35,12 @@ export default function ImmobilierPage() {
   const [error, setError] = useState<string | null>(null);
   const [showHoldings, setShowHoldings] = useState(false);
   const [holdings, setHoldings] = useState<any[]>([]);
+  const [refiOpenId, setRefiOpenId] = useState<string>("");
+  const [refiRate, setRefiRate] = useState<number>(0);
+  const [refiPct, setRefiPct] = useState<number>(0);
+  const [refiMode, setRefiMode] = useState<"pct" | "ltv" | "amount">("pct");
+  const [refiLtvTarget, setRefiLtvTarget] = useState<number>(80); // % de valeur, max 80
+  const [refiAmount, setRefiAmount] = useState<number>(0); // $ cash-out direct
   const purchaseRef = useRef<HTMLDivElement | null>(null);
   const [economy, setEconomy] = useState<{ baseMortgageRate: number; appreciationAnnual: number; schedule: number[] } | null>(null);
   const [scenario, setScenario] = useState<"prudent" | "central" | "optimiste">("central");
@@ -112,9 +119,10 @@ export default function ImmobilierPage() {
     if (!gameId || playerId) return;
     (async () => {
       try {
-        const data = await apiFetch<{ player: { id: string; nickname: string } }>(`/api/games/${gameId}/me`);
+        const data = await apiFetch<{ player: { id: string; nickname: string; cash: number } }>(`/api/games/${gameId}/me`);
         setPlayerId(data.player.id);
         if (data.player.nickname) setNickname(data.player.nickname);
+        if (typeof data.player.cash === "number") setCash(data.player.cash);
       } catch {
         // Fallback mobile: si le cookie invité n'est pas envoyé (third‑party), tenter un join explicite qui réutilisera le joueur (pseudo=email)
         try {
@@ -123,6 +131,19 @@ export default function ImmobilierPage() {
         } catch {}
       }
     })();
+  }, [gameId, playerId]);
+
+  // Recharger l'état joueur (ex: après un achat)
+  const loadPlayer = useCallback(async () => {
+    if (!gameId) return;
+    try {
+      const data = await apiFetch<{ player: { id: string; nickname: string; cash: number } }>(`/api/games/${gameId}/me`);
+      if (data?.player) {
+        if (!playerId) setPlayerId(data.player.id);
+        if (data.player.nickname) setNickname(data.player.nickname);
+        if (typeof data.player.cash === "number") setCash(data.player.cash);
+      }
+    } catch {}
   }, [gameId, playerId]);
 
   const loadTemplates = useCallback(async () => {
@@ -195,11 +216,13 @@ export default function ImmobilierPage() {
       setError(null);
       // Rafraîchir la liste des immeubles disponibles (exclure celui acheté)
       loadTemplates();
+      // Rafraîchir l'encaisse disponible
+      loadPlayer();
     } catch (err) {
       setMessage(null);
       setError(err instanceof Error ? err.message : "Achat impossible");
     }
-  }, [gameId, playerId, selectedTemplate, mortgageRate, downPaymentPercent, loadTemplates]);
+  }, [gameId, playerId, selectedTemplate, mortgageRate, downPaymentPercent, loadTemplates, loadPlayer]);
 
   return (
     <main className="space-y-6">
@@ -209,7 +232,27 @@ export default function ImmobilierPage() {
       </section>
 
       <section ref={purchaseRef} className="space-y-3">
-        {nickname && <p className="text-sm text-neutral-300">Pseudo: <span className="font-medium">{nickname}</span></p>}
+        {(nickname || cash != null) && (
+          <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-300">
+            {nickname && (
+              <p>Pseudo: <span className="font-medium">{nickname}</span></p>
+            )}
+            {cash != null && (
+              <p>
+                Encaisse disponible: {cash < 0 ? (
+                  <span className="font-medium text-rose-400">${cash.toLocaleString()}</span>
+                ) : (
+                  <span className="font-medium text-emerald-400">${cash.toLocaleString()}</span>
+                )}
+              </p>
+            )}
+            {economy && (
+              <p title={`Marge: base + 5 pts → ${(economy.baseMortgageRate * 100).toFixed(2)}% + 5.00 pts = ${((economy.baseMortgageRate + 0.05) * 100).toFixed(2)}%`} className="text-xs text-neutral-400">
+                Marge: base + 5 pts
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="grid gap-3 md:grid-cols-3">
           <label className="text-sm text-neutral-300 flex flex-col gap-1">
@@ -281,6 +324,140 @@ export default function ImmobilierPage() {
                     <p className="text-sm text-neutral-300">Valeur actuelle: ${Number(h.currentValue ?? 0).toLocaleString()}</p>
                     <p className="text-sm text-neutral-300">Loyer actuel: ${Number(h.currentRent ?? 0).toLocaleString()}</p>
                     <p className="text-xs text-neutral-500">Dette hypothécaire: ${Number(h.mortgageDebt ?? 0).toLocaleString()} — Taux: {(Number(h.mortgageRate ?? 0) * 100).toFixed(2)}%</p>
+
+                    {/* Réhypothèque */}
+                    <div className="pt-2">
+                      <button
+                        onClick={() => {
+                          const baseRate = typeof economy?.baseMortgageRate === 'number' ? Number(economy.baseMortgageRate) : Number(h.mortgageRate ?? 0);
+                          setRefiOpenId((v) => v === h.id ? "" : h.id);
+                          setRefiRate(baseRate || 0.05);
+                          setRefiPct(0);
+                        }}
+                        className="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-sm"
+                      >
+                        {refiOpenId === h.id ? "Annuler" : "Réhypothéquer"}
+                      </button>
+                    </div>
+
+                        {refiOpenId === h.id && (
+                      <div className="mt-2 rounded border border-neutral-800 bg-neutral-950 p-3 space-y-2">
+                        {(() => {
+                          const value = Number(h.currentValue ?? 0);
+                          const debt = Number(h.mortgageDebt ?? 0);
+                          const maxDebt = Math.round(value * 0.8);
+                          const available = Math.max(0, maxDebt - debt);
+                              // Déterminer le pourcentage effectif selon le mode
+                              let effectivePct = refiPct;
+                              if (refiMode === "ltv") {
+                                const targetLtv = Math.max(0, Math.min(80, refiLtvTarget)) / 100; // 0..0.8
+                                const desiredDebt = Math.min(maxDebt, Math.round(value * targetLtv));
+                                effectivePct = debt > 0 ? Math.max(0, (desiredDebt - debt) / debt) : 0;
+                              } else if (refiMode === "amount") {
+                                const amt = Math.max(0, refiAmount);
+                                effectivePct = debt > 0 ? Math.max(0, amt / debt) : 0;
+                              }
+                              const newDebt = Math.round(debt * (1 + (isFinite(effectivePct) ? effectivePct : 0)));
+                          const cappedNewDebt = Math.min(newDebt, maxDebt);
+                          const cashOut = Math.max(0, cappedNewDebt - debt);
+                              const currentRate = Number(h.mortgageRate ?? 0);
+                              const rateUnchanged = Math.abs((refiRate || currentRate) - currentRate) < 0.0005;
+                              const disabled = (available <= 0) || (cashOut <= 0 && rateUnchanged);
+                          return (
+                            <>
+                              <div className="text-xs text-neutral-300 flex flex-col gap-1">
+                                <span>Max dette (80% LTV): ${maxDebt.toLocaleString()}</span>
+                                <span>Encaisse possible (cash-out): ${available.toLocaleString()}</span>
+                              </div>
+                              <div className="grid md:grid-cols-3 gap-3 text-xs text-neutral-300">
+                                <label className="flex flex-col gap-1">
+                                  Mode de saisie
+                                  <select value={refiMode} onChange={(e) => setRefiMode(e.target.value as any)} className="px-2 py-1 rounded bg-neutral-900 border border-neutral-700">
+                                    <option value="pct">% de la dette</option>
+                                    <option value="ltv">LTV cible (%)</option>
+                                    <option value="amount">Montant cash-out ($)</option>
+                                  </select>
+                                </label>
+                                <label className="flex flex-col gap-1">
+                                  Nouveau taux (%)
+                                  <input type="number" min={0} max={15} step={0.01} value={Math.round(refiRate * 10000) / 100}
+                                    onChange={(e) => setRefiRate(Math.max(0, Number(e.target.value) / 100))}
+                                    className="px-2 py-1 rounded bg-neutral-900 border border-neutral-700" />
+                                </label>
+                                {refiMode === "pct" && (
+                                  <label className="flex flex-col gap-1">
+                                    Cash-out (% de la dette)
+                                    <input type="number" min={0} max={100} step={1} value={Math.round(refiPct * 100)}
+                                      onChange={(e) => setRefiPct(Math.max(0, Math.min(1, Number(e.target.value) / 100)))}
+                                      className="px-2 py-1 rounded bg-neutral-900 border border-neutral-700" />
+                                  </label>
+                                )}
+                                {refiMode === "ltv" && (
+                                  <label className="flex flex-col gap-1">
+                                    LTV cible (%)
+                                    <input type="number" min={0} max={80} step={1} value={refiLtvTarget}
+                                      onChange={(e) => setRefiLtvTarget(Math.max(0, Math.min(80, Number(e.target.value))))}
+                                      className="px-2 py-1 rounded bg-neutral-900 border border-neutral-700" />
+                                  </label>
+                                )}
+                                {refiMode === "amount" && (
+                                  <label className="flex flex-col gap-1">
+                                    Montant cash-out ($)
+                                    <input type="number" min={0} step={1000} value={refiAmount}
+                                      onChange={(e) => setRefiAmount(Math.max(0, Number(e.target.value)))}
+                                      className="px-2 py-1 rounded bg-neutral-900 border border-neutral-700" />
+                                  </label>
+                                )}
+                                <div className="flex flex-col gap-1">
+                                  <span>Aperçu</span>
+                                  <span className="text-neutral-400">Nouvelle dette: ${cappedNewDebt.toLocaleString()} · Cash-out: ${cashOut.toLocaleString()}</span>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await apiFetch(`/api/games/${gameId}/properties/${h.id}/refinance`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ newRate: refiRate, cashOutPercent: isFinite(effectivePct) ? effectivePct : 0 })
+                                      });
+                                      setMessage('Réhypothèque effectuée');
+                                      setError(null);
+                                      setRefiOpenId("");
+                                      await Promise.all([loadHoldings(), loadPlayer()]);
+                                    } catch (err) {
+                                      setMessage(null);
+                                      setError(err instanceof Error ? err.message : 'Échec du refinancement');
+                                    }
+                                  }}
+                                  disabled={disabled}
+                                  title={available <= 0 ? "Aucune marge disponible" : (cashOut <= 0 && rateUnchanged ? "Aucun changement (même taux et pas de cash-out)" : "")}
+                                  className={`px-3 py-1.5 rounded text-sm ${disabled ? 'bg-neutral-700 text-neutral-300 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500'}`}
+                                >
+                                  Confirmer
+                                </button>
+                                <button onClick={() => setRefiOpenId("")} className="px-3 py-1.5 rounded bg-neutral-700 hover:bg-neutral-600 text-sm">Annuler</button>
+                              </div>
+                              {/* Journal des réhypothèques */}
+                              {Array.isArray(h.refinanceLogs) && h.refinanceLogs.length > 0 && (
+                                <div className="mt-3">
+                                  <div className="text-xs text-neutral-400 mb-1">Journal (dernières réhypothèques)</div>
+                                  <ul className="text-xs text-neutral-300 space-y-1">
+                                    {h.refinanceLogs.map((r: any) => (
+                                      <li key={r.id} className="flex items-center justify-between">
+                                        <span>{new Date(r.at).toLocaleString()}</span>
+                                        <span>+${Math.round(r.amount).toLocaleString()} à {(Number(r.rate) * 100).toFixed(2)}%</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </article>
                 ))}
               </div>
@@ -463,18 +640,29 @@ function TemplatePreview({
   downPaymentPercent: number;
   economy: { baseMortgageRate: number; appreciationAnnual: number; schedule: number[] } | null;
 }) {
+  const [vacancyRate, setVacancyRate] = useState<number>(0.05); // 5% par défaut
+  const [reservePerUnitMonthly, setReservePerUnitMonthly] = useState<number>(50); // 50$/logement/mois par défaut
+
   const units = Math.max(1, Number(tpl.units ?? 1));
-  const rentMonthly = Number(tpl.baseRent ?? 0) * units;
+  const rentMonthlyGross = Number(tpl.baseRent ?? 0) * units;
+  const vacancyMonthly = rentMonthlyGross * vacancyRate;
+  const rentMonthly = Math.max(0, rentMonthlyGross - vacancyMonthly);
   const expensesAnnual = Number(tpl.taxes ?? 0) + Number(tpl.insurance ?? 0) + Number(tpl.maintenance ?? 0);
   const expensesMonthly = expensesAnnual / 12;
-  const noiAnnual = Math.max(0, rentMonthly * 12 - expensesAnnual);
+  const reservesMonthly = Math.max(0, reservePerUnitMonthly * units);
+  const reservesAnnual = reservesMonthly * 12;
+  const noiAnnual = Math.max(0, rentMonthly * 12 - expensesAnnual - reservesAnnual);
   const capRate = tpl.price ? noiAnnual / tpl.price : 0;
 
   const downPayment = tpl.price * downPaymentPercent;
   const loan = Math.max(0, tpl.price - downPayment);
   const weekly = computeWeeklyMortgage(loan, mortgageRate, 25);
   const monthlyPayment = (weekly * 52) / 12;
-  const cashflowMonthly = rentMonthly - expensesMonthly - monthlyPayment;
+  const cashflowMonthly = rentMonthly - expensesMonthly - reservesMonthly - monthlyPayment;
+
+  // Intérêt annuel approximatif sur le solde initial (année 1)
+  const annualInterest = loan * mortgageRate;
+  const roc = downPayment > 0 ? (noiAnnual - annualInterest) / downPayment : 0;
 
   // Projection 10 ans sur valeur nette = valeur - dette
   const schedule = (economy?.schedule && economy.schedule.length ? economy.schedule : Array.from({ length: 10 }, () => 0.02)).slice(0, 10);
@@ -499,14 +687,47 @@ function TemplatePreview({
   return (
     <div className="mt-3 border-t border-neutral-800 pt-3 space-y-2">
       <h5 className="font-semibold text-sm">Bilan</h5>
+      <div className="grid md:grid-cols-3 gap-3 text-xs text-neutral-300">
+        <label className="flex flex-col gap-1">
+          Vacance locative (%)
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={Math.round(vacancyRate * 100)}
+            onChange={(e) => setVacancyRate(Math.max(0, Math.min(1, Number(e.target.value) / 100)))}
+            className="px-2 py-1 rounded bg-neutral-900 border border-neutral-700"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          Réserves entretien ($/logement/mois)
+          <input
+            type="number"
+            min={0}
+            step={5}
+            value={reservePerUnitMonthly}
+            onChange={(e) => setReservePerUnitMonthly(Math.max(0, Number(e.target.value)))}
+            className="px-2 py-1 rounded bg-neutral-900 border border-neutral-700"
+          />
+        </label>
+        {economy && (
+          <div className="flex flex-col gap-1">
+            <span>Indexation (réf.)</span>
+            <span className="text-neutral-400">Loyers ~{(Math.max(0, economy.appreciationAnnual) * 100).toFixed(1)}%/an · Charges ~2.0%/an</span>
+          </div>
+        )}
+      </div>
       <ul className="text-xs text-neutral-300 grid md:grid-cols-2 gap-2">
         <li>Unités: {units}</li>
-        <li>Loyer total: ${fmt(rentMonthly)}/mois</li>
+        <li>Loyer brut: ${fmt(Math.round(rentMonthlyGross))}/mois — Vacance: {Math.round(vacancyRate * 100)}%</li>
+        <li>Loyer effectif: ${fmt(Math.round(rentMonthly))}/mois</li>
         <li>Charges: ${fmt(Math.round(expensesMonthly))}/mois ({fmt(Math.round(expensesAnnual))}/an)</li>
+        <li>Réserves: ${fmt(Math.round(reservesMonthly))}/mois ({fmt(Math.round(reservesAnnual))}/an)</li>
         <li>NOI: ${fmt(Math.round(noiAnnual))}/an · Cap rate: {(capRate * 100).toFixed(2)}%</li>
         <li>Mise de fonds: ${fmt(Math.round(downPayment))} ({Math.round(downPaymentPercent * 100)}%)</li>
         <li>Hypothèque: ${fmt(Math.round(loan))} — Paiement: ${fmt(Math.round(monthlyPayment))}/mois</li>
         <li>Cashflow estimé: <span className={cashflowMonthly >= 0 ? 'text-emerald-400' : 'text-red-400'}>${fmt(Math.round(cashflowMonthly))}/mois</span></li>
+        <li>Rendement sur capital (année 1): <span className={roc >= 0 ? 'text-emerald-400' : 'text-red-400'}>{(roc * 100).toFixed(2)}%</span></li>
       </ul>
       <div>
         <h6 className="text-xs text-neutral-400 mb-1">Projection 10 ans (valeur nette)</h6>

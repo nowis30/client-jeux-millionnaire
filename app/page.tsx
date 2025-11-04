@@ -46,6 +46,12 @@ export default function DashboardPage() {
   const [knownNickname, setKnownNickname] = useState("");
   const [events, setEvents] = useState<Array<{ at: string; text: string }>>([]);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const [portfolioPlayer, setPortfolioPlayer] = useState<GamePlayer | null>(null);
+  const [portfolioProps, setPortfolioProps] = useState<any[]>([]);
+  const [portfolioMkts, setPortfolioMkts] = useState<any[]>([]);
+  const [priceMap, setPriceMap] = useState<Record<string, number>>({});
+  const [economy, setEconomy] = useState<{ baseMortgageRate: number; appreciationAnnual: number; schedule: number[] } | null>(null);
+  const [proj, setProj] = useState<Array<{ year: number; net: number }>>([]);
 
   useEffect(() => {
     const session = loadSession();
@@ -82,6 +88,148 @@ export default function DashboardPage() {
       setError(err instanceof Error ? err.message : "Échec de récupération de l'état");
     }
   }, [gameId]);
+
+  const openPortfolio = useCallback(async (p: GamePlayer) => {
+    if (!gameId) return;
+    setPortfolioPlayer(p);
+    try {
+      const [propsRes, mktRes, pricesRes, ecoRes] = await Promise.all([
+        fetch(`${API_BASE}/api/games/${gameId}/properties/holdings/${p.id}`),
+        fetch(`${API_BASE}/api/games/${gameId}/markets/holdings/${p.id}`),
+        fetch(`${API_BASE}/api/games/${gameId}/markets/latest`),
+        fetch(`${API_BASE}/api/games/${gameId}/economy`),
+      ]);
+      const propsData = propsRes.ok ? await propsRes.json() : { holdings: [] };
+      const mktData = mktRes.ok ? await mktRes.json() : { holdings: [] };
+      const pricesData = pricesRes.ok ? await pricesRes.json() : { prices: [] };
+      const ecoData = ecoRes.ok ? await ecoRes.json() : null;
+      setPortfolioProps(propsData.holdings ?? []);
+      setPortfolioMkts(mktData.holdings ?? []);
+      const pm: Record<string, number> = {};
+      for (const p of (pricesData.prices ?? [])) pm[p.symbol] = p.price;
+      setPriceMap(pm);
+      if (ecoData) setEconomy({ baseMortgageRate: Number(ecoData.baseMortgageRate ?? 0.05), appreciationAnnual: Number(ecoData.appreciationAnnual ?? 0.02), schedule: Array.isArray(ecoData.schedule) ? ecoData.schedule : [] });
+    } catch (e) {
+      // mute
+    }
+  }, [gameId]);
+
+  // --- Helpers projection portefeuille 10 ans ---
+  function computeWeeklyMortgage(principal: number, annualRate: number, years = 25): number {
+    const n = Math.max(1, Math.round(52 * years));
+    const r = annualRate / 52;
+    if (principal <= 0) return 0;
+    if (r <= 0) return principal / n;
+    const a = r * principal;
+    const b = 1 - Math.pow(1 + r, -n);
+    return a / b;
+  }
+
+  function expectedReturn(symbol: string): number {
+    switch (symbol) {
+      case "SP500":
+      case "VFV":
+      case "XLF":
+      case "XLE":
+      case "IWM":
+        return 0.06;
+      case "QQQ":
+      case "AAPL":
+      case "MSFT":
+      case "AMZN":
+      case "META":
+      case "GOOGL":
+      case "NVDA":
+      case "TSLA":
+      case "COST":
+        return 0.08;
+      case "TSX":
+      case "VDY":
+        return 0.05;
+      case "UPRO":
+        return 0.18; // ~3x SP500 (simplifié)
+      case "TQQQ":
+        return 0.24; // ~3x QQQ (simplifié)
+      case "GLD":
+        return 0.02;
+      case "TLT":
+        return 0.03;
+      default:
+        return 0.05;
+    }
+  }
+
+  useEffect(() => {
+    // Calcule une projection 10 ans de la valeur nette totale (immo + bourse + cash statique)
+    if (!portfolioPlayer) { setProj([]); return; }
+    const YEARS = 10;
+    const sched = (economy?.schedule && economy.schedule.length ? economy.schedule : Array.from({ length: YEARS }, () => 0.02)).slice(0, YEARS);
+    const baseRate = economy?.baseMortgageRate ?? 0.05;
+
+    // Immobilier: valeur et dette, amortissement via weeklyPayment si fourni sinon approx par formule
+    const immo = (portfolioProps || []).map((h: any) => {
+      const value = Number(h.currentValue ?? 0);
+      const debt = Number(h.mortgageDebt ?? 0);
+      const payW = Number(h.weeklyPayment ?? 0) || computeWeeklyMortgage(debt, baseRate, 25);
+      return { value, debt, rate: baseRate, payW };
+    });
+
+    // Marchés: valeur initiale par position
+    const mkts = (portfolioMkts || []).map((m: any) => {
+      const last = priceMap[m.symbol] ?? Number(m.avgPrice ?? 0);
+      const val = Number(m.quantity ?? 0) * Number(last ?? 0);
+      const er = expectedReturn(String(m.symbol));
+      return { value: val, er };
+    });
+
+    // Cash: gardé constant (sans intérêt) pour simplicité
+    const cash0 = Number(portfolioPlayer.cash ?? 0);
+
+    const out: Array<{ year: number; net: number }>= [];
+    const net0 = immo.reduce((s, x) => s + (x.value - x.debt), 0) + mkts.reduce((s, x) => s + x.value, 0) + cash0;
+    out.push({ year: 0, net: net0 });
+    let immoState = immo.map((x) => ({ ...x }));
+    let mktState = mkts.map((x) => ({ ...x }));
+    for (let y = 1; y <= YEARS; y++) {
+      // Immobilier: amortissement + appréciation annuelle
+      for (const s of immoState) {
+        const annualPayment = s.payW * 52;
+        const interest = s.debt * s.rate;
+        const principal = Math.max(0, annualPayment - interest);
+        s.debt = Math.max(0, s.debt - principal);
+        s.value = s.value * (1 + (sched[y - 1] ?? 0.02));
+      }
+      // Marchés: croissance composée à retour attendu (total return simplifié)
+      for (const s of mktState) s.value = s.value * (1 + s.er);
+      const net = immoState.reduce((sum, s) => sum + (s.value - s.debt), 0) + mktState.reduce((sum, s) => sum + s.value, 0) + cash0;
+      out.push({ year: y, net });
+    }
+    setProj(out);
+  }, [portfolioPlayer, portfolioProps, portfolioMkts, priceMap, economy]);
+
+  function PortfolioProjectionChart({ data }: { data: { year: number; net: number }[] }) {
+    if (!data || data.length === 0) return null;
+    const w = 800, h = 200, pad = 28;
+    const minY = Math.min(...data.map((d) => d.net));
+    const maxY = Math.max(...data.map((d) => d.net));
+    const y0 = minY === maxY ? minY * 0.95 : minY * 0.98;
+    const y1 = minY === maxY ? maxY * 1.05 : maxY * 1.02;
+    const x = (i: number) => pad + (i * (w - pad * 2)) / Math.max(1, data.length - 1);
+    const y = (v: number) => h - pad - ((v - y0) * (h - pad * 2)) / Math.max(1, (y1 - y0));
+    const points = data.map((d, i) => `${x(i)},${y(d.net)}`).join(" ");
+    const fmt = (n: number) => n >= 1_000_000 ? `${(n/1_000_000).toFixed(2)} M$` : n >= 1_000 ? `${(n/1_000).toFixed(1)} k$` : `$${Math.round(n)}`;
+    return (
+      <div className="w-full overflow-x-auto">
+        <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-48 bg-neutral-950 border border-neutral-800 rounded">
+          <line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke="#333" />
+          <line x1={pad} y1={pad} x2={pad} y2={h - pad} stroke="#333" />
+          <text x={pad} y={pad - 8} fill="#9ca3af" fontSize="10" textAnchor="start">{fmt(y1)}</text>
+          <text x={pad} y={h - pad + 12} fill="#9ca3af" fontSize="10" textAnchor="start">{fmt(y0)}</text>
+          <polyline fill="none" stroke="#22c55e" strokeWidth={2} points={points} />
+        </svg>
+      </div>
+    );
+  }
 
   // Partie unique: plus de lobbies à charger
 
@@ -205,9 +353,16 @@ export default function DashboardPage() {
         if (e.type === "property:sell") return `Vente propriété ${e.holdingId} (+$${Number(e.proceeds ?? 0).toLocaleString()})`;
         if (e.type === "market:buy") return `Achat ${e.quantity} ${e.symbol} @ $${Number(e.price ?? 0).toFixed(2)}`;
         if (e.type === "market:sell") return `Vente ${e.quantity} ${e.symbol} @ $${Number(e.price ?? 0).toFixed(2)}`;
+        if (e.type === "market:dividend") return `Dividende ${e.symbol} +$${Number(e.amount ?? 0).toFixed(2)} (Rdt ${(Number(e.yieldA ?? 0) * 100).toFixed(2)}%/an)`;
+        if (e.type === "market:dividend-agg") {
+          const total = Number(e.amount ?? 0).toFixed(2);
+          const details = e.details ? Object.entries(e.details as Record<string, number>).map(([s, a]) => `${s} $${Number(a).toFixed(2)}`).join(" · ") : "";
+          return `Dividendes +$${total}${details ? ` (${details})` : ""}`;
+        }
         if (e.type === "listing:create") return `Nouvelle annonce publiée`;
         if (e.type === "listing:cancel") return `Annonce annulée`;
         if (e.type === "listing:accept") return `Annonce acceptée (achat)`;
+        if (e.type === "cash:margin-interest") return `Intérêts de marge -$${Number(e.amount ?? 0).toFixed(2)} (taux ${(Number(e.rate ?? 0) * 100).toFixed(2)}%)`;
         return e.type ?? "événement";
       })();
       setEvents((prev) => [{ at: e.at ?? new Date().toISOString(), text }, ...prev].slice(0, 20));
@@ -308,6 +463,13 @@ export default function DashboardPage() {
                 <span>{p.nickname}</span>
                 <div className="flex items-center gap-2">
                   <span>Cash: ${p.cash.toLocaleString()} | Net: ${p.netWorth.toLocaleString()}</span>
+                  <button
+                    title="Voir le portefeuille"
+                    onClick={() => openPortfolio(p)}
+                    className="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-xs"
+                  >
+                    Voir portefeuille
+                  </button>
                   {isAdmin && (
                     <button
                       title="Supprimer ce joueur"
@@ -367,6 +529,86 @@ export default function DashboardPage() {
         <Link href="/listings" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500">Annonces</Link>
         <Link href="/summary" className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500">Résumé</Link>
       </section>
+
+      {portfolioPlayer && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center p-4" onClick={() => setPortfolioPlayer(null)}>
+          <div className="w-full max-w-4xl bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800">
+              <h4 className="font-semibold">Portefeuille — {portfolioPlayer.nickname}</h4>
+              <button onClick={() => setPortfolioPlayer(null)} className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-sm">Fermer</button>
+            </div>
+            <div className="p-4 grid gap-4 md:grid-cols-2">
+              <div>
+                <h5 className="font-semibold mb-2">Immobilier</h5>
+                {portfolioProps.length === 0 ? (
+                  <p className="text-sm text-neutral-400">Aucun bien.</p>
+                ) : (
+                  <table className="w-full text-sm bg-neutral-950 border border-neutral-800 rounded">
+                    <thead>
+                      <tr className="text-left">
+                        <th className="p-2">Bien</th>
+                        <th className="p-2">Valeur</th>
+                        <th className="p-2">Dette</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {portfolioProps.map((h: any) => (
+                        <tr key={h.id} className="border-t border-neutral-800">
+                          <td className="p-2">{h.template?.name ?? 'Bien'}<div className="text-xs text-neutral-500">{h.template?.city ?? ''}</div></td>
+                          <td className="p-2">${Number(h.currentValue ?? 0).toLocaleString()}</td>
+                          <td className="p-2">${Number(h.mortgageDebt ?? 0).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+              <div>
+                <h5 className="font-semibold mb-2">Bourse</h5>
+                {portfolioMkts.length === 0 ? (
+                  <p className="text-sm text-neutral-400">Aucune position.</p>
+                ) : (
+                  <table className="w-full text-sm bg-neutral-950 border border-neutral-800 rounded">
+                    <thead>
+                      <tr className="text-left">
+                        <th className="p-2">Actif</th>
+                        <th className="p-2">Qté</th>
+                        <th className="p-2">Prix moy.</th>
+                        <th className="p-2">Valeur</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {portfolioMkts.map((m: any) => {
+                        const last = priceMap[m.symbol] ?? m.avgPrice;
+                        const value = Number(m.quantity ?? 0) * Number(last ?? 0);
+                        return (
+                          <tr key={m.id} className="border-t border-neutral-800">
+                            <td className="p-2">{m.symbol}</td>
+                            <td className="p-2">{Number(m.quantity ?? 0).toFixed(2)}</td>
+                            <td className="p-2">${Number(m.avgPrice ?? 0).toFixed(2)}</td>
+                            <td className="p-2">${value.toFixed(2)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+            <div className="px-4 pb-4">
+              {proj.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-baseline justify-between">
+                    <h5 className="font-semibold">Projection 10 ans (valeur nette totale)</h5>
+                    <span className="text-xs text-neutral-400">de ${Math.round(proj[0].net).toLocaleString()} à ${Math.round(proj[proj.length - 1].net).toLocaleString()}</span>
+                  </div>
+                  <PortfolioProjectionChart data={proj} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

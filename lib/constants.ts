@@ -1,1 +1,23 @@
-export const MARKET_ASSETS = ["GOLD", "OIL", "SP500", "TSX", "BONDS"] as const;
+// Doit correspondre aux actifs côté serveur (server/src/shared/constants.ts)
+export const MARKET_ASSETS = [
+	"SP500",
+	"QQQ",
+	"TSX",
+	"GLD",
+	"TLT",
+	"UPRO",
+	"TQQQ",
+	"VFV",
+	"VDY",
+	"AAPL",
+	"MSFT",
+	"AMZN",
+	"META",
+	"GOOGL",
+	"NVDA",
+	"TSLA",
+	"COST",
+	"XLF",
+	"XLE",
+	"IWM",
+] as const;

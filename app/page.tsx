@@ -505,11 +505,12 @@ export default function DashboardPage() {
 
       {/* Activité temps réel retirée (pas de suivi client) */}
 
-      <section className="flex gap-4">
+      <section className="flex gap-4 flex-wrap">
         <Link href="/immobilier" className="px-4 py-2 rounded bg-sky-600 hover:bg-sky-500">Immobilier</Link>
         <Link href="/bourse" className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500">Bourse</Link>
         <Link href="/listings" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500">Annonces</Link>
         <Link href="/summary" className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500">Résumé</Link>
+        <Link href="/quiz" className="px-4 py-2 rounded bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 font-bold">💰 Quiz</Link>
       </section>
 
       {portfolioPlayer && (

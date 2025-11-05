@@ -8,6 +8,18 @@ function getToken(): string | null {
   try { return window.localStorage.getItem(TOKEN_KEY); } catch { return null; }
 }
 
+function getPlayerId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const session = window.localStorage.getItem("hm-session");
+    if (!session) return null;
+    const data = JSON.parse(session);
+    return data.playerId || null;
+  } catch { 
+    return null; 
+  }
+}
+
 async function ensureCsrf(): Promise<string | null> {
   try {
     if (CSRF_TOKEN) return CSRF_TOKEN;
@@ -30,6 +42,13 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
   }
   const bearer = getToken();
   if (bearer) headers["Authorization"] = `Bearer ${bearer}`;
+  
+  // Ajouter X-Player-ID pour iOS/Safari (si disponible dans localStorage)
+  const playerId = getPlayerId();
+  if (playerId) {
+    headers["X-Player-ID"] = playerId;
+  }
+  
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: "include",
     ...init,

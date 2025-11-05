@@ -56,6 +56,7 @@ export default function DashboardPage() {
   const [proj, setProj] = useState<Array<{ year: number; net: number }>>([]);
   const [projLoading, setProjLoading] = useState(false);
   const [projRequested, setProjRequested] = useState(false);
+  const [autoJoinAttempted, setAutoJoinAttempted] = useState(false);
 
   useEffect(() => {
     const session = loadSession();
@@ -90,6 +91,41 @@ export default function DashboardPage() {
       setError(err instanceof Error ? err.message : "Échec de récupération de l'état");
     }
   }, [gameId]);
+
+  // Rejoindre automatiquement la partie globale dès la connexion
+  const autoJoinGlobal = useCallback(async () => {
+    if (autoJoinAttempted || !isLoggedIn || gameId) return;
+    setAutoJoinAttempted(true);
+    
+    try {
+      const list = await apiFetch<{ games: { id: string; code: string; status: string }[] }>(`/api/games`);
+      const g = list.games?.[0];
+      if (!g) throw new Error("Partie introuvable");
+      
+      const data = await apiFetch<{ playerId: string; code: string }>(`/api/games/${g.id}/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      
+      setGameId(g.id);
+      setPlayerId(data.playerId);
+      setGameCode(g.code);
+      setKnownNickname(userEmail);
+      refreshSession({ gameId: g.id, playerId: data.playerId, nickname: userEmail });
+      setError(null);
+      setMessage(`Vous avez rejoint la partie mondiale en tant que ${userEmail}`);
+      updateState();
+    } catch (err: any) {
+      console.error("[AutoJoin] Erreur:", err);
+      // Ne pas afficher d'erreur si l'utilisateur existe déjà
+    }
+  }, [autoJoinAttempted, isLoggedIn, gameId, userEmail, refreshSession, updateState]);
+
+  // Déclencher le auto-join dès que l'utilisateur est connecté
+  useEffect(() => {
+    autoJoinGlobal();
+  }, [autoJoinGlobal]);
 
   const openPortfolio = useCallback(async (p: GamePlayer) => {
     if (!gameId) return;
@@ -391,15 +427,19 @@ export default function DashboardPage() {
       ) : (
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Rejoindre la partie mondiale</h2>
+          <h2 className="text-xl font-semibold">Partie Mondiale du Millionnaire</h2>
           <div className="flex items-center gap-3">
             {userEmail && <p className="text-sm text-neutral-400">Connecté: <span className="text-emerald-400">{userEmail}</span></p>}
             {isAdmin && <span className="px-2 py-1 rounded bg-red-700 text-xs font-semibold">ADMIN</span>}
           </div>
         </div>
+        {gameId && playerId && (
+          <div className="bg-emerald-900/30 border border-emerald-700/50 rounded-lg p-3">
+            <p className="text-emerald-300 text-sm">✅ Vous êtes automatiquement inscrit à la partie mondiale !</p>
+            <p className="text-neutral-400 text-xs mt-1">Pseudo: {knownNickname || userEmail}</p>
+          </div>
+        )}
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <button onClick={handleJoinGlobal} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500">Rejoindre (pseudo = votre email)</button>
-          <button onClick={handleClearSession} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Effacer session</button>
           <button
             onClick={async () => {
               try { await apiFetch<{ ok: boolean }>("/api/auth/logout", { method: "POST" }); } catch {}
@@ -412,9 +452,6 @@ export default function DashboardPage() {
           <a href={`mailto:?subject=${encodeURIComponent("Rejoins le jeu du Millionnaire")}&body=${encodeURIComponent("Rejoins-moi: " + shareUrl)}`} className="px-4 py-2 rounded bg-indigo-700 hover:bg-indigo-600 text-center">Inviter par email</a>
         </div>
         {shareStatus && <p className="text-xs text-neutral-400">{shareStatus}</p>}
-        {/* Ne plus afficher le code ou les identifiants */}
-        {/* Ne plus afficher le playerId technique */}
-        {knownNickname && <p className="text-xs text-neutral-400">Pseudo enregistré: {knownNickname}</p>}
         {message && <p className="text-sm text-emerald-400">{message}</p>}
         {error && <p className="text-sm text-red-400">{error}</p>}
       </section>

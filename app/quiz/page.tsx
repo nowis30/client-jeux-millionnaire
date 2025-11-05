@@ -16,6 +16,7 @@ export default function QuizPage() {
   const router = useRouter();
   const [gameId, setGameId] = useState<string | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
+  const [online, setOnline] = useState<number | null>(null);
   const [status, setStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
@@ -56,6 +57,18 @@ export default function QuizPage() {
   useEffect(() => {
     if (gameId) {
       loadStatus();
+      // Charger puis rafraîchir le nombre en ligne
+      const loadOnline = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/games/${gameId}/online`);
+          if (!res.ok) return;
+          const data = await res.json();
+          setOnline(Number(data.online ?? 0));
+        } catch {}
+      };
+      loadOnline();
+      const iv = setInterval(loadOnline, 15000);
+      return () => clearInterval(iv);
     }
   }, [gameId]);
 
@@ -326,7 +339,9 @@ export default function QuizPage() {
             ← Retour
           </button>
           <h1 className="text-3xl font-bold text-center">💰 Quitte ou Double</h1>
-          <div className="w-24"></div>
+          <div className="text-sm text-gray-300 min-w-[120px] text-right">
+            {online != null ? <span title="Joueurs connectés à la partie">👥 {online} en ligne</span> : <span className="text-gray-500"> </span>}
+          </div>
         </div>
 
         {/* Feedback */}

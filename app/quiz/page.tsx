@@ -24,7 +24,11 @@ export default function QuizPage() {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isAnswering, setIsAnswering] = useState(false);
-  const [stats, setStats] = useState<{ remaining?: number; remainingByCategory?: { finance: number; economy: number; realEstate: number } } | null>(null);
+  const [stats, setStats] = useState<{
+    remaining?: number;
+    remainingByCategory?: { finance: number; economy: number; realEstate: number };
+    categories?: Array<{ category: string; remaining: number; total?: number; used?: number }>;
+  } | null>(null);
 
   useEffect(() => {
     // Chercher la session dans localStorage (clé: hm-session)
@@ -79,7 +83,10 @@ export default function QuizPage() {
       const res = await fetch(`${API_BASE}/api/quiz/public-stats`);
       if (!res.ok) return;
       const data = await res.json();
-      setStats({ remaining: Number(data.remaining ?? 0), remainingByCategory: data.remainingByCategory });
+      const dynamicCats: Array<{ category: string; remaining: number; total?: number; used?: number }> | undefined = Array.isArray(data.categories)
+        ? data.categories.map((c: any) => ({ category: String(c.category ?? 'autre'), remaining: Number(c.remaining ?? 0), total: Number(c.total ?? 0), used: Number(c.used ?? 0) }))
+        : undefined;
+      setStats({ remaining: Number(data.remaining ?? 0), remainingByCategory: data.remainingByCategory, categories: dynamicCats });
     } catch {}
   }
 
@@ -367,10 +374,26 @@ export default function QuizPage() {
                 Questions en banque: {stats.remaining}
               </span>
             )}
-            {stats.remainingByCategory && (
-              <span className="px-2 py-1 rounded bg-white/10 border border-white/20 text-gray-200">
-                Finance {stats.remainingByCategory.finance} · Économie {stats.remainingByCategory.economy} · Immo {stats.remainingByCategory.realEstate}
-              </span>
+            {/* Affichage dynamique des catégories si dispo, sinon fallback aux 3 catégories historiques */}
+            {stats.categories && stats.categories.length > 0 ? (
+              <div className="flex items-center gap-1 flex-wrap">
+                {stats.categories.slice(0, 6).map((c) => (
+                  <span key={c.category} className="px-2 py-1 rounded bg-white/10 border border-white/20 text-gray-200">
+                    {c.category} {c.remaining}
+                  </span>
+                ))}
+                {stats.categories.length > 6 && (
+                  <span className="px-2 py-1 rounded bg-white/10 border border-white/20 text-gray-200">
+                    +{stats.categories.length - 6} autres
+                  </span>
+                )}
+              </div>
+            ) : (
+              stats.remainingByCategory && (
+                <span className="px-2 py-1 rounded bg-white/10 border border-white/20 text-gray-200">
+                  Finance {stats.remainingByCategory.finance} · Économie {stats.remainingByCategory.economy} · Immo {stats.remainingByCategory.realEstate}
+                </span>
+              )
             )}
           </div>
         )}

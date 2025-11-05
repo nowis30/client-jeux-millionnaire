@@ -57,7 +57,12 @@ export default function DashboardPage() {
   const [projLoading, setProjLoading] = useState(false);
   const [projRequested, setProjRequested] = useState(false);
   const [autoJoinAttempted, setAutoJoinAttempted] = useState(false);
-  const [questionStats, setQuestionStats] = useState<{ remaining?: number; remainingByDifficulty?: { easy: number; medium: number; hard: number }; remainingByCategory?: { finance: number; economy: number; realEstate: number } } | null>(null);
+  const [questionStats, setQuestionStats] = useState<{
+    remaining?: number;
+    remainingByDifficulty?: { easy: number; medium: number; hard: number };
+    remainingByCategory?: { finance: number; economy: number; realEstate: number };
+    categories?: Array<{ category: string; total?: number; used?: number; remaining: number }>;
+  } | null>(null);
 
   useEffect(() => {
     const session = loadSession();
@@ -143,14 +148,25 @@ export default function DashboardPage() {
       const mktData = mktRes.ok ? await mktRes.json() : { holdings: [] };
       const pricesData = pricesRes.ok ? await pricesRes.json() : { prices: [] };
       const ecoData = ecoRes.ok ? await ecoRes.json() : null;
-      const statsData = statsRes.ok ? await statsRes.json() : null;
+  const statsData = statsRes.ok ? await statsRes.json() : null;
       setPortfolioProps(propsData.holdings ?? []);
       setPortfolioMkts(mktData.holdings ?? []);
       const pm: Record<string, number> = {};
       for (const p of (pricesData.prices ?? [])) pm[p.symbol] = p.price;
       setPriceMap(pm);
       if (ecoData) setEconomy({ baseMortgageRate: Number(ecoData.baseMortgageRate ?? 0.05), appreciationAnnual: Number(ecoData.appreciationAnnual ?? 0.02), schedule: Array.isArray(ecoData.schedule) ? ecoData.schedule : [] });
-  if (statsData) setQuestionStats({ remaining: Number(statsData.remaining ?? 0), remainingByDifficulty: statsData.remainingByDifficulty, remainingByCategory: statsData.remainingByCategory });
+      if (statsData) {
+        // Support dynamique des catégories: server envoie statsData.categories
+        const dynamicCats: Array<{ category: string; total?: number; used?: number; remaining: number }> | undefined = Array.isArray(statsData.categories)
+          ? statsData.categories.map((c: any) => ({ category: String(c.category ?? 'autre'), total: Number(c.total ?? 0), used: Number(c.used ?? 0), remaining: Number(c.remaining ?? 0) }))
+          : undefined;
+        setQuestionStats({
+          remaining: Number(statsData.remaining ?? 0),
+          remainingByDifficulty: statsData.remainingByDifficulty,
+          remainingByCategory: statsData.remainingByCategory,
+          categories: dynamicCats,
+        });
+      }
     } catch (e) {
       // mute
     }
@@ -565,10 +581,26 @@ export default function DashboardPage() {
                     Questions en banque: {questionStats.remaining}
                   </span>
                 )}
-                {questionStats?.remainingByCategory && (
-                  <span className="text-[10px] px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-neutral-300">
-                    {`Finance ${questionStats.remainingByCategory.finance} · Économie ${questionStats.remainingByCategory.economy} · Immo ${questionStats.remainingByCategory.realEstate}`}
-                  </span>
+                {/* Catégories dynamiques si disponibles, sinon fallback 3 catégories */}
+                {questionStats?.categories && questionStats.categories.length > 0 ? (
+                  <div className="flex items-center gap-1 flex-wrap max-w-[60vw]">
+                    {questionStats.categories.slice(0, 5).map((c) => (
+                      <span key={c.category} className="text-[10px] px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-neutral-300">
+                        {c.category} {c.remaining}
+                      </span>
+                    ))}
+                    {questionStats.categories.length > 5 && (
+                      <span className="text-[10px] px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-neutral-300">
+                        +{questionStats.categories.length - 5} autres
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  questionStats?.remainingByCategory && (
+                    <span className="text-[10px] px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-neutral-300">
+                      {`Finance ${questionStats.remainingByCategory.finance} · Économie ${questionStats.remainingByCategory.economy} · Immo ${questionStats.remainingByCategory.realEstate}`}
+                    </span>
+                  )
                 )}
                 <button onClick={() => setPortfolioPlayer(null)} className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-sm">Fermer</button>
               </div>

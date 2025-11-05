@@ -118,6 +118,7 @@ export default function QuizPage() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json", "X-CSRF": "1" },
+        body: JSON.stringify({}),
       });
 
       if (!res.ok) {

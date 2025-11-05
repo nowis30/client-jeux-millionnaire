@@ -430,6 +430,25 @@ export default function QuizPage() {
 
             {/* Question */}
             <div className="bg-white/10 backdrop-blur-md rounded-xl p-8">
+              {/* Image de la question (si présente) */}
+              {question.imageUrl && (
+                <div className="mb-6 flex justify-center">
+                  <div className="relative max-w-xl w-full">
+                    <img 
+                      src={question.imageUrl} 
+                      alt="Illustration de la question"
+                      className="w-full h-auto max-h-80 rounded-lg shadow-2xl object-cover border-2 border-white/20"
+                      onError={(e) => {
+                        // Fallback si l'image ne charge pas
+                        console.warn('[Quiz] Failed to load image:', question.imageUrl);
+                        e.currentTarget.style.display = 'none';
+                      }}
+                      loading="lazy"
+                    />
+                  </div>
+                </div>
+              )}
+              
               <h2 className="text-2xl font-bold mb-6 text-center">{question.text}</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

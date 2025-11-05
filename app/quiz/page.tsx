@@ -115,9 +115,32 @@ export default function QuizPage() {
       setFeedback(null);
 
       if (isResume && existingSessionId) {
-        // Pour une session existante, on doit charger la question actuelle
-        // Note: L'API ne fournit pas directement la question, on doit modifier l'endpoint
-        // Pour l'instant, on démarre une nouvelle session
+        // Reprendre la session: appeler l'endpoint resume pour récupérer la question courante
+        const headers: Record<string, string> = { "X-CSRF": "1" };
+        if (playerId) headers["X-Player-ID"] = playerId;
+
+        const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/resume`, {
+          method: "GET",
+          credentials: "include",
+          headers,
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || "Erreur reprise de la session");
+        }
+
+        const data = await res.json();
+        // Mettre à jour session (côté serveur, elle existe déjà)
+        setSession({
+          id: data.session.id,
+          currentQuestion: data.session.currentQuestion,
+          currentEarnings: data.session.currentEarnings,
+          securedAmount: data.session.securedAmount,
+          nextPrize: data.session.nextPrize,
+        });
+        setQuestion(data.question);
+        setSelectedAnswer(null);
         return;
       }
 
@@ -281,6 +304,18 @@ export default function QuizPage() {
                 className="mt-4 px-4 py-2 bg-white/20 hover:bg-white/30 rounded"
               >
                 ← Retour à l'accueil
+              </button>
+            </div>
+          )}
+          {/* Fallback si session existe mais question pas encore chargée (reprise) */}
+          {session && !question && (
+            <div className="mt-6">
+              <div className="text-sm text-gray-300 mb-2">Reprise de la session en cours...</div>
+              <button
+                onClick={() => startSession(session.id, true)}
+                className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded"
+              >
+                🔄 Reprendre maintenant
               </button>
             </div>
           )}

@@ -29,6 +29,7 @@ export default function QuizPage() {
     remainingByCategory?: { finance: number; economy: number; realEstate: number };
     categories?: Array<{ category: string; remaining: number; total?: number; used?: number }>;
   } | null>(null);
+  const [revealCorrect, setRevealCorrect] = useState<'A'|'B'|'C'|'D'|null>(null);
 
   useEffect(() => {
     // Chercher la session dans localStorage (clé: hm-session)
@@ -260,11 +261,18 @@ export default function QuizPage() {
           loadStats();
         }
       } else {
-        // Mauvaise réponse
+        // Mauvaise réponse: afficher la bonne réponse pendant 5s puis réinitialiser
         setFeedback({ type: 'error', message: data.message });
-        setSession(null);
-        setQuestion(null);
-        setTimeout(() => { loadStatus(); loadStats(); }, 3000);
+        setRevealCorrect(data.correctAnswer as 'A'|'B'|'C'|'D');
+        // Garder la question affichée, désactiver les interactions
+        setTimeout(() => {
+          setRevealCorrect(null);
+          setSession(null);
+          setQuestion(null);
+          setSelectedAnswer(null);
+          loadStatus();
+          loadStats();
+        }, 5000);
       }
     } catch (err: any) {
       console.error(err);
@@ -521,21 +529,25 @@ export default function QuizPage() {
               <h2 className="text-2xl font-bold mb-6 text-center">{question.text}</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {['A', 'B', 'C', 'D'].map((letter) => (
+                {['A', 'B', 'C', 'D'].map((letter) => {
+                  const isCorrect = revealCorrect === letter;
+                  const isWrongSelected = revealCorrect && selectedAnswer === letter && revealCorrect !== selectedAnswer;
+                  const disabled = isAnswering || !!revealCorrect;
+                  const base = 'p-4 rounded-lg text-left transition transform hover:scale-105';
+                  const stateClass = revealCorrect
+                    ? (isCorrect ? 'bg-green-600 text-black font-bold' : (isWrongSelected ? 'bg-red-600 text-white font-bold' : 'bg-white/5'))
+                    : (selectedAnswer === letter ? 'bg-yellow-500 text-black font-bold shadow-lg' : 'bg-white/5 hover:bg-white/10');
+                  return (
                   <button
                     key={letter}
-                    onClick={() => setSelectedAnswer(letter)}
-                    disabled={isAnswering}
-                    className={`p-4 rounded-lg text-left transition transform hover:scale-105 ${
-                      selectedAnswer === letter
-                        ? 'bg-yellow-500 text-black font-bold shadow-lg'
-                        : 'bg-white/5 hover:bg-white/10'
-                    } ${isAnswering ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={() => !revealCorrect && setSelectedAnswer(letter)}
+                    disabled={disabled}
+                    className={`${base} ${stateClass} ${disabled ? 'opacity-70 cursor-not-allowed' : ''}`}
                   >
                     <span className="font-bold mr-2">{letter}.</span>
                     {question[`option${letter}`]}
                   </button>
-                ))}
+                );})}
               </div>
             </div>
 
@@ -550,7 +562,7 @@ export default function QuizPage() {
               </button>
               <button
                 onClick={submitAnswer}
-                disabled={!selectedAnswer || isAnswering}
+                disabled={!selectedAnswer || isAnswering || !!revealCorrect}
                 className="flex-1 px-6 py-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed rounded-xl font-bold text-lg transition shadow-lg"
               >
                 {isAnswering ? "⏳ Validation..." : "✓ Valider ma réponse"}

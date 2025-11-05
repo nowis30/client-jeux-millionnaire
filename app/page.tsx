@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>("");
   // Vérifier la session utilisateur (auth)
   useEffect(() => {
     (async () => {
@@ -23,9 +24,11 @@ export default function DashboardPage() {
         const me = await apiFetch<{ id: string; email: string; isAdmin: boolean }>("/api/auth/me");
         setIsLoggedIn(true);
         setIsAdmin(!!me.isAdmin);
+        setUserEmail(me.email);
       } catch {
         setIsLoggedIn(false);
         setIsAdmin(false);
+        setUserEmail("");
         // Redirection automatique vers /login si non connecté
         router.replace("/login");
       }
@@ -379,7 +382,10 @@ export default function DashboardPage() {
         </section>
       ) : (
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold">Rejoindre la partie mondiale</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Rejoindre la partie mondiale</h2>
+          {userEmail && <p className="text-sm text-neutral-400">Connecté: <span className="text-emerald-400">{userEmail}</span></p>}
+        </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
           <button onClick={handleJoinGlobal} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500">Rejoindre (pseudo = votre email)</button>
           <button onClick={handleClearSession} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Effacer session</button>

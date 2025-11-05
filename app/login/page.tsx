@@ -15,6 +15,15 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setInfo(null);
+    
+    // SÉCURITÉ CRITIQUE: Déconnexion forcée avant toute tentative d'auth
+    // pour éviter de réutiliser un ancien token d'un autre utilisateur
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem("HM_TOKEN");
+      } catch {}
+    }
+    
     try {
       const path = mode === "login" ? "/api/auth/login" : "/api/auth/register";
       const resp = await apiFetch<{ id: string; email: string; isAdmin: boolean; token?: string }>(path, {
@@ -22,8 +31,11 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
+      // Stocker le nouveau token uniquement s'il est fourni (login)
       if (typeof window !== "undefined" && resp?.token) {
-        try { window.localStorage.setItem("HM_TOKEN", resp.token); } catch {}
+        try {
+          window.localStorage.setItem("HM_TOKEN", resp.token);
+        } catch {}
       }
       router.push("/");
     } catch (err) {

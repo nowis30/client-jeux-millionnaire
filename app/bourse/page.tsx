@@ -22,7 +22,6 @@ export default function BoursePage() {
   const [symbol, setSymbol] = useState<string>(MARKET_ASSETS[0]);
   const [quantity, setQuantity] = useState(1);
   const [prices, setPrices] = useState<Price[]>([]);
-  const [returns, setReturns] = useState<Record<string, Record<string, number>> | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [economy, setEconomy] = useState<{ baseMortgageRate: number } | null>(null);
   const [openSymbol, setOpenSymbol] = useState<string | null>(null);
@@ -130,18 +129,7 @@ export default function BoursePage() {
 
   // plus de chargement d'historique
 
-  const loadReturns = useCallback(async () => {
-    if (!gameId) return;
-    try {
-      // Fenêtres en temps de jeu: g1d (1 jour de jeu = 1/7h), g1w (1 semaine de jeu = 1h), g1y (1 an de jeu = 52h)
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/markets/returns?windows=g1d,g1w,g1y`);
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data: { returns: Record<string, Record<string, number>> } = await res.json();
-      setReturns(data.returns ?? null);
-    } catch (err) {
-      // non bloquant
-    }
-  }, [gameId]);
+  
 
   const loadHistory = useCallback(async (sym: string, years = 10) => {
     if (!gameId) return;
@@ -178,16 +166,14 @@ export default function BoursePage() {
 
   useEffect(() => {
     loadPrices();
-    loadReturns();
     
     // Rafraîchissement automatique toutes les 15 secondes
     const interval = setInterval(() => {
       loadPrices();
-      loadReturns();
     }, 15000);
     
     return () => clearInterval(interval);
-  }, [loadPrices, loadReturns]);
+  }, [loadPrices]);
 
   useEffect(() => {
     loadHoldings();
@@ -382,60 +368,45 @@ export default function BoursePage() {
         </table>
       </section>
 
-      {returns && (
-        <section className="space-y-3">
-          <h3 className="text-lg font-semibold">Rendement par actif (temps de jeu)</h3>
-          <table className="w-full text-sm bg-neutral-900 border border-neutral-800 rounded">
-            <thead>
-              <tr className="text-left">
-                <th className="p-2">Actif</th>
-                <th className="p-2" title="1 jour de jeu = 1/7 h réel (~8 min 34 s)">1j</th>
-                <th className="p-2" title="1 semaine de jeu = 1 h réel">1s</th>
-                <th className="p-2" title="1 an de jeu = 52 h réel">1 an</th>
-                <th className="p-2">Graphique</th>
-              </tr>
-            </thead>
-            <tbody>
-              {MARKET_ASSETS.map((asset) => {
-                const r = returns?.[asset] || {};
-                const cells = ["g1d","g1w","g1y"].map((k) => {
-                  const v = (r as any)[k] ?? 0;
-                  const pct = (v * 100).toFixed(2) + "%";
-                  const cls = v >= 0 ? "text-emerald-400" : "text-rose-400";
-                  return <td key={k} className={`p-2 ${cls}`}>{pct}</td>;
-                });
-                return (
-                  <>
-                    <tr key={asset} className="border-t border-neutral-800">
-                      <td className="p-2">{asset}</td>
-                      {cells}
-                      <td className="p-2">
-                        <button
-                          className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-xs"
-                          onClick={async () => {
-                            const nextOpen = openSymbol === asset ? null : asset;
-                            setOpenSymbol(nextOpen);
-                            if (nextOpen && !history[nextOpen]) {
-                              await loadHistory(nextOpen, 10);
-                            }
-                          }}
-                        >{openSymbol === asset ? "Masquer" : "Graphique"}</button>
-                      </td>
-                    </tr>
-                    {openSymbol === asset && (
-                      <tr>
-                        <td colSpan={5} className="p-2">
-                          <HistoryChart data={(history[asset] ?? []).slice(-800)} />
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                );
-              })}
-            </tbody>
-          </table>
-        </section>
-      )}
+      <section className="space-y-3">
+        <h3 className="text-lg font-semibold">Graphique par actif</h3>
+        <table className="w-full text-sm bg-neutral-900 border border-neutral-800 rounded">
+          <thead>
+            <tr className="text-left">
+              <th className="p-2">Actif</th>
+              <th className="p-2">Graphique</th>
+            </tr>
+          </thead>
+          <tbody>
+            {MARKET_ASSETS.map((asset) => (
+              <>
+                <tr key={asset} className="border-t border-neutral-800">
+                  <td className="p-2">{asset}</td>
+                  <td className="p-2">
+                    <button
+                      className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-xs"
+                      onClick={async () => {
+                        const nextOpen = openSymbol === asset ? null : asset;
+                        setOpenSymbol(nextOpen);
+                        if (nextOpen && !history[nextOpen]) {
+                          await loadHistory(nextOpen, 10);
+                        }
+                      }}
+                    >{openSymbol === asset ? "Masquer" : "Graphique"}</button>
+                  </td>
+                </tr>
+                {openSymbol === asset && (
+                  <tr>
+                    <td colSpan={2} className="p-2">
+                      <HistoryChart data={(history[asset] ?? []).slice(-800)} />
+                    </td>
+                  </tr>
+                )}
+              </>
+            ))}
+          </tbody>
+        </table>
+      </section>
 
       {enrichedHoldings.length > 0 && (
         <section className="space-y-3">

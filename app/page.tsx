@@ -57,6 +57,7 @@ export default function DashboardPage() {
   const [projLoading, setProjLoading] = useState(false);
   const [projRequested, setProjRequested] = useState(false);
   const [autoJoinAttempted, setAutoJoinAttempted] = useState(false);
+  const [questionStats, setQuestionStats] = useState<{ remaining?: number; remainingByDifficulty?: { easy: number; medium: number; hard: number }; remainingByCategory?: { finance: number; economy: number; realEstate: number } } | null>(null);
 
   useEffect(() => {
     const session = loadSession();
@@ -131,22 +132,25 @@ export default function DashboardPage() {
     if (!gameId) return;
     setPortfolioPlayer(p);
     try {
-      const [propsRes, mktRes, pricesRes, ecoRes] = await Promise.all([
+      const [propsRes, mktRes, pricesRes, ecoRes, statsRes] = await Promise.all([
         fetch(`${API_BASE}/api/games/${gameId}/properties/holdings/${p.id}`),
         fetch(`${API_BASE}/api/games/${gameId}/markets/holdings/${p.id}`),
         fetch(`${API_BASE}/api/games/${gameId}/markets/latest`),
         fetch(`${API_BASE}/api/games/${gameId}/economy`),
+        fetch(`${API_BASE}/api/quiz/public-stats`),
       ]);
       const propsData = propsRes.ok ? await propsRes.json() : { holdings: [] };
       const mktData = mktRes.ok ? await mktRes.json() : { holdings: [] };
       const pricesData = pricesRes.ok ? await pricesRes.json() : { prices: [] };
       const ecoData = ecoRes.ok ? await ecoRes.json() : null;
+      const statsData = statsRes.ok ? await statsRes.json() : null;
       setPortfolioProps(propsData.holdings ?? []);
       setPortfolioMkts(mktData.holdings ?? []);
       const pm: Record<string, number> = {};
       for (const p of (pricesData.prices ?? [])) pm[p.symbol] = p.price;
       setPriceMap(pm);
       if (ecoData) setEconomy({ baseMortgageRate: Number(ecoData.baseMortgageRate ?? 0.05), appreciationAnnual: Number(ecoData.appreciationAnnual ?? 0.02), schedule: Array.isArray(ecoData.schedule) ? ecoData.schedule : [] });
+  if (statsData) setQuestionStats({ remaining: Number(statsData.remaining ?? 0), remainingByDifficulty: statsData.remainingByDifficulty, remainingByCategory: statsData.remainingByCategory });
     } catch (e) {
       // mute
     }
@@ -552,12 +556,25 @@ export default function DashboardPage() {
 
       {portfolioPlayer && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center p-4" onClick={() => setPortfolioPlayer(null)}>
-          <div className="w-full max-w-4xl bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-4xl bg-neutral-900 border border-neutral-800 rounded-lg flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800">
               <h4 className="font-semibold">Portefeuille — {portfolioPlayer.nickname}</h4>
-              <button onClick={() => setPortfolioPlayer(null)} className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-sm">Fermer</button>
+              <div className="flex items-center gap-2">
+                {typeof questionStats?.remaining === 'number' && (
+                  <span className="text-xs px-2 py-1 rounded bg-emerald-800/50 border border-emerald-700 text-emerald-200">
+                    Questions en banque: {questionStats.remaining}
+                  </span>
+                )}
+                {questionStats?.remainingByCategory && (
+                  <span className="text-[10px] px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-neutral-300">
+                    {`Finance ${questionStats.remainingByCategory.finance} · Économie ${questionStats.remainingByCategory.economy} · Immo ${questionStats.remainingByCategory.realEstate}`}
+                  </span>
+                )}
+                <button onClick={() => setPortfolioPlayer(null)} className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-sm">Fermer</button>
+              </div>
             </div>
-            <div className="p-4 grid gap-4 md:grid-cols-2">
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-4 grid gap-4 md:grid-cols-2">
               <div>
                 <h5 className="font-semibold mb-2">Immobilier</h5>
                 {portfolioProps.length === 0 ? (
@@ -614,25 +631,26 @@ export default function DashboardPage() {
                   </table>
                 )}
               </div>
-            </div>
-            <div className="px-4 pb-4">
-              <div className="mt-2 space-y-2">
-                <button
-                  className="px-3 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm"
-                  onClick={() => setProjRequested(true)}
-                  disabled={projRequested && projLoading}
-                >
-                  {projRequested ? (projLoading ? "Calcul en cours…" : "Recalculer la projection") : "Afficher la projection 10 ans"}
-                </button>
-                {projRequested && proj.length > 0 && (
-                  <>
-                    <div className="flex items-baseline justify-between">
-                      <h5 className="font-semibold">Projection 10 ans (valeur nette totale)</h5>
-                      <span className="text-xs text-neutral-400">de ${Math.round(proj[0].net).toLocaleString()} à ${Math.round(proj[proj.length - 1].net).toLocaleString()}</span>
-                    </div>
-                    <PortfolioProjectionChart data={proj} />
-                  </>
-                )}
+              </div>
+              <div className="px-4 pb-4">
+                <div className="mt-2 space-y-2">
+                  <button
+                    className="px-3 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm"
+                    onClick={() => setProjRequested(true)}
+                    disabled={projRequested && projLoading}
+                  >
+                    {projRequested ? (projLoading ? "Calcul en cours…" : "Recalculer la projection") : "Afficher la projection 10 ans"}
+                  </button>
+                  {projRequested && proj.length > 0 && (
+                    <>
+                      <div className="flex items-baseline justify-between">
+                        <h5 className="font-semibold">Projection 10 ans (valeur nette totale)</h5>
+                        <span className="text-xs text-neutral-400">de ${Math.round(proj[0].net).toLocaleString()} à ${Math.round(proj[proj.length - 1].net).toLocaleString()}</span>
+                      </div>
+                      <PortfolioProjectionChart data={proj} />
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>

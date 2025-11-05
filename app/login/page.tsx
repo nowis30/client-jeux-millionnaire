@@ -26,18 +26,26 @@ export default function LoginPage() {
     
     try {
       const path = mode === "login" ? "/api/auth/login" : "/api/auth/register";
-      const resp = await apiFetch<{ id: string; email: string; isAdmin: boolean; token?: string }>(path, {
+      const resp = await apiFetch<{ id?: string; email?: string; isAdmin?: boolean; token?: string; message?: string }>(path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      // Stocker le nouveau token uniquement s'il est fourni (login)
-      if (typeof window !== "undefined" && resp?.token) {
-        try {
-          window.localStorage.setItem("HM_TOKEN", resp.token);
-        } catch {}
+      
+      if (mode === "register") {
+        // Inscription réussie : afficher le message et NE PAS rediriger
+        setInfo(resp?.message || "Compte créé. Vérifiez votre email pour activer le compte.");
+        setEmail(""); // Vider le formulaire
+        setPassword("");
+      } else {
+        // Login réussi : stocker le token et rediriger
+        if (typeof window !== "undefined" && resp?.token) {
+          try {
+            window.localStorage.setItem("HM_TOKEN", resp.token);
+          } catch {}
+        }
+        router.push("/");
       }
-      router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Échec de l'authentification");
     }

@@ -166,6 +166,14 @@ export default function BoursePage() {
   useEffect(() => {
     loadPrices();
     loadReturns();
+    
+    // Rafraîchissement automatique toutes les 15 secondes
+    const interval = setInterval(() => {
+      loadPrices();
+      loadReturns();
+    }, 15000);
+    
+    return () => clearInterval(interval);
   }, [loadPrices, loadReturns]);
 
   useEffect(() => {

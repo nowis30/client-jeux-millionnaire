@@ -25,6 +25,7 @@ const PRIZE_LADDER = [
 export default function QuizPage() {
   const router = useRouter();
   const [gameId, setGameId] = useState<string | null>(null);
+  const [playerId, setPlayerId] = useState<string | null>(null);
   const [status, setStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
@@ -55,6 +56,7 @@ export default function QuizPage() {
       }
       
       setGameId(sessionData.gameId);
+      setPlayerId(sessionData.playerId); // Stocker le playerId aussi
     } catch (err) {
       console.error("[Quiz] Error loading session:", err);
       router.push("/");
@@ -72,9 +74,14 @@ export default function QuizPage() {
       setLoading(true);
       console.log("[Quiz] Loading status for game:", gameId);
       
+      const headers: Record<string, string> = { "X-CSRF": "1" };
+      if (playerId) {
+        headers["X-Player-ID"] = playerId; // Ajout du playerId pour iOS/Safari
+      }
+      
       const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/status`, {
         credentials: "include",
-        headers: { "X-CSRF": "1" },
+        headers,
       });
 
       console.log("[Quiz] Status response:", res.status, res.statusText);
@@ -114,10 +121,18 @@ export default function QuizPage() {
         return;
       }
 
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json", 
+        "X-CSRF": "1" 
+      };
+      if (playerId) {
+        headers["X-Player-ID"] = playerId;
+      }
+
       const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/start`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json", "X-CSRF": "1" },
+        headers,
         body: JSON.stringify({}),
       });
 
@@ -151,10 +166,18 @@ export default function QuizPage() {
       setIsAnswering(true);
       setFeedback(null);
 
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json", 
+        "X-CSRF": "1" 
+      };
+      if (playerId) {
+        headers["X-Player-ID"] = playerId;
+      }
+
       const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/answer`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json", "X-CSRF": "1" },
+        headers,
         body: JSON.stringify({
           sessionId: session.id,
           questionId: question.id,
@@ -214,10 +237,15 @@ export default function QuizPage() {
       setLoading(true);
       setFeedback(null);
 
+      const headers: Record<string, string> = { "Content-Type": "application/json", "X-CSRF": "1" };
+      if (playerId) {
+        headers["X-Player-ID"] = playerId;
+      }
+
       const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/cash-out`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json", "X-CSRF": "1" },
+        headers,
         body: JSON.stringify({ sessionId: session.id }),
       });
 

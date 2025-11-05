@@ -372,6 +372,7 @@ export default function QuizPage() {
                     <li>Chaque bonne réponse double vos gains (5k → 10k → 20k → 40k ...)</li>
                     <li>Vous pouvez encaisser à tout moment pour sécuriser vos gains</li>
                     <li>Mauvaise réponse = vous perdez tout</li>
+                    <li>Maximum 10 questions par session</li>
                   </ul>
                 </div>
                 <button
@@ -406,7 +407,7 @@ export default function QuizPage() {
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <div className="text-sm text-gray-300">Question</div>
-                  <div className="text-2xl font-bold">{session.currentQuestion} / 15+</div>
+                  <div className="text-2xl font-bold">{session.currentQuestion} / 10</div>
                 </div>
                 <div className="text-right">
                   <div className="text-sm text-gray-300">Gains actuels</div>
@@ -480,8 +481,6 @@ export default function QuizPage() {
                 className={`p-2 rounded text-center ${
                   session && session.currentQuestion === prize.question
                     ? 'bg-yellow-500 text-black font-bold'
-                    : prize.milestone
-                    ? 'bg-green-600/30 border border-green-400'
                     : 'bg-white/5'
                 }`}
               >

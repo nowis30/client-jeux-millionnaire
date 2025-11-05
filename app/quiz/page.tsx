@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 
 const BASE_STAKE = 5000;
-const PRIZE_LADDER = Array.from({ length: 15 }).map((_, i) => ({
+const PRIZE_LADDER = Array.from({ length: 10 }).map((_, i) => ({
   question: i + 1,
   amount: BASE_STAKE * Math.pow(2, i),
-  difficulty: i + 1 <= 5 ? 'Facile' : i + 1 <= 10 ? 'Moyen' : 'Difficile',
+  difficulty: i + 1 <= 3 ? 'Facile' : i + 1 <= 7 ? 'Moyen' : 'Difficile',
   milestone: false,
 }));
 

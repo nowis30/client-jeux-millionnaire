@@ -324,6 +324,29 @@ export default function ImmobilierPage() {
                     </div>
                     <p className="text-sm text-neutral-300">Valeur actuelle: ${Number(h.currentValue ?? 0).toLocaleString()}</p>
                     <p className="text-sm text-neutral-300">Loyer actuel: ${Number(h.currentRent ?? 0).toLocaleString()}</p>
+                    {(() => {
+                      const value = Number(h.currentValue ?? 0) || 0;
+                      const weeklyRent = Number(h.currentRent ?? 0) || 0;
+                      const weeklyDebt = Number(h.weeklyPayment ?? 0) || 0;
+                      const weeklyFixed = ((Number(h.template?.taxes ?? 0) + Number(h.template?.insurance ?? 0) + Number(h.template?.maintenance ?? 0)) / 52) || 0;
+                      const netWeekly = weeklyRent - weeklyFixed - weeklyDebt;
+                      const pct = (w: number) => (value > 0 ? (netWeekly * w) / value : 0);
+                      const g1d = pct(1 / 7);
+                      const g1w = pct(1);
+                      const g1y = pct(52);
+                      const cls = (v: number) => (v >= 0 ? 'text-emerald-400' : 'text-red-400');
+                      return (
+                        <p className="text-xs text-neutral-400" title="Rendement sur valeur actuelle en temps de jeu — 1j = 1/7 h, 1s = 1 h, 1 an = 52 h">
+                          Rendement (jeu):
+                          {" "}
+                          <span className={cls(g1d)}>1j {(g1d * 100).toFixed(2)}%</span>
+                          {" "}·{" "}
+                          <span className={cls(g1w)}>1s {(g1w * 100).toFixed(2)}%</span>
+                          {" "}·{" "}
+                          <span className={cls(g1y)}>1 an {(g1y * 100).toFixed(2)}%</span>
+                        </p>
+                      );
+                    })()}
                     <p className="text-xs text-neutral-500">Dette hypothécaire: ${Number(h.mortgageDebt ?? 0).toLocaleString()} — Taux: {(Number(h.mortgageRate ?? 0) * 100).toFixed(2)}%</p>
 
                     {/* Réhypothèque */}

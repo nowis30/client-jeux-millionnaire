@@ -25,6 +25,8 @@ export default function BoursePage() {
   const [returns, setReturns] = useState<Record<string, Record<string, number>> | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [economy, setEconomy] = useState<{ baseMortgageRate: number } | null>(null);
+  const [openSymbol, setOpenSymbol] = useState<string | null>(null);
+  const [history, setHistory] = useState<Record<string, { at: string; price: number }[]>>({});
   // plus d'historique
   const [divKpi, setDivKpi] = useState<{ "24h": number; "7d": number; ytd: number } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -131,13 +133,24 @@ export default function BoursePage() {
   const loadReturns = useCallback(async () => {
     if (!gameId) return;
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/markets/returns?windows=1d,7d,30d,ytd`);
+      // Fenêtres en temps de jeu: g1d (1 jour de jeu = 1/7h), g1w (1 semaine de jeu = 1h), g1y (1 an de jeu = 52h)
+      const res = await fetch(`${API_BASE}/api/games/${gameId}/markets/returns?windows=g1d,g1w,g1y`);
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data: { returns: Record<string, Record<string, number>> } = await res.json();
       setReturns(data.returns ?? null);
     } catch (err) {
       // non bloquant
     }
+  }, [gameId]);
+
+  const loadHistory = useCallback(async (sym: string, years = 10) => {
+    if (!gameId) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/games/${gameId}/markets/history/${sym}?years=${years}`);
+      if (!res.ok) throw new Error(`Erreur ${res.status}`);
+      const data: { symbol: string; data: { at: string; price: number }[] } = await res.json();
+      setHistory((prev) => ({ ...prev, [sym]: data.data }));
+    } catch {}
   }, [gameId]);
 
   const loadHoldings = useCallback(async () => {
@@ -371,31 +384,52 @@ export default function BoursePage() {
 
       {returns && (
         <section className="space-y-3">
-          <h3 className="text-lg font-semibold">Rendement par actif</h3>
+          <h3 className="text-lg font-semibold">Rendement par actif (temps de jeu)</h3>
           <table className="w-full text-sm bg-neutral-900 border border-neutral-800 rounded">
             <thead>
               <tr className="text-left">
                 <th className="p-2">Actif</th>
-                <th className="p-2">1j</th>
-                <th className="p-2">7j</th>
-                <th className="p-2">30j</th>
-                <th className="p-2">YTD</th>
+                <th className="p-2" title="1 jour de jeu = 1/7 h réel (~8 min 34 s)">1j</th>
+                <th className="p-2" title="1 semaine de jeu = 1 h réel">1s</th>
+                <th className="p-2" title="1 an de jeu = 52 h réel">1 an</th>
+                <th className="p-2">Graphique</th>
               </tr>
             </thead>
             <tbody>
               {MARKET_ASSETS.map((asset) => {
                 const r = returns?.[asset] || {};
-                const cells = ["1d","7d","30d","ytd"].map((k) => {
+                const cells = ["g1d","g1w","g1y"].map((k) => {
                   const v = (r as any)[k] ?? 0;
                   const pct = (v * 100).toFixed(2) + "%";
                   const cls = v >= 0 ? "text-emerald-400" : "text-rose-400";
                   return <td key={k} className={`p-2 ${cls}`}>{pct}</td>;
                 });
                 return (
-                  <tr key={asset} className="border-t border-neutral-800">
-                    <td className="p-2">{asset}</td>
-                    {cells}
-                  </tr>
+                  <>
+                    <tr key={asset} className="border-t border-neutral-800">
+                      <td className="p-2">{asset}</td>
+                      {cells}
+                      <td className="p-2">
+                        <button
+                          className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-xs"
+                          onClick={async () => {
+                            const nextOpen = openSymbol === asset ? null : asset;
+                            setOpenSymbol(nextOpen);
+                            if (nextOpen && !history[nextOpen]) {
+                              await loadHistory(nextOpen, 10);
+                            }
+                          }}
+                        >{openSymbol === asset ? "Masquer" : "Graphique"}</button>
+                      </td>
+                    </tr>
+                    {openSymbol === asset && (
+                      <tr>
+                        <td colSpan={5} className="p-2">
+                          <HistoryChart data={(history[asset] ?? []).slice(-800)} />
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 );
               })}
             </tbody>
@@ -431,5 +465,27 @@ export default function BoursePage() {
         </section>
       )}
     </main>
+  );
+}
+
+function HistoryChart({ data }: { data: { at: string; price: number }[] }) {
+  if (!data || data.length === 0) return <div className="text-xs text-neutral-500">Pas de données</div>;
+  const w = 800, h = 220, pad = 28;
+  const xs = data.map((d) => new Date(d.at).getTime());
+  const ys = data.map((d) => Number(d.price));
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const x = (t: number) => pad + ((t - x0) / Math.max(1, (x1 - x0))) * (w - pad * 2);
+  const y = (v: number) => h - pad - ((v - y0) / Math.max(1, (y1 - y0))) * (h - pad * 2);
+  const pts = data.map((d) => `${x(new Date(d.at).getTime()).toFixed(1)},${y(d.price).toFixed(1)}`).join(" ");
+  return (
+    <div className="w-full overflow-x-auto">
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-56 bg-neutral-950 border border-neutral-800 rounded">
+        <polyline fill="none" stroke="#60a5fa" strokeWidth={1.5} points={pts} />
+        {/* Axes simples */}
+        <line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke="#333" />
+        <line x1={pad} y1={pad} x2={pad} y2={h - pad} stroke="#333" />
+      </svg>
+    </div>
   );
 }

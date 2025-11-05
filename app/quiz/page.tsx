@@ -34,12 +34,31 @@ export default function QuizPage() {
   const [isAnswering, setIsAnswering] = useState(false);
 
   useEffect(() => {
-    const gid = localStorage.getItem("HM_GAME_ID");
-    if (!gid) {
+    // Chercher la session dans localStorage (clé: hm-session)
+    try {
+      const sessionStr = localStorage.getItem("hm-session");
+      console.log("[Quiz] Session from localStorage:", sessionStr);
+      
+      if (!sessionStr) {
+        console.warn("[Quiz] No session found, redirecting to home");
+        router.push("/");
+        return;
+      }
+      
+      const sessionData = JSON.parse(sessionStr);
+      console.log("[Quiz] Parsed session:", sessionData);
+      
+      if (!sessionData.gameId) {
+        console.warn("[Quiz] No game ID in session, redirecting to home");
+        router.push("/");
+        return;
+      }
+      
+      setGameId(sessionData.gameId);
+    } catch (err) {
+      console.error("[Quiz] Error loading session:", err);
       router.push("/");
-      return;
     }
-    setGameId(gid);
   }, [router]);
 
   useEffect(() => {
@@ -51,16 +70,23 @@ export default function QuizPage() {
   async function loadStatus() {
     try {
       setLoading(true);
+      console.log("[Quiz] Loading status for game:", gameId);
+      
       const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/status`, {
         credentials: "include",
         headers: { "X-CSRF": "1" },
       });
 
+      console.log("[Quiz] Status response:", res.status, res.statusText);
+
       if (!res.ok) {
-        throw new Error("Erreur chargement status");
+        const errorData = await res.json().catch(() => ({}));
+        console.error("[Quiz] Status error:", errorData);
+        throw new Error(errorData.error || "Erreur chargement status");
       }
 
       const data = await res.json();
+      console.log("[Quiz] Status data:", data);
       setStatus(data);
 
       if (data.hasActiveSession) {
@@ -69,7 +95,7 @@ export default function QuizPage() {
         await startSession(data.session.id, true);
       }
     } catch (err: any) {
-      console.error(err);
+      console.error("[Quiz] Error in loadStatus:", err);
       setFeedback({ type: 'error', message: err.message });
     } finally {
       setLoading(false);
@@ -215,7 +241,21 @@ export default function QuizPage() {
   if (loading && !question) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-white text-xl">Chargement...</div>
+        <div className="text-white text-center">
+          <div className="text-xl mb-4">Chargement...</div>
+          {feedback && (
+            <div className="mt-4 p-4 bg-red-600 rounded-lg max-w-md mx-auto">
+              <div className="font-bold mb-2">❌ Erreur</div>
+              <div className="text-sm">{feedback.message}</div>
+              <button 
+                onClick={() => router.push("/")}
+                className="mt-4 px-4 py-2 bg-white/20 hover:bg-white/30 rounded"
+              >
+                ← Retour à l'accueil
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -245,6 +285,23 @@ export default function QuizPage() {
         {/* Status - Pas de session active */}
         {!session && status && !status.hasActiveSession && (
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 text-center">
+            {/* Affichage des tokens */}
+            <div className="mb-8 p-6 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl border-2 border-yellow-500/50">
+              <h3 className="text-2xl font-bold mb-2">🎟️ Vos Tokens Quiz</h3>
+              <div className="text-6xl font-bold text-yellow-400 mb-2">{status.tokens || 0}</div>
+              <p className="text-sm text-gray-300">
+                {status.tokens > 0 ? 
+                  `Vous avez ${status.tokens} token${status.tokens > 1 ? 's' : ''} disponible${status.tokens > 1 ? 's' : ''}` :
+                  "Aucun token disponible"
+                }
+              </p>
+              {status.secondsUntilNextToken && (
+                <p className="text-xs text-gray-400 mt-2">
+                  ⏱️ Prochain token dans {Math.floor(status.secondsUntilNextToken / 60)} min {status.secondsUntilNextToken % 60} sec
+                </p>
+              )}
+            </div>
+
             {status.canPlay ? (
               <>
                 <h2 className="text-2xl font-bold mb-4">Prêt à jouer ?</h2>
@@ -255,29 +312,33 @@ export default function QuizPage() {
                 <div className="mb-6 text-left max-w-md mx-auto bg-white/5 p-4 rounded-lg">
                   <h3 className="font-bold mb-2">📜 Règles :</h3>
                   <ul className="list-disc list-inside space-y-1 text-sm">
+                    <li>1 token = 1 session de quiz</li>
+                    <li>Gagnez 1 token automatiquement toutes les heures</li>
                     <li>5 questions faciles ($1k → $5k)</li>
                     <li>5 questions moyennes ($10k → $50k)</li>
                     <li>Questions difficiles ($75k → $500k+)</li>
                     <li>Paliers de sécurité : $5k, $50k, $500k</li>
                     <li>Mauvaise réponse = retour au dernier palier</li>
-                    <li>Cooldown : 60 minutes entre sessions</li>
                   </ul>
                 </div>
                 <button
                   onClick={() => startSession()}
                   className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 rounded-xl font-bold text-xl transition shadow-lg"
                 >
-                  🎮 Démarrer le Quiz
+                  🎮 Démarrer le Quiz (Coûte 1 token)
                 </button>
               </>
             ) : (
               <>
-                <h2 className="text-2xl font-bold mb-4">⏰ Cooldown actif</h2>
+                <h2 className="text-2xl font-bold mb-4">⏰ Pas de token disponible</h2>
                 <p className="mb-4 text-lg">
-                  Prochaine partie disponible dans <span className="font-bold text-yellow-400">{status.cooldown.remainingMinutes} minutes</span>
+                  Prochain token dans <span className="font-bold text-yellow-400">{Math.floor((status.secondsUntilNextToken || 0) / 60)} minutes</span>
                 </p>
-                <p className="text-sm text-gray-300">
-                  {new Date(status.cooldown.nextAvailable).toLocaleString('fr-FR')}
+                <p className="text-sm text-gray-300 mb-4">
+                  Vous gagnez automatiquement 1 token toutes les heures
+                </p>
+                <p className="text-xs text-gray-400">
+                  💡 Les tokens s'accumulent si vous ne jouez pas
                 </p>
               </>
             )}

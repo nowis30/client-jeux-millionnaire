@@ -24,6 +24,7 @@ export default function QuizPage() {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isAnswering, setIsAnswering] = useState(false);
+  const [stats, setStats] = useState<{ remaining?: number; remainingByCategory?: { finance: number; economy: number; realEstate: number } } | null>(null);
 
   useEffect(() => {
     // Chercher la session dans localStorage (clé: hm-session)
@@ -57,6 +58,7 @@ export default function QuizPage() {
   useEffect(() => {
     if (gameId) {
       loadStatus();
+      loadStats();
       // Charger puis rafraîchir le nombre en ligne
       const loadOnline = async () => {
         try {
@@ -71,6 +73,15 @@ export default function QuizPage() {
       return () => clearInterval(iv);
     }
   }, [gameId]);
+
+  async function loadStats() {
+    try {
+      const res = await fetch(`${API_BASE}/api/quiz/public-stats`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setStats({ remaining: Number(data.remaining ?? 0), remainingByCategory: data.remainingByCategory });
+    } catch {}
+  }
 
   async function loadStatus() {
     try {
@@ -104,6 +115,8 @@ export default function QuizPage() {
         // Charger la question actuelle
         await startSession(data.session.id, true);
       }
+      // Rafraîchir les stats d'affichage
+      loadStats();
     } catch (err: any) {
       console.error("[Quiz] Error in loadStatus:", err);
       setFeedback({ type: 'error', message: err.message });
@@ -223,7 +236,7 @@ export default function QuizPage() {
           setFeedback({ type: 'success', message: data.message });
           setSession(null);
           setQuestion(null);
-          setTimeout(() => loadStatus(), 2000);
+          setTimeout(() => { loadStatus(); loadStats(); }, 2000);
         } else {
           // Question suivante
           setSession({
@@ -236,13 +249,15 @@ export default function QuizPage() {
           setQuestion(data.question);
           setSelectedAnswer(null);
           setFeedback({ type: 'success', message: '✓ Bonne réponse !' });
+          // Une question a été consommée: mettre à jour les stats
+          loadStats();
         }
       } else {
         // Mauvaise réponse
         setFeedback({ type: 'error', message: data.message });
         setSession(null);
         setQuestion(null);
-        setTimeout(() => loadStatus(), 3000);
+        setTimeout(() => { loadStatus(); loadStats(); }, 3000);
       }
     } catch (err: any) {
       console.error(err);
@@ -284,7 +299,7 @@ export default function QuizPage() {
       setFeedback({ type: 'success', message: data.message });
       setSession(null);
       setQuestion(null);
-      setTimeout(() => loadStatus(), 2000);
+  setTimeout(() => { loadStatus(); loadStats(); }, 2000);
     } catch (err: any) {
       console.error(err);
       setFeedback({ type: 'error', message: err.message });
@@ -343,6 +358,22 @@ export default function QuizPage() {
             {online != null ? <span title="Joueurs connectés à la partie">👥 {online} en ligne</span> : <span className="text-gray-500"> </span>}
           </div>
         </div>
+
+        {/* Statistiques des questions en banque */}
+        {stats && (
+          <div className="mb-6 flex flex-wrap items-center gap-2 text-xs">
+            {typeof stats.remaining === 'number' && (
+              <span className="px-2 py-1 rounded bg-emerald-800/40 border border-emerald-700 text-emerald-200">
+                Questions en banque: {stats.remaining}
+              </span>
+            )}
+            {stats.remainingByCategory && (
+              <span className="px-2 py-1 rounded bg-white/10 border border-white/20 text-gray-200">
+                Finance {stats.remainingByCategory.finance} · Économie {stats.remainingByCategory.economy} · Immo {stats.remainingByCategory.realEstate}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Feedback */}
         {feedback && (

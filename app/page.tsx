@@ -302,11 +302,19 @@ export default function DashboardPage() {
         if (!gid) throw new Error("Partie introuvable");
         setGameId(gid);
       }
+      console.log(`[DEBUG] Calling restart for game ${gid}`);
       await apiFetch(`/api/games/${gid}/restart`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: true }) });
-      setMessage("Partie redémarrée");
+      console.log(`[DEBUG] Restart successful`);
+      setMessage("Partie redémarrée avec succès!");
       setError(null);
+      // Effacer la session locale pour forcer rechargement
+      clearSession();
+      setGameId("");
+      setPlayerId("");
+      setKnownNickname("");
       updateState();
     } catch (err) {
+      console.error(`[DEBUG] Restart error:`, err);
       setError(err instanceof Error ? err.message : "Échec du redémarrage");
     }
   }, [gameId, updateState]);
@@ -384,7 +392,10 @@ export default function DashboardPage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Rejoindre la partie mondiale</h2>
-          {userEmail && <p className="text-sm text-neutral-400">Connecté: <span className="text-emerald-400">{userEmail}</span></p>}
+          <div className="flex items-center gap-3">
+            {userEmail && <p className="text-sm text-neutral-400">Connecté: <span className="text-emerald-400">{userEmail}</span></p>}
+            {isAdmin && <span className="px-2 py-1 rounded bg-red-700 text-xs font-semibold">ADMIN</span>}
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
           <button onClick={handleJoinGlobal} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500">Rejoindre (pseudo = votre email)</button>

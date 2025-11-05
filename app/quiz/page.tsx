@@ -4,23 +4,13 @@ import { useRouter } from "next/navigation";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 
-const PRIZE_LADDER = [
-  { question: 1, amount: 1000, difficulty: 'Facile' },
-  { question: 2, amount: 2000, difficulty: 'Facile' },
-  { question: 3, amount: 3000, difficulty: 'Facile' },
-  { question: 4, amount: 4000, difficulty: 'Facile' },
-  { question: 5, amount: 5000, difficulty: 'Facile', milestone: true },
-  { question: 6, amount: 10000, difficulty: 'Moyen' },
-  { question: 7, amount: 20000, difficulty: 'Moyen' },
-  { question: 8, amount: 30000, difficulty: 'Moyen' },
-  { question: 9, amount: 40000, difficulty: 'Moyen' },
-  { question: 10, amount: 50000, difficulty: 'Moyen', milestone: true },
-  { question: 11, amount: 75000, difficulty: 'Difficile' },
-  { question: 12, amount: 100000, difficulty: 'Difficile' },
-  { question: 13, amount: 150000, difficulty: 'Difficile' },
-  { question: 14, amount: 250000, difficulty: 'Difficile' },
-  { question: 15, amount: 500000, difficulty: 'Difficile', milestone: true },
-];
+const BASE_STAKE = 5000;
+const PRIZE_LADDER = Array.from({ length: 15 }).map((_, i) => ({
+  question: i + 1,
+  amount: BASE_STAKE * Math.pow(2, i),
+  difficulty: i + 1 <= 5 ? 'Facile' : i + 1 <= 10 ? 'Moyen' : 'Difficile',
+  milestone: false,
+}));
 
 export default function QuizPage() {
   const router = useRouter();
@@ -378,11 +368,10 @@ export default function QuizPage() {
                   <ul className="list-disc list-inside space-y-1 text-sm">
                     <li>1 token = 1 session de quiz</li>
                     <li>Gagnez 1 token automatiquement toutes les heures</li>
-                    <li>5 questions faciles ($1k → $5k)</li>
-                    <li>5 questions moyennes ($10k → $50k)</li>
-                    <li>Questions difficiles ($75k → $500k+)</li>
-                    <li>Paliers de sécurité : $5k, $50k, $500k</li>
-                    <li>Mauvaise réponse = retour au dernier palier</li>
+                    <li>Règle Quitte ou Double: on commence à 5 000 $</li>
+                    <li>Chaque bonne réponse double vos gains (5k → 10k → 20k → 40k ...)</li>
+                    <li>Vous pouvez encaisser à tout moment pour sécuriser vos gains</li>
+                    <li>Mauvaise réponse = vous perdez tout</li>
                   </ul>
                 </div>
                 <button

@@ -362,6 +362,24 @@ export default function ImmobilierPage() {
                       >
                         {refiOpenId === h.id ? "Annuler" : "Réhypothéquer"}
                       </button>
+                      <button
+                        onClick={async () => {
+                          if (!gameId) return;
+                          const ok = confirm("Vendre cet immeuble et récupérer le produit net?");
+                          if (!ok) return;
+                          try {
+                            const res = await apiFetch<{ proceeds: number }>(`/api/games/${gameId}/properties/${h.id}/sell`, { method: 'POST' });
+                            setMessage(`Immeuble vendu, produit net $${Math.round(res.proceeds).toLocaleString()}`);
+                            setError(null);
+                            await Promise.all([loadHoldings(), loadPlayer(), loadTemplates()]);
+                          } catch (err) {
+                            setMessage(null);
+                            setError(err instanceof Error ? err.message : 'Échec de la vente');
+                          }
+                        }}
+                        className="ml-2 px-3 py-1.5 rounded bg-rose-700 hover:bg-rose-600 text-sm"
+                        title="Vendre l'immeuble et solder l'hypothèque"
+                      >Vendre</button>
                     </div>
 
                         {refiOpenId === h.id && (

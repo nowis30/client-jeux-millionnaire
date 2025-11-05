@@ -5,9 +5,4 @@ export const MARKET_ASSETS = [
 	"TSX",
 	"GLD",
 	"TLT",
-	"UPRO",
-	"TQQQ",
-	"VFV",
-	"VDY",
-	"IWM",
 ] as const;

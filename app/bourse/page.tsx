@@ -12,8 +12,6 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
 const DIVIDEND_YIELDS: Record<string, number> = {
   SP500: 0.018,
   TSX: 0.03,
-  VFV: 0.018,
-  VDY: 0.04,
 };
 
 export default function BoursePage() {

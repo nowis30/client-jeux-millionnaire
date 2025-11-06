@@ -33,6 +33,17 @@ export default function QuizPage() {
   const [revealCorrect, setRevealCorrect] = useState<'A'|'B'|'C'|'D'|null>(null);
   const [showTutorial, setShowTutorial] = useState(false);
 
+  // À chaque nouvelle question, réinitialiser proprement l'état d'affichage
+  useEffect(() => {
+    if (question?.id) {
+      // Remettre en haut de la page pour éviter un chevauchement visuel perçu
+      try { window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); } catch { try { window.scrollTo(0, 0); } catch {} }
+      // Nettoyer les états visuels/interaction
+      setSelectedAnswer(null);
+      setRevealCorrect(null);
+    }
+  }, [question?.id]);
+
   useEffect(() => {
     // Chercher la session dans localStorage (clé: hm-session)
     try {
@@ -578,7 +589,7 @@ export default function QuizPage() {
             </div>
 
             {/* Question */}
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-8">
+            <div key={question.id} className="bg-white/10 backdrop-blur-md rounded-xl p-8">
               {/* Image de la question (si présente) */}
               {question.imageUrl && (
                 <div className="mb-6 flex justify-center">

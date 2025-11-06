@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { io, Socket } from "socket.io-client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearSession, loadSession, saveSession } from "../lib/session";
@@ -67,6 +68,8 @@ export default function DashboardPage() {
   } | null>(null);
   const [showHomeTutorial, setShowHomeTutorial] = useState(false);
   const [inviteAccepted, setInviteAccepted] = useState<string | null>(null);
+  const [onlineEmails, setOnlineEmails] = useState<string[]>([]);
+  const [socketRef, setSocketRef] = useState<Socket | null>(null);
 
   useEffect(() => {
     const session = loadSession();
@@ -164,6 +167,31 @@ export default function DashboardPage() {
   useEffect(() => {
     autoJoinGlobal();
   }, [autoJoinGlobal]);
+
+  // Connexion Socket.IO légère pour présence et polling online list
+  useEffect(() => {
+    if (!gameId || !userEmail) return;
+    try {
+      const s = io(process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001", {
+        transports: ["websocket"],
+        query: { gameId, nickname: userEmail },
+      });
+      setSocketRef(s);
+      const poll = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/games/${gameId}/online`);
+          if (!res.ok) return;
+          const data = await res.json();
+          setOnlineEmails(Array.isArray(data.users) ? data.users : []);
+        } catch {}
+      };
+      poll();
+      const iv = setInterval(poll, 15000);
+      return () => { try { clearInterval(iv); } catch {}; s.close(); setSocketRef(null); };
+    } catch {
+      // ignore en cas d’échec de connexion socket
+    }
+  }, [gameId, userEmail]);
 
   const openPortfolio = useCallback(async (p: GamePlayer) => {
     if (!gameId) return;
@@ -503,7 +531,14 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Partie Mondiale du Millionnaire</h2>
           <div className="flex items-center gap-3">
-            {userEmail && <p className="text-sm text-neutral-400">Connecté: <span className="text-emerald-400">{userEmail}</span></p>}
+            {userEmail && (
+              <p className="text-sm text-neutral-400 flex items-center gap-2">
+                Connecté: <span className="text-emerald-400 flex items-center gap-1">
+                  {onlineEmails.includes(userEmail) && <span className="inline-block w-2 h-2 rounded-full bg-green-500" title="En ligne" />}
+                  {userEmail}
+                </span>
+              </p>
+            )}
             {isAdmin && <span className="px-2 py-1 rounded bg-red-700 text-xs font-semibold">ADMIN</span>}
           </div>
         </div>
@@ -555,7 +590,10 @@ export default function DashboardPage() {
               {displayedLeaderboard.map((e, i) => (
                 <tr key={e.playerId} className="border-t border-neutral-800">
                   <td className="p-2">{i + 1}</td>
-                  <td className="p-2">{e.nickname}</td>
+                  <td className="p-2 flex items-center gap-2">
+                    {onlineEmails.includes(e.nickname) && <span className="inline-block w-2 h-2 rounded-full bg-green-500" title="En ligne" />}
+                    {e.nickname}
+                  </td>
                   <td className="p-2">{formatMoney(e.netWorth)}</td>
                 </tr>
               ))}
@@ -570,7 +608,10 @@ export default function DashboardPage() {
           <ul className="mt-2 space-y-2 text-sm text-neutral-300">
             {players.map((p) => (
               <li key={p.id} className="border border-neutral-800 rounded px-3 py-2 bg-neutral-900">
-                <div className="text-base font-medium mb-2">{p.nickname}</div>
+                <div className="text-base font-medium mb-2 flex items-center gap-2">
+                  {onlineEmails.includes(p.nickname) && <span className="inline-block w-2 h-2 rounded-full bg-green-500" title="En ligne" />}
+                  {p.nickname}
+                </div>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span>Cash: {formatMoney(p.cash)} | Net: {formatMoney(p.netWorth)}</span>
                   <div className="flex items-center gap-2">

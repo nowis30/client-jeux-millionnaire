@@ -517,6 +517,11 @@ export default function QuizPage() {
                 Questions en banque: {stats.remaining}
               </span>
             )}
+            {status?.tokens === 20 && (
+              <span className="px-2 py-1 rounded bg-yellow-600/30 border border-yellow-500 text-yellow-300 font-semibold" title="Vous avez atteint le maximum de tokens">
+                ✅ Max tokens (20)
+              </span>
+            )}
             {/* Affichage dynamique des catégories si dispo, sinon fallback aux 3 catégories historiques */}
             {stats.categories && stats.categories.length > 0 ? (
               <div className="flex items-center gap-1 flex-wrap">

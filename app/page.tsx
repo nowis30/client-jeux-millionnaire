@@ -564,38 +564,40 @@ export default function DashboardPage() {
       {players.length > 0 && (
         <section>
           <h3 className="text-lg font-semibold">Joueurs</h3>
-          <ul className="mt-2 space-y-1 text-sm text-neutral-300">
+          <ul className="mt-2 space-y-2 text-sm text-neutral-300">
             {players.map((p) => (
-              <li key={p.id} className="flex items-center justify-between border border-neutral-800 rounded px-3 py-2 bg-neutral-900 gap-3">
-                <span>{p.nickname}</span>
-                <div className="flex items-center gap-2">
+              <li key={p.id} className="border border-neutral-800 rounded px-3 py-2 bg-neutral-900">
+                <div className="text-base font-medium mb-2">{p.nickname}</div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span>Cash: ${p.cash.toLocaleString()} | Net: ${p.netWorth.toLocaleString()}</span>
-                  <button
-                    title="Voir le portefeuille"
-                    onClick={() => openPortfolio(p)}
-                    className="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-xs"
-                  >
-                    Voir portefeuille
-                  </button>
-                  {isAdmin && (
+                  <div className="flex items-center gap-2">
                     <button
-                      title="Supprimer ce joueur"
-                      onClick={async () => {
-                        if (!gameId) return;
-                        if (!window.confirm(`Supprimer ${p.nickname} ? Tous ses biens, annonces et positions seront effacés.`)) return;
-                        try {
-                          await apiFetch(`/api/games/${gameId}/players/${p.id}`, { method: 'DELETE' });
-                          setMessage(`Joueur supprimé: ${p.nickname}`);
-                          updateState();
-                        } catch (err) {
-                          setError(err instanceof Error ? err.message : 'Échec de suppression');
-                        }
-                      }}
-                      className="px-2 py-1 rounded bg-red-700 hover:bg-red-600 text-xs"
+                      title="Voir le portefeuille"
+                      onClick={() => openPortfolio(p)}
+                      className="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-xs"
                     >
-                      Poubelle
+                      Voir portefeuille
                     </button>
-                  )}
+                    {isAdmin && (
+                      <button
+                        title="Supprimer ce joueur"
+                        onClick={async () => {
+                          if (!gameId) return;
+                          if (!window.confirm(`Supprimer ${p.nickname} ? Tous ses biens, annonces et positions seront effacés.`)) return;
+                          try {
+                            await apiFetch(`/api/games/${gameId}/players/${p.id}`, { method: 'DELETE' });
+                            setMessage(`Joueur supprimé: ${p.nickname}`);
+                            updateState();
+                          } catch (err) {
+                            setError(err instanceof Error ? err.message : 'Échec de suppression');
+                          }
+                        }}
+                        className="px-2 py-1 rounded bg-red-700 hover:bg-red-600 text-xs"
+                      >
+                        Poubelle
+                      </button>
+                    )}
+                  </div>
                 </div>
               </li>
             ))}
@@ -658,7 +660,6 @@ export default function DashboardPage() {
                     </span>
                   )
                 )}
-                <button onClick={() => setPortfolioPlayer(null)} className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-sm">Fermer</button>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -740,6 +741,9 @@ export default function DashboardPage() {
                   )}
                 </div>
               </div>
+            </div>
+            <div className="px-4 py-3 border-t border-neutral-800 flex justify-center">
+              <button onClick={() => setPortfolioPlayer(null)} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm">Fermer</button>
             </div>
           </div>
         </div>

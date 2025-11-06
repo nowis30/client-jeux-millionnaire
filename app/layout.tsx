@@ -4,6 +4,7 @@ import "./globals.css";
 import dynamic from "next/dynamic";
 const UserBadge = dynamic(() => import("./_components/UserBadge"), { ssr: false });
 const MobileNav = dynamic(() => import("./_components/MobileNav"), { ssr: false });
+const PresenceClient = dynamic(() => import("./_components/PresenceClient"), { ssr: false });
 export const metadata: Metadata = {
   title: "Héritier Millionnaire",
   manifest: "/manifest.webmanifest",
@@ -33,6 +34,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <UserBadge />
             </div>
           </header>
+          {/* Socket de présence global (toutes pages) */}
+          <PresenceClient />
           {children}
         </div>
         {/* Barre de navigation mobile fixe */}

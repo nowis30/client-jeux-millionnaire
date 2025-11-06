@@ -24,6 +24,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
 
 export default function ImmobilierPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [kindFilter, setKindFilter] = useState<"ALL" | "MAISON" | "DUPLEX" | "TRIPLEX" | "SIXPLEX" | "TOUR">("ALL");
   const [gameId, setGameId] = useState("");
   const [playerId, setPlayerId] = useState("");
   const [nickname, setNickname] = useState("");
@@ -162,6 +163,21 @@ export default function ImmobilierPage() {
   useEffect(() => {
     loadTemplates();
   }, [loadTemplates]);
+  // Déduction du type depuis units
+  const kindOf = (u?: number) => {
+    const units = Number(u || 1);
+    if (units >= 50) return "TOUR" as const;
+    if (units === 6) return "SIXPLEX" as const;
+    if (units === 3) return "TRIPLEX" as const;
+    if (units === 2) return "DUPLEX" as const;
+    return "MAISON" as const;
+  };
+
+  const filtered = useMemo(() => {
+    if (kindFilter === "ALL") return templates;
+    return templates.filter((t) => kindOf(t.units) === kindFilter);
+  }, [templates, kindFilter]);
+
 
   // (déplacé plus bas après la déclaration de loadEconomy)
 
@@ -234,6 +250,23 @@ export default function ImmobilierPage() {
       </section>
 
       <section ref={purchaseRef} className="space-y-3">
+        {/* Filtres rapides par type */}
+        <div className="flex flex-wrap gap-2 text-xs">
+          {([
+            { k: "ALL", label: "Tous" },
+            { k: "MAISON", label: "Maisons" },
+            { k: "DUPLEX", label: "Duplex" },
+            { k: "TRIPLEX", label: "Triplex" },
+            { k: "SIXPLEX", label: "6‑plex" },
+            { k: "TOUR", label: "Tours (50 log.)" },
+          ] as const).map(({ k, label }) => (
+            <button
+              key={k}
+              onClick={() => setKindFilter(k as any)}
+              className={`px-3 py-1.5 rounded border ${kindFilter === k ? 'bg-indigo-600 border-indigo-500' : 'bg-neutral-800 border-neutral-700 hover:bg-neutral-700'}`}
+            >{label}</button>
+          ))}
+        </div>
         {(nickname || cash != null) && (
           <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-300">
             {nickname && (
@@ -565,7 +598,7 @@ export default function ImmobilierPage() {
       <section className="space-y-2">
         <h3 className="text-lg font-semibold">Immeubles disponibles {templates.length ? <span className="text-sm text-neutral-400">({templates.length})</span> : null}</h3>
         <div className="grid gap-4 md:grid-cols-2">
-          {templates.map((tpl) => (
+          {filtered.map((tpl) => (
             <article
               key={tpl.id}
               className="border border-neutral-800 rounded-lg bg-neutral-900 overflow-hidden"
@@ -581,7 +614,15 @@ export default function ImmobilierPage() {
               <div className="p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <h4 className="font-semibold">{tpl.name}</h4>
-                <span className="text-sm text-neutral-400">{tpl.city}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700">
+                    {(() => {
+                      const k = kindOf(tpl.units);
+                      return k === 'TOUR' ? 'Tour' : k === 'SIXPLEX' ? '6‑plex' : k === 'TRIPLEX' ? 'Triplex' : k === 'DUPLEX' ? 'Duplex' : 'Maison';
+                    })()}
+                  </span>
+                  <span className="text-sm text-neutral-400">{tpl.city}</span>
+                </div>
               </div>
               <p className="text-sm text-neutral-300">Prix: {formatMoney(tpl.price)}</p>
               <p className="text-sm text-neutral-300">Loyer unitaire: {formatMoney(tpl.baseRent)} {tpl.units ? `× ${tpl.units} log.` : ''}</p>

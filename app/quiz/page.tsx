@@ -32,6 +32,8 @@ export default function QuizPage() {
     categories?: Array<{ category: string; remaining: number; total?: number; used?: number }>;
   } | null>(null);
   const [revealCorrect, setRevealCorrect] = useState<'A'|'B'|'C'|'D'|null>(null);
+  const [timeLeft, setTimeLeft] = useState<number>(30);
+  const [showTimeoutReveal, setShowTimeoutReveal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
 
   // À chaque nouvelle question, réinitialiser proprement l'état d'affichage
@@ -42,8 +44,49 @@ export default function QuizPage() {
       // Nettoyer les états visuels/interaction
       setSelectedAnswer(null);
       setRevealCorrect(null);
+      setTimeLeft(30);
+      setShowTimeoutReveal(false);
     }
   }, [question?.id]);
+
+  // Timer 30s
+  useEffect(() => {
+    if (!session || !question || revealCorrect || showTimeoutReveal) return;
+    if (timeLeft <= 0) {
+      // Déclencher timeout côté serveur
+      (async () => {
+        try {
+          const headers: Record<string,string> = { 'Content-Type':'application/json', 'X-CSRF':'1' };
+          if (playerId) headers['X-Player-ID'] = playerId;
+          const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/timeout`, {
+            method:'POST', credentials:'include', headers, body: JSON.stringify({ sessionId: session.id, questionId: question.id })
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(()=>({}));
+            throw new Error(err.error||'Timeout quiz erreur');
+          }
+          const data = await res.json();
+          setRevealCorrect(data.correctAnswer as any);
+          setShowTimeoutReveal(true);
+          setFeedback({ type: 'error', message: data.message });
+          // Après 5s retour à l'état initial
+          setTimeout(() => {
+            setRevealCorrect(null);
+            setShowTimeoutReveal(false);
+            setSession(null);
+            setQuestion(null);
+            loadStatus();
+            loadStats();
+          }, 5000);
+        } catch (e:any) {
+          setFeedback({ type:'error', message: e.message });
+        }
+      })();
+      return;
+    }
+    const id = setTimeout(()=> setTimeLeft(t => t - 1), 1000);
+    return () => clearTimeout(id);
+  }, [timeLeft, session, question, revealCorrect, showTimeoutReveal, playerId, gameId]);
 
   useEffect(() => {
     // Chercher la session dans localStorage (clé: hm-session)
@@ -374,21 +417,31 @@ export default function QuizPage() {
         throw new Error(err.error || 'Impossible de passer la question');
       }
       const data = await res.json();
-      setSession({
-        id: data.session.id,
-        currentQuestion: data.session.currentQuestion,
-        currentEarnings: data.session.currentEarnings,
-        securedAmount: data.session.securedAmount,
-        nextPrize: data.session.nextPrize,
-        skipsLeft: data.session.skipsLeft ?? Math.max(0, (session.skipsLeft ?? 0) - 1),
-      });
-      setQuestion(data.question);
-      setSelectedAnswer(null);
-      setFeedback({ type: 'success', message: `Question passée. Il vous reste ${Math.max(0, (session.skipsLeft ?? 0) - 1)} saut(s).` });
+      // Révéler la bonne réponse 3s avant de charger la nouvelle question
+      setRevealCorrect(data.correctAnswer as any);
+      setFeedback({ type: 'success', message: `Réponse: ${data.correctAnswer} (question passée)` });
+      setIsAnswering(true);
+      setTimeout(() => {
+        setRevealCorrect(null);
+        setIsAnswering(false);
+        setSession({
+          id: data.session.id,
+          currentQuestion: data.session.currentQuestion,
+          currentEarnings: data.session.currentEarnings,
+          securedAmount: data.session.securedAmount,
+          nextPrize: data.session.nextPrize,
+          skipsLeft: data.session.skipsLeft ?? Math.max(0, (session.skipsLeft ?? 0) - 1),
+        });
+        setQuestion(data.question);
+        setSelectedAnswer(null);
+        setTimeLeft(30);
+        setFeedback({ type: 'success', message: `Question passée. Il vous reste ${data.session.skipsLeft} saut(s).` });
+      }, 3000);
     } catch (err: any) {
       setFeedback({ type: 'error', message: err.message });
     } finally {
-      setIsAnswering(false);
+      // Le reset de isAnswering se fait après le reveal quand skip réussi
+      if (!revealCorrect) setIsAnswering(false);
     }
   }
 
@@ -574,6 +627,10 @@ export default function QuizPage() {
                   <div className="text-2xl font-bold text-green-400">{formatMoney(session.currentEarnings)}</div>
                 </div>
               </div>
+              {/* Timer */}
+              <div className="mb-2 flex items-center justify-center">
+                <div className={`text-lg font-mono px-4 py-1 rounded-full border ${timeLeft <= 5 ? 'bg-red-600 border-red-500 animate-pulse' : 'bg-black/30 border-white/20'}`}>⏱️ {timeLeft}s</div>
+              </div>
               <div className="text-center text-sm text-gray-300">Sauts restants : <span className="font-bold">{session.skipsLeft ?? 0} / 3</span></div>
               <div className="text-center">
                 <div className="text-sm text-gray-300 mb-1">Prochain gain</div>
@@ -611,6 +668,9 @@ export default function QuizPage() {
               )}
               
               <h2 className="text-2xl font-bold mb-6 text-center">{question.text}</h2>
+              {showTimeoutReveal && (
+                <div className="mb-4 text-center text-red-300 text-sm">Temps écoulé — réponse correcte: <span className="font-bold">{revealCorrect}</span></div>
+              )}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {['A', 'B', 'C', 'D'].map((letter) => {
@@ -657,7 +717,7 @@ export default function QuizPage() {
                 disabled={!selectedAnswer || isAnswering || !!revealCorrect}
                 className="w-full md:flex-1 px-6 py-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed rounded-xl font-bold text-lg transition shadow-lg"
               >
-                {isAnswering ? "⏳ Validation..." : "✓ Valider ma réponse"}
+                {isAnswering ? "⏳ ..." : "✓ Valider ma réponse"}
               </button>
             </div>
           </div>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearSession, loadSession, saveSession } from "../lib/session";
+import OnboardingHome from "../components/OnboardingHome";
 import { apiFetch, API_BASE } from "../lib/api";
 
 type Entry = { playerId: string; nickname: string; netWorth: number };
@@ -63,6 +64,8 @@ export default function DashboardPage() {
     remainingByCategory?: { finance: number; economy: number; realEstate: number };
     categories?: Array<{ category: string; total?: number; used?: number; remaining: number }>;
   } | null>(null);
+  const [showHomeTutorial, setShowHomeTutorial] = useState(false);
+  const [inviteAccepted, setInviteAccepted] = useState<string | null>(null);
 
   useEffect(() => {
     const session = loadSession();
@@ -72,6 +75,34 @@ export default function DashboardPage() {
       if (session.nickname) setKnownNickname(session.nickname);
     }
   }, []);
+
+  // Tutoriel d'accueil: afficher une fois
+  useEffect(() => {
+    try {
+      const seen = localStorage.getItem("hm-tutorial-home");
+      if (!seen) setShowHomeTutorial(true);
+    } catch {}
+  }, []);
+
+  // Accepter une invitation via ?invite=CODE quand gameId/playerId connus
+  useEffect(() => {
+    if (!gameId || !playerId) return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("invite");
+      if (!code) return;
+      if (localStorage.getItem(`hm-invite-accepted-${code}`)) return;
+      (async () => {
+        try {
+          await apiFetch(`/api/games/${gameId}/referrals/accept`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+          localStorage.setItem(`hm-invite-accepted-${code}`, '1');
+          setInviteAccepted(code);
+        } catch (e) {
+          // ignore erreurs d'invite
+        }
+      })();
+    } catch {}
+  }, [gameId, playerId]);
 
   const refreshSession = useCallback(
     (partial?: Partial<{ gameId: string; playerId: string; nickname: string }>) => {
@@ -388,6 +419,8 @@ export default function DashboardPage() {
   }, []);
 
   const shareUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const [inviteLink, setInviteLink] = useState<string>("");
+  const [inviteMsg, setInviteMsg] = useState<string | null>(null);
   const handleShare = useCallback(async () => {
     const url = shareUrl;
     const title = "Rejoins le jeu du Millionnaire";
@@ -406,6 +439,23 @@ export default function DashboardPage() {
       setShareStatus("Partage annulé");
     }
   }, [shareUrl]);
+
+  const createInvite = useCallback(async () => {
+    try {
+      if (!gameId) throw new Error("Partie introuvable");
+      const res = await apiFetch<{ code: string; url: string; reward: number }>(`/api/games/${gameId}/referrals/create`, { method: 'POST' });
+      setInviteLink(res.url);
+      setInviteMsg(`Lien généré. Récompense: $${(res.reward || 1000000).toLocaleString()}`);
+      if (navigator.share) {
+        await navigator.share({ title: 'Rejoins le Millionnaire', text: 'Accepte mon invitation et commençons !', url: res.url });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(res.url);
+        setInviteMsg((m) => (m ? m + ' — Lien copié' : 'Lien copié'));
+      }
+    } catch (e: any) {
+      setInviteMsg(e?.message || 'Échec de création du lien');
+    }
+  }, [gameId]);
 
   // Ne plus faire de polling: un seul chargement + bouton manuel
   useEffect(() => {
@@ -437,6 +487,7 @@ export default function DashboardPage() {
   }, [leaderboard, players]);
 
   return (
+    <>
     <main className="space-y-6">
       {!isLoggedIn ? (
         <section className="space-y-3">
@@ -468,10 +519,15 @@ export default function DashboardPage() {
             }}
             className="px-4 py-2 rounded bg-rose-700 hover:bg-rose-600"
           >Se déconnecter</button>
+          <button onClick={createInvite} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500">Inviter un ami (gagne 1M$)</button>
           <button onClick={handleShare} className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500">Partager le jeu</button>
           <a href={`mailto:?subject=${encodeURIComponent("Rejoins le jeu du Millionnaire")}&body=${encodeURIComponent("Rejoins-moi: " + shareUrl)}`} className="px-4 py-2 rounded bg-indigo-700 hover:bg-indigo-600 text-center">Inviter par email</a>
         </div>
-        {shareStatus && <p className="text-xs text-neutral-400">{shareStatus}</p>}
+        {inviteLink && (
+          <div className="text-xs text-neutral-300">Lien d'invitation: <a href={inviteLink} className="underline break-all">{inviteLink}</a></div>
+        )}
+        {(inviteMsg || shareStatus) && <p className="text-xs text-neutral-400">{inviteMsg || shareStatus}</p>}
+        {inviteAccepted && <p className="text-xs text-emerald-400">Invitation appliquée. Merci !</p>}
         {message && <p className="text-sm text-emerald-400">{message}</p>}
         {error && <p className="text-sm text-red-400">{error}</p>}
       </section>
@@ -689,5 +745,9 @@ export default function DashboardPage() {
         </div>
       )}
     </main>
+    {showHomeTutorial && (
+      <OnboardingHome onClose={() => setShowHomeTutorial(false)} />
+    )}
+  </>
   );
 }

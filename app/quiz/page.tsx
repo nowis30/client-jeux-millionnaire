@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Onboarding from "../../components/Onboarding";
+import { formatMoney } from "../../lib/format";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 
@@ -307,7 +308,7 @@ export default function QuizPage() {
   async function cashOut() {
     if (!session) return;
 
-    if (!confirm(`Voulez-vous encaisser $${session.currentEarnings.toLocaleString()} ?`)) {
+    if (!confirm(`Voulez-vous encaisser ${formatMoney(session.currentEarnings)} ?`)) {
       return;
     }
 
@@ -570,20 +571,20 @@ export default function QuizPage() {
                 </div>
                 <div className="text-right">
                   <div className="text-sm text-gray-300">Gains actuels</div>
-                  <div className="text-2xl font-bold text-green-400">${session.currentEarnings.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-green-400">{formatMoney(session.currentEarnings)}</div>
                 </div>
               </div>
               <div className="text-center text-sm text-gray-300">Sauts restants : <span className="font-bold">{session.skipsLeft ?? 0} / 3</span></div>
               <div className="text-center">
                 <div className="text-sm text-gray-300 mb-1">Prochain gain</div>
-                <div className="text-3xl font-bold text-yellow-400">${session.nextPrize.toLocaleString()}</div>
+                <div className="text-3xl font-bold text-yellow-400">{formatMoney(session.nextPrize)}</div>
                 {PRIZE_LADDER[session.currentQuestion - 1]?.milestone && (
                   <div className="mt-2 text-xs text-green-400">🛡️ Palier de sécurité</div>
                 )}
               </div>
               {session.securedAmount > 0 && (
                 <div className="mt-4 text-center text-sm text-gray-300">
-                  Montant sécurisé : <span className="font-bold text-green-400">${session.securedAmount.toLocaleString()}</span>
+                  Montant sécurisé : <span className="font-bold text-green-400">{formatMoney(session.securedAmount)}</span>
                 </div>
               )}
             </div>
@@ -641,7 +642,7 @@ export default function QuizPage() {
                 disabled={isAnswering || session.currentEarnings === 0}
                 className="w-full md:flex-1 px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-xl font-bold text-lg transition shadow-lg"
               >
-                💰 Encaisser ${session.currentEarnings.toLocaleString()}
+                💰 Encaisser {formatMoney(session.currentEarnings)}
               </button>
               <button
                 onClick={skipQuestion}

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MARKET_ASSETS } from "../../lib/constants";
 import { apiFetch } from "../../lib/api";
+import { formatMoney } from "../../lib/format";
 
 type Price = { symbol: string; price: number; at: string };
 type Holding = { id: string; symbol: string; quantity: number; avgPrice: number };
@@ -259,9 +260,9 @@ export default function BoursePage() {
             {cash != null && (
               <p>
                 Encaisse disponible: {cash < 0 ? (
-                  <span className="font-medium text-rose-400">${cash.toLocaleString()}</span>
+                  <span className="font-medium text-rose-400">{formatMoney(cash)}</span>
                 ) : (
-                  <span className="font-medium text-emerald-400">${cash.toLocaleString()}</span>
+                  <span className="font-medium text-emerald-400">{formatMoney(cash)}</span>
                 )}
               </p>
             )}
@@ -318,7 +319,7 @@ export default function BoursePage() {
         <div className="text-xs text-neutral-400 min-w-[220px]">
           <div>Prix: {selectedPrice != null ? `$${selectedPrice.toFixed(2)}` : '—'}</div>
           <div>Coût estimé: {estimatedCost > 0 ? `$${estimatedCost.toFixed(2)}` : '—'}</div>
-          <div>Encaisse: {typeof cash === 'number' ? (cash < 0 ? <span className="text-rose-400">${cash.toLocaleString()}</span> : <span className="text-emerald-400">${cash.toLocaleString()}</span>) : '—'}</div>
+          <div>Encaisse: {typeof cash === 'number' ? (cash < 0 ? <span className="text-rose-400">{formatMoney(cash)}</span> : <span className="text-emerald-400">{formatMoney(cash)}</span>) : '—'}</div>
           <div>Achat max: {selectedPrice ? (Math.max(0, (cash ?? 0)) / selectedPrice).toFixed(2) : '—'}</div>
         </div>
         <button

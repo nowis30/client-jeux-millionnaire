@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "../../lib/api";
+import { formatMoney } from "../../lib/format";
 
 type Template = {
   id: string;
@@ -241,9 +242,9 @@ export default function ImmobilierPage() {
             {cash != null && (
               <p>
                 Encaisse disponible: {cash < 0 ? (
-                  <span className="font-medium text-rose-400">${cash.toLocaleString()}</span>
+                  <span className="font-medium text-rose-400">{formatMoney(cash)}</span>
                 ) : (
-                  <span className="font-medium text-emerald-400">${cash.toLocaleString()}</span>
+                  <span className="font-medium text-emerald-400">{formatMoney(cash)}</span>
                 )}
               </p>
             )}
@@ -288,7 +289,7 @@ export default function ImmobilierPage() {
               <option value="">Choisir...</option>
               {templates.map((tpl) => (
                 <option key={tpl.id} value={tpl.id}>
-                  {tpl.name} — {tpl.city} (${tpl.price.toLocaleString()})
+                  {tpl.name} — {tpl.city} ({formatMoney(tpl.price)})
                 </option>
               ))}
             </select>
@@ -322,8 +323,8 @@ export default function ImmobilierPage() {
                       <h4 className="font-semibold">{h.template?.name ?? "Bien"}</h4>
                       <span className="text-sm text-neutral-400">{h.template?.city ?? ""}</span>
                     </div>
-                    <p className="text-sm text-neutral-300">Valeur actuelle: ${Number(h.currentValue ?? 0).toLocaleString()}</p>
-                    <p className="text-sm text-neutral-300">Loyer actuel: ${Number(h.currentRent ?? 0).toLocaleString()}</p>
+                    <p className="text-sm text-neutral-300">Valeur actuelle: {formatMoney(Number(h.currentValue ?? 0))}</p>
+                    <p className="text-sm text-neutral-300">Loyer actuel: {formatMoney(Number(h.currentRent ?? 0))}</p>
                     {(() => {
                       const value = Number(h.currentValue ?? 0) || 0;
                       const weeklyRent = Number(h.currentRent ?? 0) || 0;
@@ -347,7 +348,7 @@ export default function ImmobilierPage() {
                         </p>
                       );
                     })()}
-                    <p className="text-xs text-neutral-500">Dette hypothécaire: ${Number(h.mortgageDebt ?? 0).toLocaleString()} — Taux: {(Number(h.mortgageRate ?? 0) * 100).toFixed(2)}%</p>
+                    <p className="text-xs text-neutral-500">Dette hypothécaire: {formatMoney(Number(h.mortgageDebt ?? 0))} — Taux: {(Number(h.mortgageRate ?? 0) * 100).toFixed(2)}%</p>
 
                     {/* Réhypothèque */}
                     <div className="pt-2">
@@ -369,7 +370,7 @@ export default function ImmobilierPage() {
                           if (!ok) return;
                           try {
                             const res = await apiFetch<{ proceeds: number }>(`/api/games/${gameId}/properties/${h.id}/sell`, { method: 'POST' });
-                            setMessage(`Immeuble vendu, produit net $${Math.round(res.proceeds).toLocaleString()}`);
+                            setMessage(`Immeuble vendu, produit net ${formatMoney(Math.round(res.proceeds))}`);
                             setError(null);
                             await Promise.all([loadHoldings(), loadPlayer(), loadTemplates()]);
                           } catch (err) {
@@ -408,8 +409,8 @@ export default function ImmobilierPage() {
                           return (
                             <>
                               <div className="text-xs text-neutral-300 flex flex-col gap-1">
-                                <span>Max dette (80% LTV): ${maxDebt.toLocaleString()}</span>
-                                <span>Encaisse possible (cash-out): ${available.toLocaleString()}</span>
+                                <span>Max dette (80% LTV): {formatMoney(maxDebt)}</span>
+                                <span>Encaisse possible (cash-out): {formatMoney(available)}</span>
                               </div>
                               <div className="grid md:grid-cols-3 gap-3 text-xs text-neutral-300">
                                 <label className="flex flex-col gap-1">
@@ -452,7 +453,7 @@ export default function ImmobilierPage() {
                                 )}
                                 <div className="flex flex-col gap-1">
                                   <span>Aperçu</span>
-                                  <span className="text-neutral-400">Nouvelle dette: ${cappedNewDebt.toLocaleString()} · Cash-out: ${cashOut.toLocaleString()}</span>
+                                  <span className="text-neutral-400">Nouvelle dette: {formatMoney(cappedNewDebt)} · Cash-out: {formatMoney(cashOut)}</span>
                                 </div>
                               </div>
                               <div className="flex gap-2">
@@ -489,7 +490,7 @@ export default function ImmobilierPage() {
                                     {h.refinanceLogs.map((r: any) => (
                                       <li key={r.id} className="flex items-center justify-between">
                                         <span>{new Date(r.at).toLocaleString()}</span>
-                                        <span>+${Math.round(r.amount).toLocaleString()} à {(Number(r.rate) * 100).toFixed(2)}%</span>
+                                        <span>+{formatMoney(Math.round(r.amount))} à {(Number(r.rate) * 100).toFixed(2)}%</span>
                                       </li>
                                     ))}
                                   </ul>
@@ -582,9 +583,9 @@ export default function ImmobilierPage() {
                 <h4 className="font-semibold">{tpl.name}</h4>
                 <span className="text-sm text-neutral-400">{tpl.city}</span>
               </div>
-              <p className="text-sm text-neutral-300">Prix: ${tpl.price.toLocaleString()}</p>
-              <p className="text-sm text-neutral-300">Loyer unitaire: ${tpl.baseRent.toLocaleString()} {tpl.units ? `× ${tpl.units} log.` : ''}</p>
-              <p className="text-xs text-neutral-500">Charges: taxes ${tpl.taxes}/an, assurance ${tpl.insurance}/an, entretien ${tpl.maintenance}/an</p>
+              <p className="text-sm text-neutral-300">Prix: {formatMoney(tpl.price)}</p>
+              <p className="text-sm text-neutral-300">Loyer unitaire: {formatMoney(tpl.baseRent)} {tpl.units ? `× ${tpl.units} log.` : ''}</p>
+              <p className="text-xs text-neutral-500">Charges: taxes {formatMoney(tpl.taxes)}/an, assurance {formatMoney(tpl.insurance)}/an, entretien {formatMoney(tpl.maintenance)}/an</p>
               <p className="text-xs text-neutral-500">État — Plomberie: {tpl.plumbingState ?? 'n/a'}, Électricité: {tpl.electricityState ?? 'n/a'}, Toiture: {tpl.roofState ?? 'n/a'}</p>
               {tpl.description && (
                 <p className="text-xs text-neutral-400 mt-1">{tpl.description}</p>
@@ -772,14 +773,14 @@ function TemplatePreview({
       </div>
       <ul className="text-xs text-neutral-300 grid md:grid-cols-2 gap-2">
         <li>Unités: {units}</li>
-        <li>Loyer brut: ${fmt(Math.round(rentMonthlyGross))}/mois — Vacance: {Math.round(vacancyRate * 100)}%</li>
-        <li>Loyer effectif: ${fmt(Math.round(rentMonthly))}/mois</li>
-        <li>Charges: ${fmt(Math.round(expensesMonthly))}/mois ({fmt(Math.round(expensesAnnual))}/an)</li>
-        <li>Réserves: ${fmt(Math.round(reservesMonthly))}/mois ({fmt(Math.round(reservesAnnual))}/an)</li>
-        <li>NOI: ${fmt(Math.round(noiAnnual))}/an · Cap rate: {(capRate * 100).toFixed(2)}%</li>
-        <li>Mise de fonds: ${fmt(Math.round(downPayment))} ({Math.round(downPaymentPercent * 100)}%)</li>
-        <li>Hypothèque: ${fmt(Math.round(loan))} — Paiement: ${fmt(Math.round(monthlyPayment))}/mois</li>
-        <li>Cashflow estimé: <span className={cashflowMonthly >= 0 ? 'text-emerald-400' : 'text-red-400'}>${fmt(Math.round(cashflowMonthly))}/mois</span></li>
+        <li>Loyer brut: {formatMoney(Math.round(rentMonthlyGross))}/mois — Vacance: {Math.round(vacancyRate * 100)}%</li>
+        <li>Loyer effectif: {formatMoney(Math.round(rentMonthly))}/mois</li>
+        <li>Charges: {formatMoney(Math.round(expensesMonthly))}/mois ({formatMoney(Math.round(expensesAnnual))}/an)</li>
+        <li>Réserves: {formatMoney(Math.round(reservesMonthly))}/mois ({formatMoney(Math.round(reservesAnnual))}/an)</li>
+        <li>NOI: {formatMoney(Math.round(noiAnnual))}/an · Cap rate: {(capRate * 100).toFixed(2)}%</li>
+        <li>Mise de fonds: {formatMoney(Math.round(downPayment))} ({Math.round(downPaymentPercent * 100)}%)</li>
+        <li>Hypothèque: {formatMoney(Math.round(loan))} — Paiement: {formatMoney(Math.round(monthlyPayment))}/mois</li>
+        <li>Cashflow estimé: <span className={cashflowMonthly >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatMoney(Math.round(cashflowMonthly))}/mois</span></li>
         <li>Rendement sur capital (année 1): <span className={roc >= 0 ? 'text-emerald-400' : 'text-red-400'}>{(roc * 100).toFixed(2)}%</span></li>
       </ul>
       <div className="space-y-2">

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { clearSession, loadSession, saveSession } from "../lib/session";
 import OnboardingHome from "../components/OnboardingHome";
 import { apiFetch, API_BASE } from "../lib/api";
+import { formatMoney } from "../lib/format";
 
 type Entry = { playerId: string; nickname: string; netWorth: number };
 type GamePlayer = { id: string; nickname: string; cash: number; netWorth: number };
@@ -444,8 +445,8 @@ export default function DashboardPage() {
     try {
       if (!gameId) throw new Error("Partie introuvable");
       const res = await apiFetch<{ code: string; url: string; reward: number }>(`/api/games/${gameId}/referrals/create`, { method: 'POST' });
-      setInviteLink(res.url);
-      setInviteMsg(`Lien généré. Récompense: $${(res.reward || 1000000).toLocaleString()}`);
+  setInviteLink(res.url);
+  setInviteMsg(`Lien généré. Récompense: ${formatMoney(res.reward || 1000000)}`);
       if (navigator.share) {
         await navigator.share({ title: 'Rejoins le Millionnaire', text: 'Accepte mon invitation et commençons !', url: res.url });
       } else if (navigator.clipboard) {
@@ -553,7 +554,7 @@ export default function DashboardPage() {
                 <tr key={e.playerId} className="border-t border-neutral-800">
                   <td className="p-2">{i + 1}</td>
                   <td className="p-2">{e.nickname}</td>
-                  <td className="p-2">${e.netWorth.toLocaleString()}</td>
+                  <td className="p-2">{formatMoney(e.netWorth)}</td>
                 </tr>
               ))}
             </tbody>
@@ -569,7 +570,7 @@ export default function DashboardPage() {
               <li key={p.id} className="border border-neutral-800 rounded px-3 py-2 bg-neutral-900">
                 <div className="text-base font-medium mb-2">{p.nickname}</div>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span>Cash: ${p.cash.toLocaleString()} | Net: ${p.netWorth.toLocaleString()}</span>
+                  <span>Cash: {formatMoney(p.cash)} | Net: {formatMoney(p.netWorth)}</span>
                   <div className="flex items-center gap-2">
                     <button
                       title="Voir le portefeuille"
@@ -681,8 +682,8 @@ export default function DashboardPage() {
                       {portfolioProps.map((h: any) => (
                         <tr key={h.id} className="border-t border-neutral-800">
                           <td className="p-2">{h.template?.name ?? 'Bien'}<div className="text-xs text-neutral-500">{h.template?.city ?? ''}</div></td>
-                          <td className="p-2">${Number(h.currentValue ?? 0).toLocaleString()}</td>
-                          <td className="p-2">${Number(h.mortgageDebt ?? 0).toLocaleString()}</td>
+                          <td className="p-2">{formatMoney(Number(h.currentValue ?? 0))}</td>
+                          <td className="p-2">{formatMoney(Number(h.mortgageDebt ?? 0))}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -734,7 +735,7 @@ export default function DashboardPage() {
                     <>
                       <div className="flex items-baseline justify-between">
                         <h5 className="font-semibold">Projection 10 ans (valeur nette totale)</h5>
-                        <span className="text-xs text-neutral-400">de ${Math.round(proj[0].net).toLocaleString()} à ${Math.round(proj[proj.length - 1].net).toLocaleString()}</span>
+                        <span className="text-xs text-neutral-400">de {formatMoney(Math.round(proj[0].net))} à {formatMoney(Math.round(proj[proj.length - 1].net))}</span>
                       </div>
                       <PortfolioProjectionChart data={proj} />
                     </>

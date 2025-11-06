@@ -2,6 +2,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { apiFetch, API_BASE } from "../../lib/api";
+import { formatMoney, monthlyFromWeekly } from "../../lib/format";
+
+type Template = {
+  name?: string;
+  price: number;
+  baseRent?: number;
+  taxes?: number;
+  insurance?: number;
+  maintenance?: number;
+  units?: number | null;
+  city?: string | null;
+};
 
 type Holding = {
   id: string;
@@ -10,7 +22,8 @@ type Holding = {
   currentRent: number;
   purchasePrice: number;
   mortgageDebt: number;
-  template?: { name?: string; price: number };
+  weeklyPayment?: number;
+  template?: Template;
 };
 
 type Listing = {
@@ -21,6 +34,9 @@ type Listing = {
   price: number;
   sellerId?: string | null;
   createdAt: string;
+  // inclusions serveur
+  holding?: Holding | null;
+  template?: Template | null;
 };
 
 export default function ListingsPage() {
@@ -187,7 +203,7 @@ export default function ListingsPage() {
             <option value="">Sélectionner un bien</option>
             {holdings.map((h) => (
               <option key={h.id} value={h.id}>
-                {h.template?.name ?? h.templateId} - Valeur ${h.currentValue.toLocaleString()} - Dette ${h.mortgageDebt.toLocaleString()}
+                {h.template?.name ?? h.templateId} - Valeur {formatMoney(h.currentValue)} - Dette {formatMoney(h.mortgageDebt)}
               </option>
             ))}
           </select>
@@ -200,15 +216,36 @@ export default function ListingsPage() {
         <h3 className="text-lg font-semibold">Mes annonces</h3>
         <div className="grid gap-2">
           {myListings.length === 0 && <p className="text-sm text-neutral-400">Aucune annonce.</p>}
-          {myListings.map((l) => (
-            <article key={l.id} className="border border-neutral-800 rounded bg-neutral-900 p-3 flex items-center justify-between">
-              <div className="text-sm">
-                <div>Prix: ${l.price.toLocaleString()}</div>
-                <div className="text-xs text-neutral-400">Publiée: {new Date(l.createdAt).toLocaleTimeString()}</div>
-              </div>
-              <button onClick={() => handleCancel(l.id)} className="px-3 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm">Annuler</button>
-            </article>
-          ))}
+          {myListings.map((l) => {
+            const h = l.holding;
+            const t = h?.template ?? l.template ?? null;
+            const units = t?.units || 1;
+            const rentMonthly = (h?.currentRent ?? t?.baseRent ?? 0) * Number(units || 1);
+            const annualExpenses = (t?.taxes ?? 0) + (t?.insurance ?? 0) + (t?.maintenance ?? 0);
+            const mortgageMonthly = monthlyFromWeekly(h?.weeklyPayment ?? 0);
+            const expensesMonthly = annualExpenses / 12;
+            const cashflowMonthly = rentMonthly - expensesMonthly - mortgageMonthly;
+            const equity = (h?.currentValue ?? t?.price ?? 0) - (h?.mortgageDebt ?? 0);
+            return (
+              <article key={l.id} className="border border-neutral-800 rounded bg-neutral-900 p-3 grid gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm">
+                    <div>Prix: {formatMoney(l.price)}</div>
+                    <div className="text-xs text-neutral-400">Publiée: {new Date(l.createdAt).toLocaleTimeString()}</div>
+                  </div>
+                  <button onClick={() => handleCancel(l.id)} className="px-3 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm">Annuler</button>
+                </div>
+                {/* Bilan */}
+                <div className="text-xs grid sm:grid-cols-5 gap-2 text-neutral-300">
+                  <div><span className="text-neutral-400">Valeur:</span> {formatMoney(h?.currentValue ?? t?.price ?? 0)}</div>
+                  <div><span className="text-neutral-400">Dette:</span> {formatMoney(h?.mortgageDebt ?? 0)}</div>
+                  <div><span className="text-neutral-400">Équité:</span> <span className={equity >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{formatMoney(equity)}</span></div>
+                  <div><span className="text-neutral-400">Loyer/mois:</span> {formatMoney(rentMonthly)}</div>
+                  <div><span className="text-neutral-400">Cashflow/mois:</span> <span className={cashflowMonthly >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{formatMoney(cashflowMonthly)}</span></div>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -216,15 +253,36 @@ export default function ListingsPage() {
         <h3 className="text-lg font-semibold">Annonces des autres</h3>
         <div className="grid gap-2">
           {othersListings.length === 0 && <p className="text-sm text-neutral-400">Aucune annonce disponible.</p>}
-          {othersListings.map((l) => (
-            <article key={l.id} className="border border-neutral-800 rounded bg-neutral-900 p-3 flex items-center justify-between">
-              <div className="text-sm">
-                <div>Prix: ${l.price.toLocaleString()}</div>
-                <div className="text-xs text-neutral-400">Publiée: {new Date(l.createdAt).toLocaleTimeString()}</div>
-              </div>
-              <button onClick={() => handleAccept(l.id)} className="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-sm">Acheter</button>
-            </article>
-          ))}
+          {othersListings.map((l) => {
+            const h = l.holding;
+            const t = h?.template ?? l.template ?? null;
+            const units = t?.units || 1;
+            const rentMonthly = (h?.currentRent ?? t?.baseRent ?? 0) * Number(units || 1);
+            const annualExpenses = (t?.taxes ?? 0) + (t?.insurance ?? 0) + (t?.maintenance ?? 0);
+            const mortgageMonthly = monthlyFromWeekly(h?.weeklyPayment ?? 0);
+            const expensesMonthly = annualExpenses / 12;
+            const cashflowMonthly = rentMonthly - expensesMonthly - mortgageMonthly;
+            const equity = (h?.currentValue ?? t?.price ?? 0) - (h?.mortgageDebt ?? 0);
+            return (
+              <article key={l.id} className="border border-neutral-800 rounded bg-neutral-900 p-3 grid gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm">
+                    <div>Prix: {formatMoney(l.price)} {t?.city ? <span className="text-xs text-neutral-400">— {t.city}</span> : null}</div>
+                    <div className="text-xs text-neutral-400">Publiée: {new Date(l.createdAt).toLocaleTimeString()}</div>
+                  </div>
+                  <button onClick={() => handleAccept(l.id)} className="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-sm">Acheter</button>
+                </div>
+                {/* Bilan */}
+                <div className="text-xs grid sm:grid-cols-5 gap-2 text-neutral-300">
+                  <div><span className="text-neutral-400">Valeur:</span> {formatMoney(h?.currentValue ?? t?.price ?? 0)}</div>
+                  <div><span className="text-neutral-400">Dette:</span> {formatMoney(h?.mortgageDebt ?? 0)}</div>
+                  <div><span className="text-neutral-400">Équité:</span> <span className={equity >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{formatMoney(equity)}</span></div>
+                  <div><span className="text-neutral-400">Loyer/mois:</span> {formatMoney(rentMonthly)}</div>
+                  <div><span className="text-neutral-400">Cashflow/mois:</span> <span className={cashflowMonthly >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{formatMoney(cashflowMonthly)}</span></div>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
 

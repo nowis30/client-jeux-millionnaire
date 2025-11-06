@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { apiFetch } from "../../lib/api";
+import { formatMoney } from "../../lib/format";
 
 type Entry = { playerId: string; nickname: string; netWorth: number };
 
@@ -44,7 +45,7 @@ export default function SummaryPage() {
           <div className="border border-neutral-800 rounded bg-neutral-900 p-3">
             <h3 className="font-semibold">Vainqueur</h3>
             {summary.winner ? (
-              <p className="text-sm">{summary.winner.nickname} — ${summary.winner.netWorth.toLocaleString()}</p>
+              <p className="text-sm">{summary.winner.nickname} — {formatMoney(summary.winner.netWorth)}</p>
             ) : (
               <p className="text-sm text-neutral-400">Aucun vainqueur.</p>
             )}
@@ -63,7 +64,7 @@ export default function SummaryPage() {
                   <tr key={e.playerId} className="border-t border-neutral-800">
                     <td className="p-2">{i + 1}</td>
                     <td className="p-2">{e.nickname}</td>
-                    <td className="p-2">${e.netWorth.toLocaleString()}</td>
+                    <td className="p-2">{formatMoney(e.netWorth)}</td>
                   </tr>
                 ))}
               </tbody>

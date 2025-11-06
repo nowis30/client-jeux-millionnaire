@@ -162,6 +162,7 @@ export default function QuizPage() {
           currentEarnings: data.session.currentEarnings,
           securedAmount: data.session.securedAmount,
           nextPrize: data.session.nextPrize,
+          skipsLeft: data.session.skipsLeft ?? 0,
         });
         setQuestion(data.question);
         setSelectedAnswer(null);
@@ -195,6 +196,7 @@ export default function QuizPage() {
         currentEarnings: data.currentEarnings,
         securedAmount: data.securedAmount,
         nextPrize: data.nextPrize,
+        skipsLeft: data.skipsLeft ?? 3,
       });
       setQuestion(data.question);
       setSelectedAnswer(null);
@@ -320,6 +322,52 @@ export default function QuizPage() {
       setFeedback({ type: 'error', message: err.message });
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function skipQuestion() {
+    if (!session || !question) return;
+    if ((session.skipsLeft ?? 0) <= 0) {
+      setFeedback({ type: 'error', message: "Vous n'avez plus de sauts disponibles." });
+      return;
+    }
+
+    try {
+      setIsAnswering(true);
+      setFeedback(null);
+
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json",
+        "X-CSRF": "1"
+      };
+      if (playerId) headers["X-Player-ID"] = playerId;
+
+      const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/skip`, {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify({ sessionId: session.id, questionId: question.id })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Impossible de passer la question');
+      }
+      const data = await res.json();
+      setSession({
+        id: data.session.id,
+        currentQuestion: data.session.currentQuestion,
+        currentEarnings: data.session.currentEarnings,
+        securedAmount: data.session.securedAmount,
+        nextPrize: data.session.nextPrize,
+        skipsLeft: data.session.skipsLeft ?? Math.max(0, (session.skipsLeft ?? 0) - 1),
+      });
+      setQuestion(data.question);
+      setSelectedAnswer(null);
+      setFeedback({ type: 'success', message: `Question passée. Il vous reste ${Math.max(0, (session.skipsLeft ?? 0) - 1)} saut(s).` });
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message });
+    } finally {
+      setIsAnswering(false);
     }
   }
 
@@ -449,6 +497,7 @@ export default function QuizPage() {
                     <li>Chaque bonne réponse double vos gains (5k → 10k → 20k → 40k ...)</li>
                     <li>Vous pouvez encaisser à tout moment pour sécuriser vos gains</li>
                     <li>Mauvaise réponse = vous perdez tout</li>
+                    <li>Vous pouvez sauter jusqu'à <b>3 questions</b> par session</li>
                     <li>Maximum 10 questions par session</li>
                   </ul>
                 </div>
@@ -491,6 +540,7 @@ export default function QuizPage() {
                   <div className="text-2xl font-bold text-green-400">${session.currentEarnings.toLocaleString()}</div>
                 </div>
               </div>
+              <div className="text-center text-sm text-gray-300">Sauts restants : <span className="font-bold">{session.skipsLeft ?? 0} / 3</span></div>
               <div className="text-center">
                 <div className="text-sm text-gray-300 mb-1">Prochain gain</div>
                 <div className="text-3xl font-bold text-yellow-400">${session.nextPrize.toLocaleString()}</div>
@@ -559,6 +609,14 @@ export default function QuizPage() {
                 className="flex-1 px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-xl font-bold text-lg transition shadow-lg"
               >
                 💰 Encaisser ${session.currentEarnings.toLocaleString()}
+              </button>
+              <button
+                onClick={skipQuestion}
+                disabled={isAnswering || !!revealCorrect || (session.skipsLeft ?? 0) <= 0}
+                className="px-4 py-4 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-xl font-bold text-lg transition shadow-lg"
+                title="Passer cette question"
+              >
+                ⏭️ Passer ({session.skipsLeft ?? 0}/3)
               </button>
               <button
                 onClick={submitAnswer}

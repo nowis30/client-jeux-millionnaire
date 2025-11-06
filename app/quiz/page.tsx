@@ -32,7 +32,7 @@ export default function QuizPage() {
     categories?: Array<{ category: string; remaining: number; total?: number; used?: number }>;
   } | null>(null);
   const [revealCorrect, setRevealCorrect] = useState<'A'|'B'|'C'|'D'|null>(null);
-  const [timeLeft, setTimeLeft] = useState<number>(30);
+  const [timeLeft, setTimeLeft] = useState<number>(60);
   const [showTimeoutReveal, setShowTimeoutReveal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
 
@@ -44,7 +44,7 @@ export default function QuizPage() {
       // Nettoyer les états visuels/interaction
       setSelectedAnswer(null);
       setRevealCorrect(null);
-      setTimeLeft(30);
+  setTimeLeft(60);
       setShowTimeoutReveal(false);
     }
   }, [question?.id]);
@@ -434,7 +434,7 @@ export default function QuizPage() {
         });
         setQuestion(data.question);
         setSelectedAnswer(null);
-        setTimeLeft(30);
+  setTimeLeft(60);
         setFeedback({ type: 'success', message: `Question passée. Il vous reste ${data.session.skipsLeft} saut(s).` });
       }, 3000);
     } catch (err: any) {

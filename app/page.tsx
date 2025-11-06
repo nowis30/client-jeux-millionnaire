@@ -490,6 +490,8 @@ export default function DashboardPage() {
   return (
     <>
   <main className="space-y-6 overflow-x-hidden">
+      {/* Bandeau prix Amazon 20$ fin d'année */}
+      <PrizeBanner />
       {!isLoggedIn ? (
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">Connexion requise</h2>
@@ -756,3 +758,26 @@ export default function DashboardPage() {
   </>
   );
 }
+
+  function PrizeBanner() {
+    const target = new Date('2025-12-31T23:00:00-05:00');
+    const [now, setNow] = useState<Date>(() => new Date());
+    useEffect(() => {
+      const id = setInterval(() => setNow(new Date()), 60000);
+      return () => clearInterval(id);
+    }, []);
+    if (now > target) return null;
+    const diffMs = target.getTime() - now.getTime();
+    const days = Math.max(0, Math.floor(diffMs / (1000*60*60*24)));
+    return (
+      <div className="rounded-lg border border-amber-600 bg-gradient-to-r from-amber-700/60 to-yellow-700/50 p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 shadow">
+        <div className="text-sm md:text-base font-semibold text-amber-100 flex items-center gap-2">
+          <span>🏆 Prix spécial: Carte cadeau Amazon 20$ attribuée le 31 décembre 2025 au joueur #1 (valeur nette).</span>
+        </div>
+        <div className="text-xs text-amber-200 flex items-center gap-3">
+          <span>Compte à rebours: {days} jour{days!==1?'s':''}</span>
+          <Link href="/quiz" className="px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium text-xs">Booster ton net</Link>
+        </div>
+      </div>
+    );
+  }

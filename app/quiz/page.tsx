@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Onboarding from "../../components/Onboarding";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 
@@ -30,6 +31,7 @@ export default function QuizPage() {
     categories?: Array<{ category: string; remaining: number; total?: number; used?: number }>;
   } | null>(null);
   const [revealCorrect, setRevealCorrect] = useState<'A'|'B'|'C'|'D'|null>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   useEffect(() => {
     // Chercher la session dans localStorage (clé: hm-session)
@@ -54,6 +56,11 @@ export default function QuizPage() {
       
       setGameId(sessionData.gameId);
       setPlayerId(sessionData.playerId); // Stocker le playerId aussi
+      // Afficher le tutoriel une seule fois
+      try {
+        const seen = localStorage.getItem("hm-tutorial-quiz");
+        if (!seen) setShowTutorial(true);
+      } catch {}
     } catch (err) {
       console.error("[Quiz] Error loading session:", err);
       router.push("/");
@@ -420,7 +427,20 @@ export default function QuizPage() {
           </button>
           <h1 className="text-3xl font-bold text-center">💰 Quitte ou Double</h1>
           <div className="text-sm text-gray-300 min-w-[120px] text-right">
-            {online != null ? <span title="Joueurs connectés à la partie">👥 {online} en ligne</span> : <span className="text-gray-500"> </span>}
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setShowTutorial(true)}
+                className="px-2 py-1 bg-white/10 hover:bg-white/20 rounded"
+                title="Voir le tutoriel"
+              >
+                ❓ Tutoriel
+              </button>
+              {online != null ? (
+                <span title="Joueurs connectés à la partie">👥 {online} en ligne</span>
+              ) : (
+                <span className="text-gray-500"> </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -651,6 +671,9 @@ export default function QuizPage() {
           </div>
         </div>
       </div>
+      {showTutorial && (
+        <Onboarding onClose={() => setShowTutorial(false)} />
+      )}
     </div>
   );
 }

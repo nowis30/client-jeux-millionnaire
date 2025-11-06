@@ -255,6 +255,8 @@ export default function QuizPage() {
             currentEarnings: data.currentEarnings,
             securedAmount: data.securedAmount,
             nextPrize: data.nextPrize,
+            // Conserver/mettre à jour les sauts restants
+            skipsLeft: typeof data.skipsLeft === 'number' ? data.skipsLeft : (session.skipsLeft ?? 0),
           });
           setQuestion(data.question);
           setSelectedAnswer(null);

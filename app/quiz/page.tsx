@@ -426,7 +426,7 @@ export default function QuizPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white p-4">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white p-4 overflow-x-hidden">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -635,18 +635,18 @@ export default function QuizPage() {
             </div>
 
             {/* Actions */}
-            <div className="flex gap-4">
+            <div className="flex flex-col md:flex-row gap-4">
               <button
                 onClick={cashOut}
                 disabled={isAnswering || session.currentEarnings === 0}
-                className="flex-1 px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-xl font-bold text-lg transition shadow-lg"
+                className="w-full md:flex-1 px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-xl font-bold text-lg transition shadow-lg"
               >
                 💰 Encaisser ${session.currentEarnings.toLocaleString()}
               </button>
               <button
                 onClick={skipQuestion}
                 disabled={isAnswering || !!revealCorrect || (session.skipsLeft ?? 0) <= 0}
-                className="px-4 py-4 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-xl font-bold text-lg transition shadow-lg"
+                className="w-full md:w-auto px-4 py-4 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-xl font-bold text-lg transition shadow-lg"
                 title="Passer cette question"
               >
                 ⏭️ Passer ({session.skipsLeft ?? 0}/3)
@@ -654,7 +654,7 @@ export default function QuizPage() {
               <button
                 onClick={submitAnswer}
                 disabled={!selectedAnswer || isAnswering || !!revealCorrect}
-                className="flex-1 px-6 py-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed rounded-xl font-bold text-lg transition shadow-lg"
+                className="w-full md:flex-1 px-6 py-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed rounded-xl font-bold text-lg transition shadow-lg"
               >
                 {isAnswering ? "⏳ Validation..." : "✓ Valider ma réponse"}
               </button>

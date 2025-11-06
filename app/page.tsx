@@ -488,7 +488,7 @@ export default function DashboardPage() {
 
   return (
     <>
-    <main className="space-y-6">
+  <main className="space-y-6 overflow-x-hidden">
       {!isLoggedIn ? (
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">Connexion requise</h2>
@@ -510,18 +510,18 @@ export default function DashboardPage() {
             <p className="text-neutral-400 text-xs mt-1">Pseudo: {knownNickname || userEmail}</p>
           </div>
         )}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
           <button
             onClick={async () => {
               try { await apiFetch<{ ok: boolean }>("/api/auth/logout", { method: "POST" }); } catch {}
               try { if (typeof window !== "undefined") window.localStorage.removeItem("HM_TOKEN"); } catch {}
               clearSession(); setIsLoggedIn(false); setIsAdmin(false); router.replace("/login");
             }}
-            className="px-4 py-2 rounded bg-rose-700 hover:bg-rose-600"
+            className="px-4 py-2 rounded bg-rose-700 hover:bg-rose-600 w-full sm:w-auto"
           >Se déconnecter</button>
-          <button onClick={createInvite} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500">Inviter un ami (gagne 1M$)</button>
-          <button onClick={handleShare} className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500">Partager le jeu</button>
-          <a href={`mailto:?subject=${encodeURIComponent("Rejoins le jeu du Millionnaire")}&body=${encodeURIComponent("Rejoins-moi: " + shareUrl)}`} className="px-4 py-2 rounded bg-indigo-700 hover:bg-indigo-600 text-center">Inviter par email</a>
+          <button onClick={createInvite} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 w-full sm:w-auto">Inviter un ami (gagne 1M$)</button>
+          <button onClick={handleShare} className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 w-full sm:w-auto">Partager le jeu</button>
+          <a href={`mailto:?subject=${encodeURIComponent("Rejoins le jeu du Millionnaire")}&body=${encodeURIComponent("Rejoins-moi: " + shareUrl)}`} className="px-4 py-2 rounded bg-indigo-700 hover:bg-indigo-600 text-center w-full sm:w-auto">Inviter par email</a>
         </div>
         {inviteLink && (
           <div className="text-xs text-neutral-300">Lien d'invitation: <a href={inviteLink} className="underline break-all">{inviteLink}</a></div>
@@ -539,7 +539,7 @@ export default function DashboardPage() {
         <div className="mt-2 flex gap-2">
           <button onClick={updateState} className="px-3 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm">Actualiser</button>
         </div>
-        <div className="mt-4 bg-neutral-900 rounded border border-neutral-800">
+        <div className="mt-4 bg-neutral-900 rounded border border-neutral-800 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left">
@@ -618,12 +618,12 @@ export default function DashboardPage() {
 
       {/* Activité temps réel retirée (pas de suivi client) */}
 
-      <section className="flex gap-4 flex-wrap">
-        <Link href="/immobilier" className="px-4 py-2 rounded bg-sky-600 hover:bg-sky-500">Immobilier</Link>
-        <Link href="/bourse" className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500">Bourse</Link>
-        <Link href="/listings" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500">Annonces</Link>
-        <Link href="/summary" className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500">Résumé</Link>
-        <Link href="/quiz" className="px-4 py-2 rounded bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 font-bold">💰 Quiz</Link>
+      <section className="grid grid-cols-2 sm:grid-cols-5 gap-3 w-full">
+        <Link href="/immobilier" className="px-4 py-2 rounded bg-sky-600 hover:bg-sky-500 text-center w-full">Immobilier</Link>
+        <Link href="/bourse" className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-center w-full">Bourse</Link>
+        <Link href="/listings" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-center w-full">Annonces</Link>
+        <Link href="/summary" className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 text-center w-full">Résumé</Link>
+        <Link href="/quiz" className="px-4 py-2 rounded bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 font-bold text-center w-full">💰 Quiz</Link>
       </section>
 
       {portfolioPlayer && (

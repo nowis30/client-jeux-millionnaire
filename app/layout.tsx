@@ -17,9 +17,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="fr">
-      <body>
-        <div className="min-h-screen mx-auto px-4 md:px-6 pb-20 md:pb-6 max-w-none md:max-w-6xl">
+    <html lang="fr" className="overflow-x-hidden">
+      <body className="overflow-x-hidden">
+        <div className="min-h-screen mx-auto px-4 md:px-6 pb-20 md:pb-6 max-w-none md:max-w-6xl overflow-x-hidden">
           <header className="mb-4 md:mb-6 flex items-center justify-between">
             <h1 className="text-xl md:text-2xl font-bold">Héritier Millionnaire</h1>
             <div className="flex items-center gap-3 md:gap-4">

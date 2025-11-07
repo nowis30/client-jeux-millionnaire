@@ -56,6 +56,7 @@ export default function ImmobilierPage() {
   const [expandedTemplateId, setExpandedTemplateId] = useState<string>("");
   const [mortgageRate, setMortgageRate] = useState(0.05);
   const [downPaymentPercent, setDownPaymentPercent] = useState(0.2);
+  const [mortgageYears, setMortgageYears] = useState<number>(25);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tease, setTease] = useState<string | null>(null);
@@ -270,6 +271,7 @@ export default function ImmobilierPage() {
           templateId: selectedTemplate,
           mortgageRate,
           downPaymentPercent,
+          mortgageYears,
         }),
       });
       setMessage(`Immeuble acheté!`);
@@ -381,6 +383,14 @@ export default function ImmobilierPage() {
             />
           </label>
           <label className="text-sm text-neutral-300 flex flex-col gap-1">
+            Durée hypothèque (années)
+            <select value={mortgageYears} onChange={(e) => setMortgageYears(Number(e.target.value))} className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm">
+              {[5,10,15,20,25].map((y) => (
+                <option key={y} value={y}>{y} ans</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm text-neutral-300 flex flex-col gap-1">
             Immeuble sélectionné
             <select
               value={selectedTemplate}
@@ -428,6 +438,48 @@ export default function ImmobilierPage() {
             <p className="text-sm text-neutral-400">Aucun bien pour le moment.</p>
           ) : (
             <>
+              {(() => {
+                // Agrégation mensuelle sur le parc
+                const agg = holdings.reduce(
+                  (acc, h) => {
+                    const weeklyRent = Number(h.currentRent ?? 0) || 0; // utilisé tel quel par la simulation (1 tick = 1 semaine)
+                    const weeklyPay = Number(h.weeklyPayment ?? 0) || 0;
+                    const taxes = Number(h.template?.taxes ?? 0) || 0;
+                    const insurance = Number(h.template?.insurance ?? 0) || 0;
+                    const maintenance = Number(h.template?.maintenance ?? 0) || 0;
+                    const fixedWeekly = (taxes + insurance + maintenance) / 52;
+                    acc.weeklyRent += weeklyRent;
+                    acc.weeklyDebt += weeklyPay;
+                    acc.weeklyFixed += fixedWeekly;
+                    return acc;
+                  },
+                  { weeklyRent: 0, weeklyDebt: 0, weeklyFixed: 0 }
+                );
+                const monthlyRent = (agg.weeklyRent * 52) / 12;
+                const monthlyDebt = (agg.weeklyDebt * 52) / 12;
+                const monthlyFixed = (agg.weeklyFixed * 52) / 12;
+                const monthlyNet = monthlyRent - monthlyDebt - monthlyFixed;
+                return (
+                  <div className="border border-neutral-800 rounded bg-neutral-950 p-3 text-xs flex flex-wrap gap-4">
+                    <div>
+                      <span className="text-neutral-400">Loyer total (mensuel)</span><br />
+                      <span className="font-medium text-neutral-200">{formatMoney(Math.round(monthlyRent))}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400">Hypothèque (mensuel)</span><br />
+                      <span className="font-medium text-neutral-200">{formatMoney(Math.round(monthlyDebt))}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400">Charges fixes (mensuel)</span><br />
+                      <span className="font-medium text-neutral-200">{formatMoney(Math.round(monthlyFixed))}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400">Cashflow net (mensuel)</span><br />
+                      <span className={`font-medium ${monthlyNet >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{formatMoney(Math.round(monthlyNet))}</span>
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="grid gap-4 md:grid-cols-2">
                 {holdings.map((h) => (
                   <article key={h.id} className="border border-neutral-800 rounded-lg bg-neutral-900 p-4 space-y-2">
@@ -476,6 +528,46 @@ export default function ImmobilierPage() {
                       );
                     })()}
                     <p className="text-xs text-neutral-500">Dette hypothécaire: {formatMoney(Number(h.mortgageDebt ?? 0))} — Taux: {(Number(h.mortgageRate ?? 0) * 100).toFixed(2)}%</p>
+                    {(() => {
+                      const rate = Number(h.mortgageRate ?? (economy ? economy.baseMortgageRate : 0.05)) || 0;
+                      const payW = Number(h.weeklyPayment ?? 0) || 0;
+                      const currentDebt = Number(h.mortgageDebt ?? 0) || 0;
+                      const initialDebtEst = estimateInitialPrincipalFromWeekly(payW, rate, 25);
+                      const weeksPaid = estimateWeeksPaid(initialDebtEst, currentDebt, payW, rate);
+                      const monthsPaid = weeksPaid / (52 / 12);
+                      // Pourcentage amorti
+                      const pctAmorti = initialDebtEst > 0 ? (1 - currentDebt / initialDebtEst) : 0;
+                      const pctDisplay = Math.max(0, Math.min(1, pctAmorti));
+                      const termYears = Number(h.termYears ?? 25);
+                      // Calculs mensuels détaillés (alignés sur la simulation hebdo)
+                      const taxes = Number(h.template?.taxes ?? 0) || 0;
+                      const insurance = Number(h.template?.insurance ?? 0) || 0;
+                      const maintenance = Number(h.template?.maintenance ?? 0) || 0;
+                      const fixedWeekly = (taxes + insurance + maintenance) / 52;
+                      const weeklyRent = Number(h.currentRent ?? 0) || 0; // la simulation considère ceci comme loyer hebdo
+                      const monthlyRent = (weeklyRent * 52) / 12;
+                      const monthlyDebtPay = (payW * 52) / 12;
+                      const monthlyFixed = (fixedWeekly * 52) / 12;
+                      const monthlyNet = monthlyRent - monthlyDebtPay - monthlyFixed;
+                      return (
+                        <div className="space-y-0.5">
+                          <p className="text-xs text-neutral-500" title={`Paiement hebdo ~ ${formatMoney(Math.round(payW))}, taux ${(rate*100).toFixed(2)}%, terme ${termYears} ans`}>
+                            Dette hypo: début {formatMoney(Math.round(initialDebtEst))} → actuelle {formatMoney(Math.round(currentDebt))}
+                            {monthsPaid > 0 ? ` · ~${Math.floor(monthsPaid)} mois payés` : ""} · Terme: {termYears} ans
+                          </p>
+                          <div className="h-2 w-full bg-neutral-800 rounded overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-600 transition-all"
+                              style={{ width: `${(pctDisplay * 100).toFixed(1)}%` }}
+                              title={`Amorti ${(pctDisplay*100).toFixed(1)}%`}
+                            />
+                          </div>
+                          <p className="text-[11px] text-neutral-400 mt-1" title="Détail mensuel basé sur les valeurs hebdomadaires de la simulation">
+                            Loyer: {formatMoney(Math.round(monthlyRent))}/mois · Hypothèque: {formatMoney(Math.round(monthlyDebtPay))}/mois · Charges: {formatMoney(Math.round(monthlyFixed))}/mois · Cashflow: <span className={monthlyNet>=0?'text-emerald-400':'text-rose-400'}>{formatMoney(Math.round(monthlyNet))}/mois</span>
+                          </p>
+                        </div>
+                      );
+                    })()}
 
                     {/* Réhypothèque */}
                     <div className="pt-2">
@@ -745,6 +837,7 @@ export default function ImmobilierPage() {
                   tpl={tpl}
                   mortgageRate={mortgageRate}
                   downPaymentPercent={downPaymentPercent}
+                  mortgageYears={mortgageYears}
                   economy={economy}
                 />
               )}
@@ -814,16 +907,50 @@ function computeWeeklyMortgage(principal: number, annualRate: number, years = 25
   const b = 1 - Math.pow(1 + r, -n);
   return a / b;
 }
+// Estime le principal initial à partir d'un paiement hebdo fixe (inverse de computeWeeklyMortgage)
+function estimateInitialPrincipalFromWeekly(weeklyPayment: number, annualRate: number, years = 25): number {
+  const n = Math.max(1, Math.round(52 * years));
+  const r = annualRate / 52;
+  const A = Math.max(0, weeklyPayment);
+  if (A <= 0) return 0;
+  if (r <= 0) return A * n; // sans intérêts
+  const factor = 1 - Math.pow(1 + r, -n);
+  if (factor <= 0) return 0;
+  return (A * factor) / r;
+}
+
+// Estime le nombre de semaines déjà payées, à partir de P0, solde courant Bk, paiement A et taux r
+function estimateWeeksPaid(P0: number, currentBalance: number, weeklyPayment: number, annualRate: number): number {
+  const r = annualRate / 52;
+  const A = Math.max(0, weeklyPayment);
+  const Bk = Math.max(0, currentBalance);
+  const P = Math.max(0, P0);
+  if (A <= 0 || P <= 0 || r < 0) return 0;
+  if (r === 0) {
+    const paid = Math.max(0, P - Bk);
+    return paid > 0 ? (paid / A) : 0;
+  }
+  const Ar = A / r;
+  const denom = P - Ar;
+  if (denom <= 0) return 0;
+  const numer = Bk - Ar;
+  const x = numer / denom;
+  if (x <= 0) return 0;
+  const k = Math.log(x) / Math.log(1 + r);
+  return isFinite(k) && k > 0 ? k : 0;
+}
 
 function TemplatePreview({
   tpl,
   mortgageRate,
   downPaymentPercent,
+  mortgageYears,
   economy,
 }: {
   tpl: Template;
   mortgageRate: number;
   downPaymentPercent: number;
+  mortgageYears: number;
   economy: { baseMortgageRate: number; appreciationAnnual: number; schedule: number[] } | null;
 }) {
   const [showTplProjection, setShowTplProjection] = useState(false);
@@ -843,7 +970,7 @@ function TemplatePreview({
 
   const downPayment = tpl.price * downPaymentPercent;
   const loan = Math.max(0, tpl.price - downPayment);
-  const weekly = computeWeeklyMortgage(loan, mortgageRate, 25);
+  const weekly = computeWeeklyMortgage(loan, mortgageRate, mortgageYears);
   const monthlyPayment = (weekly * 52) / 12;
   const cashflowMonthly = rentMonthly - expensesMonthly - reservesMonthly - monthlyPayment;
 

@@ -439,6 +439,44 @@ export default function BoursePage() {
               ))}
             </tbody>
           </table>
+          {(() => {
+            const totalUnreal = enrichedHoldings.reduce((s, h) => s + (Number(h.unrealized) || 0), 0);
+            const divYtd = Number(divKpi?.ytd ?? 0);
+            const top = [...enrichedHoldings]
+              .map(h => ({ sym: h.symbol, pnl: Number(h.unrealized)||0 }))
+              .sort((a,b)=>Math.abs(b.pnl)-Math.abs(a.pnl))
+              .slice(0,5);
+            return (
+              <div className="mt-3 border border-neutral-800 rounded bg-neutral-950 p-3">
+                <h4 className="font-semibold text-sm mb-2">D’où vient l’argent (bourse)</h4>
+                <div className="text-xs text-neutral-300 flex flex-wrap gap-4">
+                  <div>
+                    <span className="text-neutral-400">PNL latent total</span><br/>
+                    <span className={totalUnreal>=0?"text-emerald-400":"text-rose-400"}>{totalUnreal>=0?"+":""}${totalUnreal.toFixed(2)}</span>
+                  </div>
+                  <div>
+                    <span className="text-neutral-400">Dividendes YTD</span><br/>
+                    <span className={divYtd>=0?"text-emerald-400":"text-rose-400"}>{divYtd>=0?"+":""}${divYtd.toFixed(2)}</span>
+                  </div>
+                  <div>
+                    <span className="text-neutral-400">Total (indicatif)</span><br/>
+                    <span className={(totalUnreal+divYtd)>=0?"text-emerald-400":"text-rose-400"}>${(totalUnreal+divYtd).toFixed(2)}</span>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <div className="text-xs text-neutral-400 mb-1">Top contributeurs (PNL latent)</div>
+                  <ul className="text-xs text-neutral-300 grid md:grid-cols-3 gap-1">
+                    {top.map(t => (
+                      <li key={t.sym} className="flex items-center justify-between border border-neutral-800 bg-neutral-900 rounded px-2 py-1">
+                        <span>{t.sym}</span>
+                        <span className={t.pnl>=0?"text-emerald-400":"text-rose-400"}>{t.pnl>=0?"+":""}${t.pnl.toFixed(2)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            );
+          })()}
         </section>
       )}
     </main>

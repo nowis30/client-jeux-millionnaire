@@ -35,6 +35,8 @@ export default function QuizPage() {
     remainingByCategory?: { finance: number; economy: number; realEstate: number };
     categories?: Array<{ category: string; remaining: number; total?: number; used?: number }>;
   } | null>(null);
+  // Toggle pour afficher le panneau détaillé des catégories
+  const [showCategoryDetails, setShowCategoryDetails] = useState(false);
   const [revealCorrect, setRevealCorrect] = useState<'A'|'B'|'C'|'D'|null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(60);
   const [showTimeoutReveal, setShowTimeoutReveal] = useState(false);
@@ -515,37 +517,87 @@ export default function QuizPage() {
 
         {/* Statistiques des questions en banque */}
         {stats && (
-          <div className="mb-6 flex flex-wrap items-center gap-2 text-xs">
-            {typeof stats.remaining === 'number' && (
-              <span className="px-2 py-1 rounded bg-emerald-800/40 border border-emerald-700 text-emerald-200">
-                Questions en banque: {stats.remaining}
-              </span>
-            )}
-            {status?.tokens === 20 && (
-              <span className="px-2 py-1 rounded bg-yellow-600/30 border border-yellow-500 text-yellow-300 font-semibold" title="Vous avez atteint le maximum de tokens">
-                ✅ Max tokens (20)
-              </span>
-            )}
-            {/* Affichage dynamique des catégories si dispo, sinon fallback aux 3 catégories historiques */}
-            {stats.categories && stats.categories.length > 0 ? (
-              <div className="flex items-center gap-1 flex-wrap">
-                {stats.categories.slice(0, 6).map((c) => (
-                  <span key={c.category} className="px-2 py-1 rounded bg-white/10 border border-white/20 text-gray-200">
-                    {c.category} {c.remaining}
-                  </span>
-                ))}
-                {stats.categories.length > 6 && (
-                  <span className="px-2 py-1 rounded bg-white/10 border border-white/20 text-gray-200">
-                    +{stats.categories.length - 6} autres
-                  </span>
-                )}
-              </div>
-            ) : (
-              stats.remainingByCategory && (
-                <span className="px-2 py-1 rounded bg-white/10 border border-white/20 text-gray-200">
-                  Finance {stats.remainingByCategory.finance} · Économie {stats.remainingByCategory.economy} · Immo {stats.remainingByCategory.realEstate}
+          <div className="mb-6 text-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              {typeof stats.remaining === 'number' && (
+                <span className="px-2 py-1 rounded bg-emerald-800/40 border border-emerald-700 text-emerald-200">
+                  Questions totales: {stats.remaining}
                 </span>
-              )
+              )}
+              {status?.tokens === 20 && (
+                <span className="px-2 py-1 rounded bg-yellow-600/30 border border-yellow-500 text-yellow-300 font-semibold" title="Vous avez atteint le maximum de tokens">
+                  ✅ Max tokens (20)
+                </span>
+              )}
+              {stats.categories && stats.categories.length > 0 ? (
+                <>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {stats.categories.slice(0, 5).map((c) => (
+                      <span
+                        key={c.category}
+                        className="px-2 py-1 rounded bg-white/10 border border-white/20 text-gray-200"
+                        title={`Restantes: ${c.remaining} / Total: ${c.total ?? '?'} (Utilisées: ${c.used ?? '?'})`}
+                      >
+                        {c.category} {c.remaining}
+                      </span>
+                    ))}
+                    {stats.categories.length > 5 && (
+                      <span className="px-2 py-1 rounded bg-white/10 border border-white/20 text-gray-200">
+                        +{stats.categories.length - 5} autres
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setShowCategoryDetails(v => !v)}
+                    className="ml-2 px-2 py-1 rounded bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500 text-blue-100"
+                  >
+                    {showCategoryDetails ? 'Fermer détails' : 'Détails catégories'}
+                  </button>
+                </>
+              ) : (
+                stats.remainingByCategory && (
+                  <span className="px-2 py-1 rounded bg-white/10 border border-white/20 text-gray-200">
+                    Finance {stats.remainingByCategory.finance} · Économie {stats.remainingByCategory.economy} · Immo {stats.remainingByCategory.realEstate}
+                  </span>
+                )
+              )}
+            </div>
+            {showCategoryDetails && stats.categories && stats.categories.length > 0 && (
+              <div className="mt-4 bg-white/5 rounded-lg p-4">
+                <h4 className="text-center font-bold mb-3 text-white/90">📂 Banque par catégorie</h4>
+                <div className="space-y-2">
+                  {stats.categories
+                    .slice()
+                    .sort((a,b) => a.category.localeCompare(b.category))
+                    .map(cat => {
+                      const total = cat.total ?? (cat.remaining + (cat.used ?? 0));
+                      const used = cat.used ?? (total - cat.remaining);
+                      const percent = total > 0 ? Math.round((cat.remaining / total) * 100) : 0;
+                      const isTargetedMedium = ['definitions','quebec','religions'].includes(cat.category.toLowerCase());
+                      const isKids = ['enfant','kids','enfants'].includes(cat.category.toLowerCase());
+                      return (
+                        <div key={cat.category} className={`p-2 rounded border ${isKids ? 'border-green-500/60 bg-green-500/10' : isTargetedMedium ? 'border-indigo-400/60 bg-indigo-400/10' : 'border-white/10 bg-white/5'}`}>
+                          <div className="flex justify-between items-center mb-1">
+                            <div className="font-semibold flex items-center gap-2">
+                              <span>{cat.category}</span>
+                              {isKids && <span className="text-xs px-1 py-0.5 rounded bg-green-600/40 border border-green-500">Enfants (Q1-4)</span>}
+                              {isTargetedMedium && <span className="text-xs px-1 py-0.5 rounded bg-indigo-600/40 border border-indigo-500">Ciblée (Q5-7)</span>}
+                            </div>
+                            <div className="text-xs text-gray-300">Restantes {cat.remaining} / Total {total} · Utilisées {used}</div>
+                          </div>
+                          <div className="h-2 rounded overflow-hidden bg-black/30">
+                            <div
+                              className={`h-full transition-all ${percent < 25 ? 'bg-red-500' : percent < 50 ? 'bg-yellow-500' : 'bg-emerald-500'}`}
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
+                          <div className="mt-1 text-[10px] text-gray-400">{percent}% restantes</div>
+                        </div>
+                      );
+                    })}
+                </div>
+                <p className="mt-3 text-[10px] text-gray-400 text-center">Les catégories ciblées (Définitions, Québec, Religions) sont prioritaires pour les questions 5 à 7.</p>
+              </div>
             )}
           </div>
         )}

@@ -243,6 +243,7 @@ export default function BoursePage() {
       ...h,
       marketValue: (priceMap.get(h.symbol) ?? 0) * h.quantity,
       unrealized: (priceMap.get(h.symbol) ?? 0 - h.avgPrice) * h.quantity,
+      gainPct: h.avgPrice > 0 ? (((priceMap.get(h.symbol) ?? 0) - h.avgPrice) / h.avgPrice) * 100 : 0,
     }));
   }, [holdings, prices]);
 
@@ -420,6 +421,7 @@ export default function BoursePage() {
                 <th className="p-2">Prix moyen</th>
                 <th className="p-2">Valeur marché</th>
                 <th className="p-2">PNL latent</th>
+                <th className="p-2">Gain %</th>
               </tr>
             </thead>
             <tbody>
@@ -430,6 +432,9 @@ export default function BoursePage() {
                   <td className="p-2">${h.avgPrice.toFixed(2)}</td>
                   <td className="p-2">${h.marketValue.toFixed(2)}</td>
                   <td className={`p-2 ${h.unrealized >= 0 ? "text-emerald-400" : "text-rose-400"}`}>${h.unrealized.toFixed(2)}</td>
+                  <td className="p-2">
+                    <span className={h.gainPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{h.gainPct.toFixed(2)}%</span>
+                  </td>
                 </tr>
               ))}
             </tbody>

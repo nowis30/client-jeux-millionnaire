@@ -745,18 +745,26 @@ export default function DashboardPage() {
                         <th className="p-2">Qté</th>
                         <th className="p-2">Prix moy.</th>
                         <th className="p-2">Valeur</th>
+                        <th className="p-2">Gain %</th>
                       </tr>
                     </thead>
                     <tbody>
                       {portfolioMkts.map((m: any) => {
                         const last = priceMap[m.symbol] ?? m.avgPrice;
                         const value = Number(m.quantity ?? 0) * Number(last ?? 0);
+                        const avg = Number(m.avgPrice ?? 0) || 0;
+                        const gainPct = avg > 0 ? ((Number(last ?? 0) - avg) / avg) * 100 : 0;
                         return (
                           <tr key={m.id} className="border-t border-neutral-800">
                             <td className="p-2">{m.symbol}</td>
                             <td className="p-2">{Number(m.quantity ?? 0).toFixed(2)}</td>
                             <td className="p-2">${Number(m.avgPrice ?? 0).toFixed(2)}</td>
                             <td className="p-2">${value.toFixed(2)}</td>
+                            <td className="p-2">
+                              <span className={gainPct >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                                {gainPct.toFixed(2)}%
+                              </span>
+                            </td>
                           </tr>
                         );
                       })}

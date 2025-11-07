@@ -160,6 +160,18 @@ export default function ImmobilierPage() {
     }
   }, [gameId]);
 
+  const handleReplenish = useCallback(async () => {
+    try {
+      await apiFetch(`/api/properties/replenish`, { method: 'POST' });
+      await loadTemplates();
+      setMessage("Banque d'immeubles remplie.");
+      setError(null);
+    } catch (err) {
+      setMessage(null);
+      setError(err instanceof Error ? err.message : "Échec du remplissage");
+    }
+  }, [loadTemplates]);
+
   useEffect(() => {
     loadTemplates();
   }, [loadTemplates]);
@@ -330,7 +342,8 @@ export default function ImmobilierPage() {
         </div>
 
         <button onClick={handlePurchase} className="px-4 py-2 rounded bg-sky-600 hover:bg-sky-500">Acheter</button>
-        <button onClick={loadTemplates} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Actualiser les immeubles</button>
+  <button onClick={loadTemplates} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Actualiser les immeubles</button>
+  <button onClick={handleReplenish} className="px-4 py-2 rounded bg-indigo-700 hover:bg-indigo-600">Remplir la banque (≥50)</button>
         <button
           onClick={async () => { setShowHoldings((v) => !v); if (!showHoldings) { await Promise.all([loadHoldings(), loadEconomy()]); } }}
           className="px-4 py-2 rounded bg-emerald-700 hover:bg-emerald-600"

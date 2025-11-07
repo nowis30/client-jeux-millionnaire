@@ -5,12 +5,13 @@ type Step = { title: string; content: string };
 
 export default function OnboardingHome({ onClose, storageKey = "hm-tutorial-home" }: { onClose: () => void; storageKey?: string }) {
   const steps: Step[] = [
-    { title: "Bienvenue !", content: "Objectif: faire croître ta valeur nette en investissant (immobilier, bourse) et en jouant au quiz." },
+    { title: "Bienvenue !", content: "Objectif: faire croître ta valeur nette en investissant (immobilier, bourse), en jouant au quiz et en gérant bien ton risque." },
     { title: "Acheter un immeuble", content: "Va dans ‘Immobilier’, choisis une propriété, vérifie le loyer, les charges et le taux. Clique ‘Acheter’." },
     { title: "Acheter en bourse", content: "Va dans ‘Bourse’, sélectionne un symbole (ex: SP500/QQQ), entre la quantité et confirme l’achat." },
     { title: "Vendre un immeuble", content: "Va dans ‘Annonces’, publie un bien ou vends ton bien existant. Le cash revient après la vente." },
+    { title: "Volet Pari (dés)", content: "Dans ‘Pari’ tu mises (min 5 000$) et lances 3 dés: double = x2, triple ou suite = x3, sinon tu perds la mise. NE RISQUE PAS TOUT: la chance tourne toujours ! Mise raisonnable = survie long terme." },
     { title: "Inviter et gagner 1 000 000$", content: "Depuis la page d’accueil, ‘Inviter un ami’ → génère ton lien. Quand l’invitation est acceptée, tu reçois 1 000 000$." },
-    { title: "Astuce", content: "Diversifie tes placements, surveille les taux hypothécaires, et utilise le quiz pour booster ton cash." },
+    { title: "Astuce", content: "Diversifie tes placements, surveille les taux hypothécaires, utilise le quiz pour booster ton cash, et garde une réserve: le hasard du volet Pari peut autant aider que punir." },
   ];
 
   const [i, setI] = useState(0);

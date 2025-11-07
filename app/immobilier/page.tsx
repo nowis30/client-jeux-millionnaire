@@ -372,7 +372,22 @@ export default function ImmobilierPage() {
                       <h4 className="font-semibold">{h.template?.name ?? "Bien"}</h4>
                       <span className="text-sm text-neutral-400">{h.template?.city ?? ""}</span>
                     </div>
-                    <p className="text-sm text-neutral-300">Valeur actuelle: {formatMoney(Number(h.currentValue ?? 0))}</p>
+                    {(() => {
+                      const purchase = Number(h.purchasePrice ?? 0);
+                      const current = Number(h.currentValue ?? 0);
+                      const gainAbs = current - purchase;
+                      const gainPct = purchase > 0 ? (gainAbs / purchase) * 100 : 0;
+                      const cls = gainAbs >= 0 ? 'text-emerald-400' : 'text-red-400';
+                      return (
+                        <div className="space-y-0.5">
+                          <p className="text-sm text-neutral-300">Prix d'achat: {purchase > 0 ? formatMoney(purchase) : 'n/a'}</p>
+                          <p className="text-sm text-neutral-300">Valeur actuelle: {formatMoney(current)}</p>
+                          {purchase > 0 && (
+                            <p className="text-sm text-neutral-300">Gain: <span className={cls}>{gainAbs >= 0 ? '+' : ''}{formatMoney(Math.round(gainAbs))} ({gainPct.toFixed(2)}%)</span></p>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <p className="text-sm text-neutral-300">Loyer actuel: {formatMoney(Number(h.currentRent ?? 0))}</p>
                     {(() => {
                       const value = Number(h.currentValue ?? 0) || 0;

@@ -162,7 +162,7 @@ export default function ImmobilierPage() {
 
   const handleReplenish = useCallback(async () => {
     try {
-      await apiFetch(`/api/properties/replenish`, { method: 'POST' });
+      await apiFetch(`/api/properties/replenish`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gameId }) });
       await loadTemplates();
       setMessage("Banque d'immeubles remplie.");
       setError(null);
@@ -170,7 +170,7 @@ export default function ImmobilierPage() {
       setMessage(null);
       setError(err instanceof Error ? err.message : "Échec du remplissage");
     }
-  }, [loadTemplates]);
+  }, [loadTemplates, gameId]);
 
   useEffect(() => {
     loadTemplates();

@@ -262,12 +262,18 @@ export default function ImmobilierPage() {
       loadTemplates();
       const msg = err instanceof Error ? err.message : "Achat impossible";
       setError(msg);
+      // Journaliser pour diagnostic (dev)
+      try { console.debug("[Immobilier] Erreur achat brute:", msg); } catch {}
       try {
-        const m = msg.match(/vendu\s+à\s+'([^']+)'/i);
-        if (m && m[1]) {
-          const owner = m[1];
-          // Message court et direct pour 5s
+        // Chercher un pseudo entre quotes après "à": supporte vendu/achete/acheté et quotes ' ou ", ou sans quotes
+        const re = /(vendu|achete|acheté)[\s\S]*?à\s+['\"]?([^'\"\n]+)['\"]?/i;
+        const m = msg.match(re);
+        if (m && m[2]) {
+          const owner = m[2].trim();
           setTease(`😜 Haha ${owner} a déjà acheté !`);
+        } else if (/déjà/i.test(msg) && /(vendu|achete|acheté)/i.test(msg)) {
+          // Fallback: message générique si pas de pseudo
+          setTease(`😜 Haha c'est déjà acheté !`);
         } else {
           setTease(null);
         }

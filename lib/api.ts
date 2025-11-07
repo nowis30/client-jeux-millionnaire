@@ -55,18 +55,24 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
     headers,
   });
   if (!res.ok) {
-    // Essayer d'extraire le message d'erreur JSON renvoyé par le serveur
+    // Essayer d'extraire le message d'erreur renvoyé par le serveur (JSON ou texte)
     try {
       const ct = res.headers.get("content-type") || "";
       if (ct.includes("application/json")) {
         const data = (await res.json()) as any;
         const msg = (data && (data.error || data.message)) ? String(data.error || data.message) : `Erreur ${res.status}`;
         throw new Error(msg);
+      } else {
+        const text = await res.text();
+        const trimmed = (text || '').trim();
+        const msg = trimmed.length ? trimmed : (res.statusText ? `${res.status} ${res.statusText}` : `Erreur ${res.status}`);
+        throw new Error(msg);
       }
-    } catch {
-      // ignore parsing error
+    } catch (e) {
+      // Si tout échoue, renvoyer un message d'état générique
+      const fallback = res.statusText ? `${res.status} ${res.statusText}` : `Erreur ${res.status}`;
+      throw new Error(fallback);
     }
-    throw new Error(`Erreur ${res.status}`);
   }
   if (res.status === 204) return undefined as unknown as T;
   return (await res.json()) as T;

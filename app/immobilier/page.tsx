@@ -36,6 +36,12 @@ export default function ImmobilierPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tease, setTease] = useState<string | null>(null);
+  // Effacer automatiquement le message taquin après 5 secondes
+  useEffect(() => {
+    if (!tease) return;
+    const id = setTimeout(() => setTease(null), 5000);
+    return () => clearTimeout(id);
+  }, [tease]);
   const [showHoldings, setShowHoldings] = useState(false);
   const [holdings, setHoldings] = useState<any[]>([]);
   const [refiOpenId, setRefiOpenId] = useState<string>("");
@@ -260,7 +266,8 @@ export default function ImmobilierPage() {
         const m = msg.match(/vendu\s+à\s+'([^']+)'/i);
         if (m && m[1]) {
           const owner = m[1];
-          setTease(`😜 Haha, ${owner} l'a acheté avant toi !`);
+          // Message court et direct pour 5s
+          setTease(`😜 Haha ${owner} a déjà acheté !`);
         } else {
           setTease(null);
         }
@@ -369,10 +376,15 @@ export default function ImmobilierPage() {
         {error && (
           <div className="space-y-1">
             <p className="text-sm text-red-400">{error}</p>
-            {tease && <p className="text-xs text-amber-300 italic">{tease}</p>}
           </div>
         )}
       </section>
+      {/* Toast taquin éphémère */}
+      {tease && (
+        <div className="fixed top-4 right-4 z-50 bg-neutral-900 border border-amber-500/60 text-amber-200 px-4 py-2 rounded shadow-lg animate-fade-in">
+          {tease}
+        </div>
+      )}
 
       {showHoldings && (
         <section className="space-y-2">

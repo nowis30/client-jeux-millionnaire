@@ -1,5 +1,15 @@
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
 
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    Object.setPrototypeOf(this, ApiError.prototype);
+  }
+}
+
 let CSRF_TOKEN: string | null = null;
 const TOKEN_KEY = "HM_TOKEN";
 
@@ -61,17 +71,18 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
       if (ct.includes("application/json")) {
         const data = (await res.json()) as any;
         const msg = (data && (data.error || data.message)) ? String(data.error || data.message) : `Erreur ${res.status}`;
-        throw new Error(msg);
+        throw new ApiError(res.status, msg);
       } else {
         const text = await res.text();
         const trimmed = (text || '').trim();
         const msg = trimmed.length ? trimmed : (res.statusText ? `${res.status} ${res.statusText}` : `Erreur ${res.status}`);
-        throw new Error(msg);
+        throw new ApiError(res.status, msg);
       }
     } catch (e) {
       // Si tout échoue, renvoyer un message d'état générique
       const fallback = res.statusText ? `${res.status} ${res.statusText}` : `Erreur ${res.status}`;
-      throw new Error(fallback);
+      if (e instanceof ApiError) throw e;
+      throw new ApiError(res.status, fallback);
     }
   }
   if (res.status === 204) return undefined as unknown as T;

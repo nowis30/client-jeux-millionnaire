@@ -1,6 +1,6 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { apiFetch } from "../../lib/api";
+import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ApiError, apiFetch } from "../../lib/api";
 import { formatMoney } from "../../lib/format";
 
 type Template = {
@@ -21,6 +21,29 @@ type Template = {
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
+
+async function revealOwnerFallback(
+  gameId: string | null | undefined,
+  templateId: string | null | undefined,
+  setTease: Dispatch<SetStateAction<string | null>>
+): Promise<boolean> {
+  if (!gameId || !templateId) return false;
+  try {
+    const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/owner/${templateId}`);
+    if (!res.ok) return false;
+    const data = await res.json();
+    const owner = data?.ownerNickname ? String(data.ownerNickname).trim() : "";
+    if (owner) {
+      setTease(`😜 Haha ${owner} a déjà acheté !`);
+    } else {
+      setTease(`😜 Haha c'est déjà acheté !`);
+    }
+    return true;
+  } catch {
+    setTease(`😜 Haha c'est déjà acheté !`);
+    return true;
+  }
+}
 
 export default function ImmobilierPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -260,10 +283,12 @@ export default function ImmobilierPage() {
       setMessage(null);
       // Sur erreur (ex: 400 immeuble déjà vendu), rafraîchir la liste pour refléter l'état
       loadTemplates();
+      const status = err instanceof ApiError ? err.status : undefined;
       const msg = err instanceof Error ? err.message : "Achat impossible";
       setError(msg);
       // Journaliser pour diagnostic (dev)
       try { console.debug("[Immobilier] Erreur achat brute:", msg); } catch {}
+      let handled = false;
       try {
         // Chercher un pseudo entre quotes après "à": supporte vendu/achete/acheté et quotes ' ou ", ou sans quotes
         const re = /(vendu|achete|acheté)[\s\S]*?à\s+['\"]?([^'\"\n]+)['\"]?/i;
@@ -271,25 +296,17 @@ export default function ImmobilierPage() {
         if (m && m[2]) {
           const owner = m[2].trim();
           setTease(`😜 Haha ${owner} a déjà acheté !`);
+          handled = true;
         } else if (/déjà/i.test(msg) && /(vendu|achete|acheté)/i.test(msg)) {
-          // Fallback: essayer de récupérer le propriétaire via endpoint dédié
-          try {
-            const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/owner/${selectedTemplate}`);
-            if (res.ok) {
-              const data = await res.json();
-              const owner = data?.ownerNickname ? String(data.ownerNickname) : null;
-              if (owner) setTease(`😜 Haha ${owner} a déjà acheté !`);
-              else setTease(`😜 Haha c'est déjà acheté !`);
-            } else {
-              setTease(`😜 Haha c'est déjà acheté !`);
-            }
-          } catch {
-            setTease(`😜 Haha c'est déjà acheté !`);
-          }
+          handled = await revealOwnerFallback(gameId, selectedTemplate, setTease);
         } else {
           setTease(null);
         }
       } catch { setTease(null); }
+
+      if (!handled && status === 400 && gameId && selectedTemplate) {
+        await revealOwnerFallback(gameId, selectedTemplate, setTease);
+      }
     }
   }, [gameId, playerId, selectedTemplate, mortgageRate, downPaymentPercent, loadTemplates, loadPlayer]);
 

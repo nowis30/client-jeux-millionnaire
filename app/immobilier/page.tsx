@@ -272,8 +272,20 @@ export default function ImmobilierPage() {
           const owner = m[2].trim();
           setTease(`😜 Haha ${owner} a déjà acheté !`);
         } else if (/déjà/i.test(msg) && /(vendu|achete|acheté)/i.test(msg)) {
-          // Fallback: message générique si pas de pseudo
-          setTease(`😜 Haha c'est déjà acheté !`);
+          // Fallback: essayer de récupérer le propriétaire via endpoint dédié
+          try {
+            const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/owner/${selectedTemplate}`);
+            if (res.ok) {
+              const data = await res.json();
+              const owner = data?.ownerNickname ? String(data.ownerNickname) : null;
+              if (owner) setTease(`😜 Haha ${owner} a déjà acheté !`);
+              else setTease(`😜 Haha c'est déjà acheté !`);
+            } else {
+              setTease(`😜 Haha c'est déjà acheté !`);
+            }
+          } catch {
+            setTease(`😜 Haha c'est déjà acheté !`);
+          }
         } else {
           setTease(null);
         }

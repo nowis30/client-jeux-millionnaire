@@ -209,6 +209,7 @@ export default function ImmobilierPage() {
   // Déduction du type depuis units
   const kindOf = (u?: number) => {
     const units = Number(u || 1);
+    if (units >= 400) return "GRATTE_CIEL" as const;
     if (units >= 50) return "TOUR" as const;
     if (units === 6) return "SIXPLEX" as const;
     if (units === 3) return "TRIPLEX" as const;
@@ -329,6 +330,7 @@ export default function ImmobilierPage() {
             { k: "TRIPLEX", label: "Triplex" },
             { k: "SIXPLEX", label: "6‑plex" },
             { k: "TOUR", label: "Tours (50 log.)" },
+            { k: "GRATTE_CIEL", label: "Gratte‑ciel (400 log.)" },
           ] as const).map(({ k, label }) => (
             <button
               key={k}
@@ -823,7 +825,7 @@ export default function ImmobilierPage() {
                   <span className="text-xs px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700">
                     {(() => {
                       const k = kindOf(tpl.units);
-                      return k === 'TOUR' ? 'Tour' : k === 'SIXPLEX' ? '6‑plex' : k === 'TRIPLEX' ? 'Triplex' : k === 'DUPLEX' ? 'Duplex' : 'Maison';
+                      return k === 'GRATTE_CIEL' ? 'Gratte‑ciel' : k === 'TOUR' ? 'Tour' : k === 'SIXPLEX' ? '6‑plex' : k === 'TRIPLEX' ? 'Triplex' : k === 'DUPLEX' ? 'Duplex' : 'Maison';
                     })()}
                   </span>
                   <span className="text-sm text-neutral-400">{tpl.city}</span>
@@ -831,6 +833,9 @@ export default function ImmobilierPage() {
               </div>
               <p className="text-sm text-neutral-300">Prix: {formatMoney(tpl.price)}</p>
               <p className="text-sm text-neutral-300">Loyer unitaire: {formatMoney(tpl.baseRent)} {tpl.units ? `× ${tpl.units} log.` : ''}</p>
+              {Number(tpl.units ?? 0) >= 400 && (
+                <p className="text-xs text-indigo-300">100 étages · Centre commercial intégré · Multiplicateur 14–16× revenus</p>
+              )}
               <p className="text-xs text-neutral-500">Charges: taxes {formatMoney(tpl.taxes)}/an, assurance {formatMoney(tpl.insurance)}/an, entretien {formatMoney(tpl.maintenance)}/an</p>
               <p className="text-xs text-neutral-500">État — Plomberie: {tpl.plumbingState ?? 'n/a'}, Électricité: {tpl.electricityState ?? 'n/a'}, Toiture: {tpl.roofState ?? 'n/a'}</p>
               {tpl.description && (

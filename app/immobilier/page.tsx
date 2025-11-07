@@ -35,6 +35,7 @@ export default function ImmobilierPage() {
   const [downPaymentPercent, setDownPaymentPercent] = useState(0.2);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tease, setTease] = useState<string | null>(null);
   const [showHoldings, setShowHoldings] = useState(false);
   const [holdings, setHoldings] = useState<any[]>([]);
   const [refiOpenId, setRefiOpenId] = useState<string>("");
@@ -244,6 +245,7 @@ export default function ImmobilierPage() {
       });
       setMessage(`Immeuble acheté!`);
       setError(null);
+  setTease(null);
       // Rafraîchir la liste des immeubles disponibles (exclure celui acheté)
       loadTemplates();
       // Rafraîchir l'encaisse disponible
@@ -254,6 +256,15 @@ export default function ImmobilierPage() {
       loadTemplates();
       const msg = err instanceof Error ? err.message : "Achat impossible";
       setError(msg);
+      try {
+        const m = msg.match(/vendu\s+à\s+'([^']+)'/i);
+        if (m && m[1]) {
+          const owner = m[1];
+          setTease(`😜 Haha, ${owner} l'a acheté avant toi !`);
+        } else {
+          setTease(null);
+        }
+      } catch { setTease(null); }
     }
   }, [gameId, playerId, selectedTemplate, mortgageRate, downPaymentPercent, loadTemplates, loadPlayer]);
 
@@ -355,7 +366,12 @@ export default function ImmobilierPage() {
         </button>
         
         {message && <p className="text-sm text-emerald-400">{message}</p>}
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && (
+          <div className="space-y-1">
+            <p className="text-sm text-red-400">{error}</p>
+            {tease && <p className="text-xs text-amber-300 italic">{tease}</p>}
+          </div>
+        )}
       </section>
 
       {showHoldings && (

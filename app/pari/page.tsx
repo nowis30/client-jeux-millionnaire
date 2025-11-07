@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 const MIN_BET = 5000;
+const DYN_FACTOR = 0.5; // 50% du cash comme plafond dynamique côté client (indicatif)
 
 interface RollResult {
   dice: number[];
@@ -27,6 +28,7 @@ export default function PariPage() {
   const [history, setHistory] = useState<RollResult[]>([]);
   const [cooldown, setCooldown] = useState<number>(0); // ms remaining
   const cooldownRef = useRef<NodeJS.Timeout | null>(null);
+  const dynamicCap = cash != null ? Math.min(1_000_000_000, Math.max(MIN_BET, Math.floor(Math.max(0, cash) * DYN_FACTOR))) : null;
 
   // Charger historique depuis localStorage
   useEffect(() => {
@@ -99,7 +101,10 @@ export default function PariPage() {
   function adjustBet(v: number) {
     setBet(prev => {
       const next = Math.max(MIN_BET, v);
-      if (cash != null) return Math.min(next, cash);
+      if (cash != null) {
+        const cap = dynamicCap != null ? Math.min(dynamicCap, cash) : cash;
+        return Math.min(next, cap);
+      }
       return next;
     });
   }
@@ -175,7 +180,7 @@ export default function PariPage() {
             <div className="px-3 py-2 bg-white/5 rounded-md">Net: {totalNet.toLocaleString()} $</div>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-semibold">Mise (min {MIN_BET.toLocaleString()} $)</label>
+            <label className="text-sm font-semibold">Mise (min {MIN_BET.toLocaleString()} $){dynamicCap!=null ? ` · plafond dynamique ${dynamicCap.toLocaleString()} $` : ''}</label>
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -188,7 +193,11 @@ export default function PariPage() {
                 {[5000,10000,20000,50000].map(v => (
                   <button key={v} onClick={()=>adjustBet(v)} className="px-2 py-1 text-xs bg-white/10 hover:bg-white/20 rounded">{v/1000}k</button>
                 ))}
-                <button onClick={()=>cash && adjustBet(cash)} className="px-2 py-1 text-xs bg-yellow-500/80 hover:bg-yellow-500 text-black rounded">MAX</button>
+                <button onClick={()=>{
+                  if (cash==null) return;
+                  const cap = dynamicCap != null ? Math.min(dynamicCap, cash) : cash;
+                  adjustBet(cap);
+                }} className="px-2 py-1 text-xs bg-yellow-500/80 hover:bg-yellow-500 text-black rounded" title="Plafond dynamique: 50% du cash (max 1G)">MAX</button>
               </div>
             </div>
           </div>
@@ -228,7 +237,7 @@ export default function PariPage() {
             )}
           </div>
           <div className="text-xs text-gray-400 text-center">
-            Règles: double = x2, triple = x3, suite (3 nombres consécutifs) = x3. Sinon la mise est perdue.
+            Règles: triple = somme des 3 dés (ex: 6-6-6 ⇒ x18), double = valeur du dé doublé (ex: 4-4-1 ⇒ x4), suite (3 consécutifs) = x2. Sinon la mise est perdue.
           </div>
         </div>
         <div className="bg-white/10 backdrop-blur rounded-xl p-6 space-y-4">

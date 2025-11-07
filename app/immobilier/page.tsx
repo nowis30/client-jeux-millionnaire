@@ -373,14 +373,17 @@ export default function ImmobilierPage() {
               title="Le taux est variable et défini par le jeu (2% à 7%), ajusté mensuellement par pas de 0.25%."
             />
           </label>
-          <label className="text-sm text-neutral-300 flex flex-col gap-1">
-            Mise de fonds (%)
+          <label className="text-sm text-neutral-300 flex flex-col gap-1" title="Minimum 20% exigé">
+            Mise de fonds (% min 20)
             <input
               type="number"
-              min={0}
+              min={20}
               max={100}
               value={Math.round(downPaymentPercent * 100)}
-              onChange={(e) => setDownPaymentPercent(Number(e.target.value) / 100)}
+              onChange={(e) => {
+                const v = Math.max(20, Math.min(100, Number(e.target.value)));
+                setDownPaymentPercent(v / 100);
+              }}
               className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm"
             />
           </label>

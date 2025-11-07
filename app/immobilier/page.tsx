@@ -451,14 +451,17 @@ export default function ImmobilierPage() {
                     acc.weeklyRent += weeklyRent;
                     acc.weeklyDebt += weeklyPay;
                     acc.weeklyFixed += fixedWeekly;
+                    acc.totalValue += Number(h.currentValue ?? 0) || 0;
+                    acc.totalDebt += Number(h.mortgageDebt ?? 0) || 0;
                     return acc;
                   },
-                  { weeklyRent: 0, weeklyDebt: 0, weeklyFixed: 0 }
+                  { weeklyRent: 0, weeklyDebt: 0, weeklyFixed: 0, totalValue: 0, totalDebt: 0 }
                 );
                 const monthlyRent = (agg.weeklyRent * 52) / 12;
                 const monthlyDebt = (agg.weeklyDebt * 52) / 12;
                 const monthlyFixed = (agg.weeklyFixed * 52) / 12;
                 const monthlyNet = monthlyRent - monthlyDebt - monthlyFixed;
+                const equity = agg.totalValue - agg.totalDebt;
                 return (
                   <div className="border border-neutral-800 rounded bg-neutral-950 p-3 text-xs flex flex-wrap gap-4">
                     <div>
@@ -476,6 +479,22 @@ export default function ImmobilierPage() {
                     <div>
                       <span className="text-neutral-400">Cashflow net (mensuel)</span><br />
                       <span className={`font-medium ${monthlyNet >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{formatMoney(Math.round(monthlyNet))}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400">Valeur du parc</span><br />
+                      <span className="font-medium text-neutral-200">{formatMoney(Math.round(agg.totalValue))}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400">Dette totale</span><br />
+                      <span className="font-medium text-neutral-200">{formatMoney(Math.round(agg.totalDebt))}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400">Équité cumulée</span><br />
+                      <span className={`font-medium ${equity >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{formatMoney(Math.round(equity))}</span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-400">Nombre de biens</span><br />
+                      <span className="font-medium text-neutral-200">{holdings.length}</span>
                     </div>
                   </div>
                 );

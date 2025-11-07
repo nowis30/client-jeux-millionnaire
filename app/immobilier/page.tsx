@@ -250,7 +250,10 @@ export default function ImmobilierPage() {
       loadPlayer();
     } catch (err) {
       setMessage(null);
-      setError(err instanceof Error ? err.message : "Achat impossible");
+      // Sur erreur (ex: 400 immeuble déjà vendu), rafraîchir la liste pour refléter l'état
+      loadTemplates();
+      const msg = err instanceof Error ? err.message : "Achat impossible";
+      setError(msg);
     }
   }, [gameId, playerId, selectedTemplate, mortgageRate, downPaymentPercent, loadTemplates, loadPlayer]);
 

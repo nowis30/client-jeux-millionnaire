@@ -156,28 +156,7 @@ export default function PariPage() {
   const totalGains = history.reduce((acc,h)=> acc + (h.gain||0), 0);
   const totalNet = history.reduce((acc,h)=> acc + (h.netResult||0), 0);
 
-  // Composant Dé 3D
-  function Die({ value, rolling }: { value: number; rolling: boolean }) {
-    // Map face -> rotation (front = face 1). We'll orient so chosen value faces front.
-    const rotations: Record<number,string> = {
-      1: 'rotateX(0deg) rotateY(0deg)',
-      2: 'rotateX(-90deg) rotateY(0deg)',
-      3: 'rotateY(90deg)',
-      4: 'rotateY(-90deg)',
-      5: 'rotateX(90deg)',
-      6: 'rotateY(180deg)'
-    };
-    return (
-      <div className={`dice3d ${rolling ? 'rolling' : ''}`} style={{ transform: rolling ? undefined : rotations[value] }}>
-        <div className="face f1">1</div>
-        <div className="face f2">2</div>
-        <div className="face f3">3</div>
-        <div className="face f4">4</div>
-        <div className="face f5">5</div>
-        <div className="face f6">6</div>
-      </div>
-    );
-  }
+  // Rendu simple des dés (lisible, compatible mobile)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900 text-white p-4">
@@ -224,9 +203,14 @@ export default function PariPage() {
         </div>
         <div className="bg-white/5 backdrop-blur rounded-xl p-6 space-y-6">
           <h2 className="text-xl font-semibold">Résultat</h2>
-          <div className="flex justify-center gap-6">
+          <div className="flex justify-center gap-4">
             {(animDice || result?.dice || [1,1,1]).map((d,i)=>(
-              <Die key={i} value={d} rolling={rolling} />
+              <div
+                key={i}
+                className={`w-20 h-20 rounded-xl flex items-center justify-center text-3xl font-extrabold shadow-lg transition ${rolling ? 'animate-pulse' : ''} bg-white text-black border border-black/20`}
+              >
+                {d}
+              </div>
             ))}
           </div>
           <div className="text-center text-sm text-gray-300">
@@ -269,21 +253,7 @@ export default function PariPage() {
           </div>
         </div>
       </div>
-      {/* Styles 3D dés */}
-      <style jsx>{`
-        .dice3d {
-          width:4rem; height:4rem; position:relative; transform-style:preserve-3d; transition:transform 0.9s cubic-bezier(.19,.57,.3,.98); perspective:800px;
-        }
-        .dice3d.rolling { animation: spin 0.6s linear infinite; }
-        @keyframes spin { from { transform: rotateX(0deg) rotateY(0deg); } to { transform: rotateX(360deg) rotateY(360deg); } }
-        .dice3d .face { position:absolute; width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.5rem; background:#0f172a; border:2px solid rgba(255,255,255,0.15); border-radius:0.75rem; box-shadow:0 4px 12px rgba(0,0,0,0.4); color:#fff; }
-        .dice3d .f1 { transform: translateZ(2rem); }
-        .dice3d .f6 { transform: rotateY(180deg) translateZ(2rem); }
-        .dice3d .f2 { transform: rotateX(90deg) translateZ(2rem); }
-        .dice3d .f5 { transform: rotateX(-90deg) translateZ(2rem); }
-        .dice3d .f3 { transform: rotateY(-90deg) translateZ(2rem); }
-        .dice3d .f4 { transform: rotateY(90deg) translateZ(2rem); }
-      `}</style>
+      {/* Pas de styles 3D pour maximiser la compatibilité et la lisibilité */}
     </div>
   );
 }

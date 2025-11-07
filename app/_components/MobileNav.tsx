@@ -7,6 +7,7 @@ const items = [
   { href: "/bourse", label: "Bourse" },
   { href: "/listings", label: "Annonces" },
   { href: "/summary", label: "Résumé" },
+  { href: "/pari", label: "Pari" },
   { href: "/quiz", label: "Quiz" },
 ];
 
@@ -15,8 +16,8 @@ export default function MobileNav() {
   // Masquer sur desktop
   return (
     <nav className="md:hidden fixed inset-x-0 bottom-0 z-40 safe-bottom bg-neutral-900/95 backdrop-blur border-t border-neutral-800">
-      <ul className="grid grid-cols-5 gap-1 px-2 py-2 text-[13px]">
-        {items.slice(0,5).map((item) => {
+      <ul className="grid grid-cols-6 gap-1 px-2 py-2 text-[13px]">
+        {items.slice(0,6).map((item) => {
           const active = pathname === item.href;
           return (
             <li key={item.href} className="text-center">
@@ -33,7 +34,7 @@ export default function MobileNav() {
           );
         })}
       </ul>
-      <div className="px-2 pb-2">
+      <div className="px-2 pb-2 grid grid-cols-2 gap-2">
         <a
           href="/quiz"
           className={[
@@ -42,6 +43,15 @@ export default function MobileNav() {
           ].join(" ")}
         >
           Quiz
+        </a>
+        <a
+          href="/pari"
+          className={[
+            "block w-full text-center rounded-md px-3 py-2",
+            pathname?.startsWith("/pari") ? "bg-amber-600 text-white" : "bg-amber-700 text-white hover:bg-amber-600",
+          ].join(" ")}
+        >
+          Pari
         </a>
       </div>
     </nav>

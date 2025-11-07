@@ -7,12 +7,16 @@ import { formatMoney } from "../../lib/format";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 
 const BASE_STAKE = 5000;
-const PRIZE_LADDER = Array.from({ length: 10 }).map((_, i) => ({
-  question: i + 1,
-  amount: BASE_STAKE * Math.pow(2, i),
-  difficulty: i + 1 <= 3 ? 'Facile' : i + 1 <= 7 ? 'Moyen' : 'Difficile',
-  milestone: false,
-}));
+// Échelle des gains + difficulté (1-4 enfant/facile, 5-7 moyen, 8-10 difficile)
+const PRIZE_LADDER = Array.from({ length: 10 }).map((_, i) => {
+  const qNum = i + 1;
+  return {
+    question: qNum,
+    amount: BASE_STAKE * Math.pow(2, i),
+    difficulty: qNum <= 4 ? 'Enfant' : qNum <= 7 ? 'Moyen' : 'Difficile',
+    milestone: false,
+  };
+});
 
 export default function QuizPage() {
   const router = useRouter();

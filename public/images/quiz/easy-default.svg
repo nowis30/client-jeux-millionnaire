@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" width="160" height="100">
+  <defs>
+    <linearGradient id="e" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFED8A"/><stop offset="100%" stop-color="#FFB84D"/></linearGradient>
+  </defs>
+  <rect rx="12" width="160" height="100" fill="url(#e)"/>
+  <g transform="translate(28,20)">
+    <rect x="0" y="32" width="104" height="28" rx="14" fill="#fff"/>
+    <circle cx="18" cy="46" r="8" fill="#4CC9F0"/>
+    <circle cx="86" cy="46" r="8" fill="#4CC9F0"/>
+    <rect x="30" y="38" width="44" height="16" rx="8" fill="#B2F7EF"/>
+    <circle cx="52" cy="14" r="14" fill="#fff"/>
+    <path d="M52 6 L55 12 L62 13 L56 16 L54 22 L50 16 L43 13 L50 12 Z" fill="#FFD166"/>
+  </g>
+  <text x="80" y="90" text-anchor="middle" font-size="11" fill="#5a3900">Facile</text>
+</svg>

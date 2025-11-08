@@ -670,7 +670,7 @@ export default function QuizPage() {
                   💡 Les tokens s'accumulent si vous ne jouez pas
                 </p>
                 <div className="mt-4 text-sm text-gray-400">
-                  Recharge vidéo indisponible (maintenance temporaire).
+                  Recharge désactivée temporairement.
                 </div>
               </>
             )}
@@ -699,7 +699,7 @@ export default function QuizPage() {
               <div className="text-center text-sm text-gray-300">Sauts restants : <span className="font-bold">{session.skipsLeft ?? 0} / 3</span></div>
               {session.skipsLeft === 0 && (
                 <div className="mt-2 flex justify-center text-xs text-gray-400">
-                  Recharge de saut par vidéo momentanément indisponible.
+                  Recharge de saut momentanément indisponible.
                 </div>
               )}
               <div className="text-center">

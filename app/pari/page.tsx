@@ -214,7 +214,7 @@ export default function PariPage() {
           </div>
           {pariTokens <= 0 && (
             <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded text-sm text-center">
-              Recharge vidéo indisponible. Attendez la génération automatique des tokens.
+              Recharge indisponible. Attendez la génération automatique des tokens.
             </div>
           )}
           <div className="space-y-2">

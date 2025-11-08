@@ -8,6 +8,8 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
 export default function PortefeuillePage() {
   const [gameId, setGameId] = useState("");
   const [playerId, setPlayerId] = useState("");
+  const [viewPlayerId, setViewPlayerId] = useState("");
+  const [players, setPlayers] = useState<{ id: string; nickname: string }[]>([]);
   const [portfolio, setPortfolio] = useState<any>(null);
   const [holdings, setHoldings] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -34,11 +36,23 @@ export default function PortefeuillePage() {
     })();
   }, [gameId]);
 
+  // Charger les joueurs pour pouvoir consulter d'autres portefeuilles
+  useEffect(() => {
+    if (!gameId) return;
+    (async () => {
+      try {
+        const s = await apiFetch<{ id: string; players: { id: string; nickname: string }[] }>(`/api/games/${gameId}/state`);
+        setPlayers((s.players || []).map((p) => ({ id: p.id, nickname: p.nickname })));
+      } catch {}
+    })();
+  }, [gameId]);
+
   const loadPortfolio = useCallback(async () => {
-    if (!gameId || !playerId) return;
+    const target = viewPlayerId || playerId;
+    if (!gameId || !target) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/players/${playerId}/portfolio`);
+      const res = await fetch(`${API_BASE}/api/games/${gameId}/players/${target}/portfolio`);
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data = await res.json();
       setPortfolio(data);
@@ -48,19 +62,20 @@ export default function PortefeuillePage() {
     } finally {
       setLoading(false);
     }
-  }, [gameId, playerId]);
+  }, [gameId, playerId, viewPlayerId]);
 
   const loadHoldings = useCallback(async () => {
-    if (!gameId || !playerId) return;
+    const target = viewPlayerId || playerId;
+    if (!gameId || !target) return;
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/holdings/${playerId}`);
+      const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/holdings/${target}`);
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data = await res.json();
       setHoldings(data.holdings ?? []);
     } catch (err) {
       // ignore
     }
-  }, [gameId, playerId]);
+  }, [gameId, playerId, viewPlayerId]);
 
   useEffect(() => {
     if (gameId && playerId) {
@@ -96,6 +111,21 @@ export default function PortefeuillePage() {
       <section>
         <h2 className="text-xl font-semibold">Portefeuille</h2>
         <p className="text-sm text-neutral-300">Vue agrégée de vos immeubles, dette et gains cumulés.</p>
+        <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          <label className="text-xs text-neutral-400">Voir le portefeuille de:</label>
+          <select
+            value={viewPlayerId || playerId}
+            onChange={(e) => setViewPlayerId(e.target.value === playerId ? "" : e.target.value)}
+            className="px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-xs"
+          >
+            {[...players].sort((a,b)=>a.nickname.localeCompare(b.nickname)).map((p) => (
+              <option key={p.id} value={p.id}>{p.nickname || p.id.slice(0,6)}</option>
+            ))}
+          </select>
+          {viewPlayerId && viewPlayerId !== playerId && (
+            <span className="text-[11px] text-neutral-500">Lecture seule</span>
+          )}
+        </div>
       </section>
       <section className="space-y-3">
         {loading && <div className="text-sm text-neutral-400">Chargement…</div>}
@@ -117,6 +147,28 @@ export default function PortefeuillePage() {
             <div>
               <div className="text-neutral-400">Biens</div>
               <div className="font-medium text-neutral-200">{monthly.holdingsCount}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Bilan hebdomadaire (tick = 1 semaine) */}
+        {monthly && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs text-neutral-300 mt-2">
+            <div>
+              <div className="text-neutral-400">Loyers (hebdo)</div>
+              <div className="font-medium text-neutral-200">{formatMoney(Math.round(monthly.weeklyRent || 0))}</div>
+            </div>
+            <div>
+              <div className="text-neutral-400">Hypothèque (hebdo)</div>
+              <div className="font-medium text-neutral-200">{formatMoney(Math.round(monthly.weeklyDebt || 0))}</div>
+            </div>
+            <div>
+              <div className="text-neutral-400">Charges fixes (hebdo)</div>
+              <div className="font-medium text-neutral-200">{formatMoney(Math.round(monthly.weeklyFixed || 0))}</div>
+            </div>
+            <div>
+              <div className="text-neutral-400">Net (hebdo)</div>
+              <div className={`${(monthly.weeklyNet||0) >= 0 ? 'text-emerald-400' : 'text-rose-400'} font-medium`}>{formatMoney(Math.round(monthly.weeklyNet || 0))}</div>
             </div>
           </div>
         )}
@@ -162,10 +214,12 @@ export default function PortefeuillePage() {
                       <div className="text-neutral-400 text-[12px]">Paiement hebdo: {formatMoney(Math.round(h.weeklyPayment ?? 0))}</div>
                     </div>
                   </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <input type="number" className="px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-xs" placeholder="Montant à rembourser" value={repayAmounts[h.id] ?? ''} onChange={(e) => setRepayAmounts((m) => ({ ...m, [h.id]: Number(e.target.value) }))} />
-                    <button onClick={() => handleRepay(h.id)} className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-sm">Rembourser</button>
-                  </div>
+                  {(!viewPlayerId || viewPlayerId === playerId) && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <input type="number" className="px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-xs" placeholder="Montant à rembourser" value={repayAmounts[h.id] ?? ''} onChange={(e) => setRepayAmounts((m) => ({ ...m, [h.id]: Number(e.target.value) }))} />
+                      <button onClick={() => handleRepay(h.id)} className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-sm">Rembourser</button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

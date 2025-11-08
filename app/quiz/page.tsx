@@ -7,7 +7,7 @@ import { showRewardedAd, getAdUnit } from "../../lib/ads";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 
-const BASE_STAKE = 5000;
+const BASE_STAKE = 50000;
 // Échelle des gains + difficulté (1-4 enfant/facile, 5-7 moyen, 8-10 difficile)
 const PRIZE_LADDER = Array.from({ length: 10 }).map((_, i) => {
   const qNum = i + 1;
@@ -642,8 +642,8 @@ export default function QuizPage() {
                   <ul className="list-disc list-inside space-y-1 text-sm">
                     <li>1 token = 1 session de quiz</li>
                     <li>Gagnez 1 token automatiquement toutes les heures</li>
-                    <li>Règle Quitte ou Double: on commence à 5 000 $</li>
-                    <li>Chaque bonne réponse double vos gains (5k → 10k → 20k → 40k ...)</li>
+                    <li>Règle Quitte ou Double: on commence à 50 000 $</li>
+                    <li>Chaque bonne réponse double vos gains (50k → 100k → 200k → 400k ...)</li>
                     <li>Vous pouvez encaisser à tout moment pour sécuriser vos gains</li>
                     <li>Mauvaise réponse = vous perdez tout</li>
                     <li>Vous pouvez sauter jusqu'à <b>3 questions</b> par session</li>
@@ -826,7 +826,7 @@ export default function QuizPage() {
                 }`}
               >
                 <div className="text-xs">Q{prize.question}</div>
-                <div className="font-bold">${(prize.amount / 1000).toFixed(0)}k</div>
+                <div className="font-bold">{formatMoney(Math.round(prize.amount))}</div>
               </div>
             ))}
           </div>

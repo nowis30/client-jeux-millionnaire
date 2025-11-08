@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
+import { showRewardedAd, getAdUnit } from "../../lib/ads";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 const MIN_BET = 5000;
@@ -20,6 +21,8 @@ export default function PariPage() {
   const [gameId, setGameId] = useState<string | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [cash, setCash] = useState<number | null>(null);
+  const [pariTokens, setPariTokens] = useState<number>(0);
+  const [nextTokenSec, setNextTokenSec] = useState<number>(0);
   const [bet, setBet] = useState<number>(MIN_BET);
   const [rolling, setRolling] = useState(false);
   const [result, setResult] = useState<RollResult | null>(null);
@@ -98,6 +101,28 @@ export default function PariPage() {
     })();
   }, [gameId, playerId]);
 
+  // Charger statut tokens Pari
+  useEffect(() => {
+    if (!gameId || !playerId) return;
+    let mounted = true;
+    const load = async () => {
+      try {
+        const headers: Record<string,string> = { 'X-Player-ID': playerId! };
+        const res = await fetch(`${API_BASE}/api/games/${gameId}/tokens`, { headers, credentials:'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!mounted) return;
+        const t = Number(data?.pari?.tokens ?? 0);
+        const s = Number(data?.pari?.secondsUntilNext ?? 0);
+        setPariTokens(t);
+        setNextTokenSec(s);
+      } catch {}
+    };
+    load();
+    const iv = setInterval(load, 15000);
+    return () => { mounted = false; clearInterval(iv); };
+  }, [gameId, playerId]);
+
   function adjustBet(v: number) {
     setBet(prev => {
       const next = Math.max(MIN_BET, v);
@@ -116,6 +141,10 @@ export default function PariPage() {
     }
     if (cooldown > 0) {
       setError("Cooldown actif");
+      return;
+    }
+    if (pariTokens <= 0) {
+      setError("Pas assez de tokens Pari (🎟️)");
       return;
     }
     if (cash != null && bet > cash) {
@@ -147,12 +176,34 @@ export default function PariPage() {
         if (data.finalCash != null) setCash(data.finalCash);
         setAnimDice(data.dice as [number,number,number]);
         setHistory(prev => [enriched, ...prev].slice(0,50));
+        if (typeof data.tokensLeft === 'number') setPariTokens(Number(data.tokensLeft));
       }
     } catch (e:any) {
       setError(e.message);
     } finally {
       clearInterval(animInterval);
       setRolling(false);
+    }
+  }
+
+  async function adRechargePari() {
+    if (!gameId || !playerId) return;
+    try {
+      setError(null);
+      const ok = await showRewardedAd(getAdUnit(process.env.NEXT_PUBLIC_ADMOB_PARITOKEN_UNIT));
+      if (!ok) { setError('Annonce non complétée.'); return; }
+      const headers: Record<string,string> = { 'Content-Type': 'application/json', 'X-Player-ID': playerId };
+      const res = await fetch(`${API_BASE}/api/games/${gameId}/tokens/ads`, {
+        method: 'POST', credentials: 'include', headers, body: JSON.stringify({ type: 'pari' })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data?.error || 'Recharge indisponible');
+      } else {
+        setPariTokens(Number(data.tokens ?? 100));
+      }
+    } catch (e:any) {
+      setError(String(e?.message || e));
     }
   }
 
@@ -175,10 +226,17 @@ export default function PariPage() {
             <div className="px-3 py-2 bg-white/5 rounded-md">Game: {gameId ? gameId.slice(0,8)+'…' : '—'}</div>
             <div className="px-3 py-2 bg-white/5 rounded-md">Player: {playerId ? playerId.slice(0,8)+'…' : '—'}</div>
             <div className="px-3 py-2 bg-white/5 rounded-md">Cash: {cash != null ? cash.toLocaleString()+' $' : '—'}</div>
+            <div className="px-3 py-2 bg-white/5 rounded-md">Tokens 🎟️: {pariTokens}/{100} {pariTokens<=0 && nextTokenSec>0 ? `(+5 dans ${Math.floor(nextTokenSec/60)}m)` : ''}</div>
             <div className="px-3 py-2 bg-white/5 rounded-md">Total misé: {totalBets.toLocaleString()} $</div>
             <div className="px-3 py-2 bg-white/5 rounded-md">Total gagné: {totalGains.toLocaleString()} $</div>
             <div className="px-3 py-2 bg-white/5 rounded-md">Net: {totalNet.toLocaleString()} $</div>
           </div>
+          {pariTokens <= 0 && (
+            <div className="p-3 bg-yellow-500/20 border border-yellow-500/40 rounded text-sm flex items-center justify-between">
+              <div>Vous n'avez plus de tokens. Regardez une annonce pour recharger à 100.</div>
+              <button onClick={adRechargePari} className="px-3 py-1 bg-yellow-500 text-black rounded hover:bg-yellow-400">▶️ Regarder une vidéo</button>
+            </div>
+          )}
           <div className="space-y-2">
             <label className="text-sm font-semibold">Mise (min {MIN_BET.toLocaleString()} $){dynamicCap!=null ? ` · plafond dynamique ${dynamicCap.toLocaleString()} $` : ''}</label>
             <div className="flex items-center gap-2">
@@ -202,11 +260,11 @@ export default function PariPage() {
             </div>
           </div>
           <button
-            disabled={rolling || bet < MIN_BET || (cash!=null && bet>cash) || cooldown>0}
+            disabled={rolling || bet < MIN_BET || (cash!=null && bet>cash) || cooldown>0 || pariTokens<=0}
             onClick={play}
             className="relative w-full py-3 rounded-lg font-bold text-lg bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed"
           >
-            {rolling ? 'Lancement…' : cooldown>0 ? `Cooldown ${(cooldown/1000).toFixed(1)}s` : 'Lancer les dés'}
+            {rolling ? 'Lancement…' : cooldown>0 ? `Cooldown ${(cooldown/1000).toFixed(1)}s` : pariTokens<=0 ? 'Pas de tokens' : 'Lancer les dés'}
           </button>
           {error && <div className="p-3 bg-red-600/80 rounded text-sm">{error}</div>}
         </div>

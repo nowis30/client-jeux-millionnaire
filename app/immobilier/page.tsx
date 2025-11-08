@@ -98,6 +98,9 @@ export default function ImmobilierPage() {
   const [economy, setEconomy] = useState<{ baseMortgageRate: number; appreciationAnnual: number; schedule: number[]; inflationAnnual?: number; inflationIndex?: number } | null>(null);
   const [scenario, setScenario] = useState<"prudent" | "central" | "optimiste">("central");
   const [showProjection, setShowProjection] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
+  const [advanceMsg, setAdvanceMsg] = useState<string | null>(null);
 
   // Préparer les cookies cross‑site (hm_guest + hm_csrf) le plus tôt possible
   useEffect(() => {
@@ -105,6 +108,18 @@ export default function ImmobilierPage() {
       try {
         await fetch(`${API_BASE}/api/auth/csrf`, { credentials: "include" });
       } catch {}
+    })();
+  }, []);
+
+  // Charger statut admin pour afficher le bouton d'avance temporelle
+  useEffect(() => {
+    (async () => {
+      try {
+        const me = await apiFetch<{ id: string; email: string; isAdmin: boolean }>("/api/auth/me");
+        setIsAdmin(!!me.isAdmin);
+      } catch {
+        setIsAdmin(false);
+      }
     })();
   }, []);
 
@@ -276,7 +291,9 @@ export default function ImmobilierPage() {
       const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/bilan/${holdingId}`);
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data = await res.json();
-      setHoldingBilans((m: Record<string, any>) => ({ ...m, [holdingId]: data }));
+      // Normaliser: stocker directement l'objet bilan pour simplifier l'accès
+      const bilanObj = (data?.bilan) ? data.bilan : data;
+      setHoldingBilans((m: Record<string, any>) => ({ ...m, [holdingId]: { bilan: bilanObj } }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de charger le bilan détaillé");
     } finally {
@@ -309,9 +326,16 @@ export default function ImmobilierPage() {
   const handleBackfillRentByUnits = useCallback(async () => {
     if (!gameId) return;
     try {
-      await apiFetch(`/api/games/${gameId}/properties/backfill-rent-by-units`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-      setMessage('Correction des loyers effectuée (× unités).');
-      setError(null);
+      const data = await apiFetch<{ ok?: boolean; updated?: number; total?: number; errors?: any[] }>(
+        `/api/games/${gameId}/properties/backfill-rent-by-units`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+      );
+      const updated = Number((data as any)?.updated ?? 0);
+      const total = Number((data as any)?.total ?? 0);
+      const errs = Array.isArray((data as any)?.errors) ? (data as any).errors : [];
+      const baseMsg = total > 0 ? `Correction loyers: ${updated}/${total} corrigé(s)` : 'Correction des loyers effectuée (× unités).';
+      setMessage(errs.length ? `${baseMsg} · ${errs.length} erreur(s)` : baseMsg);
+      setError(errs.length ? `Exemple: ${String(errs[0]?.message || errs[0] || 'inconnue')}` : null);
       // Rafraîchir parc et soldes
       await Promise.all([loadHoldings(), loadPlayer()]);
     } catch (err) {
@@ -866,7 +890,8 @@ export default function ImmobilierPage() {
                         )}
                         {!loadingBilan[h.id] && (
                           (() => {
-                            const b = holdingBilans[h.id] ?? {};
+                            // L'API renvoie { bilan: { ... } }, on déplie ici pour accéder aux champs
+                            const b = (holdingBilans[h.id]?.bilan) ?? {};
                             const num = (v: any) => Number(v ?? 0) || 0;
                             const purchasePrice = num(b.purchasePrice ?? h.purchasePrice);
                             // Fallbacks si l'API ne renvoie pas ces valeurs: on estime la dette initiale et la mise de fonds
@@ -880,12 +905,13 @@ export default function ImmobilierPage() {
                             const downPayment = downPaymentRaw > 0
                               ? downPaymentRaw
                               : (purchasePrice > 0 && initialMortgageDebt > 0 ? Math.max(0, purchasePrice - initialMortgageDebt) : 0);
-                            const accumulatedRent = num(b.accumulatedRent);
-                            const accumulatedInterest = num(b.accumulatedInterest);
-                            const accumulatedTaxes = num(b.accumulatedTaxes);
-                            const accumulatedInsurance = num(b.accumulatedInsurance);
-                            const accumulatedMaintenance = num(b.accumulatedMaintenance);
-                            const accumulatedNetCashflow = num(b.accumulatedNetCashflow);
+                            const acc = (b.accumulated ?? {}) as any;
+                            const accumulatedRent = num(acc.rent);
+                            const accumulatedInterest = num(acc.interest);
+                            const accumulatedTaxes = num(acc.taxes);
+                            const accumulatedInsurance = num(acc.insurance);
+                            const accumulatedMaintenance = num(acc.maintenance);
+                            const accumulatedNetCashflow = num(acc.netCashflow);
                             const nowDebt = num(h.mortgageDebt);
                             const allAccZeros = [accumulatedRent, accumulatedInterest, accumulatedTaxes, accumulatedInsurance, accumulatedMaintenance, accumulatedNetCashflow]
                               .every((v) => Math.abs(v) < 1);
@@ -965,6 +991,40 @@ export default function ImmobilierPage() {
                   </article>
                 ))}
               </div>
+
+              {isAdmin && (
+                <div className="mt-4 space-y-2">
+                  <div className="text-xs text-neutral-400">Outil admin: avancer le jeu de 1 mois (4 semaines de ticks).</div>
+                  <button
+                    disabled={advancing}
+                    onClick={async () => {
+                      if (!gameId) { setAdvanceMsg("GameId manquant"); return; }
+                      setAdvancing(true); setAdvanceMsg(null);
+                      try {
+                        // Utiliser apiFetch pour inclure automatiquement le JWT admin + CSRF (si disponible)
+                        try {
+                          const data = await apiFetch<{ ok?: boolean; gameId: string; weeksApplied: number; durationMs: number; error?: string }>(`/api/games/${gameId}/advance-weeks?weeks=4`, { method: 'POST' });
+                          setAdvanceMsg(`Avancé de ${data.weeksApplied} semaines en ${data.durationMs}ms.`);
+                        } catch (err: any) {
+                          throw new Error(err?.message || 'Échec avance');
+                        }
+                        
+                        // Recharger holdings et éventuellement bilans ouverts
+                        await loadHoldings();
+                        if (expandedBilanId) {
+                          await loadHoldingBilan(expandedBilanId);
+                        }
+                      } catch (e: any) {
+                        setAdvanceMsg(e.message || 'Échec avance');
+                      } finally {
+                        setAdvancing(false);
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-sm"
+                  >{advancing ? 'Avance en cours…' : 'Avancer 1 mois'}</button>
+                  {advanceMsg && <p className="text-xs text-neutral-300">{advanceMsg}</p>}
+                </div>
+              )}
 
               <div className="mt-6 space-y-2">
                 <button

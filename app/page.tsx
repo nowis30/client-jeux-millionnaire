@@ -830,9 +830,7 @@ function AdminAdvanceTime({ gameId, onAdvanced }: { gameId: string; onAdvanced?:
     setAdvancing(true); setMsg(null);
     try {
       const w = Math.max(1, Math.min(520, weeks));
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/advance-weeks?weeks=${w}`, { method: 'POST' });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || `Erreur ${res.status}`);
+      const body = await apiFetch<{ ok?: boolean; gameId: string; weeksApplied: number; durationMs: number; error?: string }>(`/api/games/${gameId}/advance-weeks?weeks=${w}`, { method: 'POST' });
       setMsg(`Avancé de ${body.weeksApplied} semaines en ${body.durationMs}ms.`);
       onAdvanced && onAdvanced();
     } catch (e: any) {

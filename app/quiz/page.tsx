@@ -9,12 +9,16 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 
 const BASE_STAKE = 50000;
 // Échelle des gains + difficulté (1-4 enfant/facile, 5-7 moyen, 8-10 difficile)
+// Nouvelle répartition difficulté:
+// Q1-2: Enfant
+// Q3-5: Moyen (tous sujets confondus)
+// Q6-10: Difficile (QI / logique / haute complexité)
 const PRIZE_LADDER = Array.from({ length: 10 }).map((_, i) => {
   const qNum = i + 1;
   return {
     question: qNum,
     amount: BASE_STAKE * Math.pow(2, i),
-    difficulty: qNum <= 4 ? 'Enfant' : qNum <= 7 ? 'Moyen' : 'Difficile',
+    difficulty: qNum <= 2 ? 'Enfant' : qNum <= 5 ? 'Moyen' : 'Difficile (QI)',
     milestone: false,
   };
 });
@@ -581,8 +585,8 @@ export default function QuizPage() {
                           <div className="flex justify-between items-center mb-1">
                             <div className="font-semibold flex items-center gap-2">
                               <span>{cat.category}</span>
-                              {isKids && <span className="text-xs px-1 py-0.5 rounded bg-green-600/40 border border-green-500">Enfants (Q1-4)</span>}
-                              {isTargetedMedium && <span className="text-xs px-1 py-0.5 rounded bg-indigo-600/40 border border-indigo-500">Ciblée (Q5-7)</span>}
+                              {isKids && <span className="text-xs px-1 py-0.5 rounded bg-green-600/40 border border-green-500">Enfants (Q1-2)</span>}
+                              {isTargetedMedium && <span className="text-xs px-1 py-0.5 rounded bg-indigo-600/40 border border-indigo-500">Ciblée (Q3-5)</span>}
                             </div>
                             <div className="text-xs text-gray-300">Restantes {cat.remaining} / Total {total} · Utilisées {used}</div>
                           </div>
@@ -597,7 +601,7 @@ export default function QuizPage() {
                       );
                     })}
                 </div>
-                <p className="mt-3 text-[10px] text-gray-400 text-center">Les catégories ciblées (Définitions, Québec, Religions) sont prioritaires pour les questions 5 à 7.</p>
+                <p className="mt-3 text-[10px] text-gray-400 text-center">Les catégories ciblées (Définitions, Québec, Religions) sont prioritaires pour les questions 3 à 5.</p>
               </div>
             )}
           </div>
@@ -648,6 +652,7 @@ export default function QuizPage() {
                     <li>Mauvaise réponse = vous perdez tout</li>
                     <li>Vous pouvez sauter jusqu'à <b>3 questions</b> par session</li>
                     <li>Maximum 10 questions par session</li>
+                    <li>Difficulté: Q1-2 enfants, Q3-5 moyenne (tous sujets), Q6-10 difficile (tests de QI)</li>
                   </ul>
                 </div>
                 <button

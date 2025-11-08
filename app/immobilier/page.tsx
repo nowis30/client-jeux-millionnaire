@@ -412,8 +412,8 @@ export default function ImmobilierPage() {
               title="Le taux est variable et défini par le jeu (2% à 7%), ajusté mensuellement par pas de 0.25%."
             />
           </label>
-          <label className="text-sm text-neutral-300 flex flex-col gap-1" title="Minimum 20% exigé">
-            Mise de fonds (% min 20)
+          <label className="text-sm text-neutral-300 flex flex-col gap-1" title="Entre 20% et 100% (ex: 50 = moitié)">
+            Mise de fonds (20–100% · ex: 50)
             <input
               type="number"
               min={20}
@@ -425,6 +425,7 @@ export default function ImmobilierPage() {
               }}
               className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm"
             />
+            <span className="text-xs text-neutral-500">Accepté: 20 à 100. 50 = 50%. Doit couvrir la mise de fonds.</span>
           </label>
           <label className="text-sm text-neutral-300 flex flex-col gap-1">
             Durée hypothèque (années)

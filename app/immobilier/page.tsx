@@ -869,8 +869,17 @@ export default function ImmobilierPage() {
                             const b = holdingBilans[h.id] ?? {};
                             const num = (v: any) => Number(v ?? 0) || 0;
                             const purchasePrice = num(b.purchasePrice ?? h.purchasePrice);
-                            const downPayment = num(b.downPayment);
-                            const initialMortgageDebt = num(b.initialMortgageDebt);
+                            // Fallbacks si l'API ne renvoie pas ces valeurs: on estime la dette initiale et la mise de fonds
+                            const rateForEst = Number(h.mortgageRate ?? (economy ? economy.baseMortgageRate : 0.05)) || 0.05;
+                            const termForEst = Number(h.termYears ?? 25) || 25;
+                            const weeklyPayForEst = Number(h.weeklyPayment ?? 0) || 0;
+                            const initialDebtEst = estimateInitialPrincipalFromWeekly(weeklyPayForEst, rateForEst, termForEst);
+                            const initialMortgageDebtRaw = num(b.initialMortgageDebt);
+                            const initialMortgageDebt = initialMortgageDebtRaw > 0 ? initialMortgageDebtRaw : Math.round(initialDebtEst);
+                            const downPaymentRaw = num(b.downPayment);
+                            const downPayment = downPaymentRaw > 0
+                              ? downPaymentRaw
+                              : (purchasePrice > 0 && initialMortgageDebt > 0 ? Math.max(0, purchasePrice - initialMortgageDebt) : 0);
                             const accumulatedRent = num(b.accumulatedRent);
                             const accumulatedInterest = num(b.accumulatedInterest);
                             const accumulatedTaxes = num(b.accumulatedTaxes);
@@ -878,8 +887,16 @@ export default function ImmobilierPage() {
                             const accumulatedMaintenance = num(b.accumulatedMaintenance);
                             const accumulatedNetCashflow = num(b.accumulatedNetCashflow);
                             const nowDebt = num(h.mortgageDebt);
+                            const allAccZeros = [accumulatedRent, accumulatedInterest, accumulatedTaxes, accumulatedInsurance, accumulatedMaintenance, accumulatedNetCashflow]
+                              .every((v) => Math.abs(v) < 1);
                             return (
                               <div className="text-xs text-neutral-300 space-y-2">
+                                {allAccZeros && (
+                                  <div className="p-2 rounded border border-amber-600/40 bg-amber-500/10 text-amber-200">
+                                    Pas encore de cumulés à afficher. Le jeu applique loyers, intérêts et charges chaque heure (1h = 1 semaine de jeu).
+                                    Revenez après un peu de temps de jeu, ou forcez une avance si vous êtes admin.
+                                  </div>
+                                )}
                                 <div className="grid sm:grid-cols-2 gap-2">
                                   <div>
                                     <div className="text-neutral-400">Prix d'achat</div>

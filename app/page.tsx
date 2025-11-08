@@ -668,6 +668,7 @@ export default function DashboardPage() {
             <button onClick={adminStart} className="px-3 py-2 rounded bg-orange-600 hover:bg-orange-500 text-sm">Démarrer</button>
             <button onClick={adminRestart} className="px-3 py-2 rounded bg-red-700 hover:bg-red-600 text-sm">Redémarrer (destructif)</button>
           </div>
+          <AdminAdvanceTime gameId={gameId} onAdvanced={() => { updateState(); }} />
         </section>
       )}
 
@@ -816,6 +817,51 @@ export default function DashboardPage() {
       <OnboardingHome onClose={() => setShowHomeTutorial(false)} />
     )}
   </>
+  );
+}
+
+function AdminAdvanceTime({ gameId, onAdvanced }: { gameId: string; onAdvanced?: () => void }) {
+  const [weeks, setWeeks] = useState<number>(4);
+  const [advancing, setAdvancing] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const handleAdvance = useCallback(async () => {
+    if (!gameId) { setMsg("GameId manquant"); return; }
+    setAdvancing(true); setMsg(null);
+    try {
+      const w = Math.max(1, Math.min(520, weeks));
+      const res = await fetch(`${API_BASE}/api/games/${gameId}/advance-weeks?weeks=${w}`, { method: 'POST' });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || `Erreur ${res.status}`);
+      setMsg(`Avancé de ${body.weeksApplied} semaines en ${body.durationMs}ms.`);
+      onAdvanced && onAdvanced();
+    } catch (e: any) {
+      setMsg(e?.message || 'Échec avance');
+    } finally {
+      setAdvancing(false);
+    }
+  }, [gameId, weeks, onAdvanced]);
+
+  return (
+    <div className="mt-4 space-y-2">
+      <div className="text-xs text-neutral-400">Avancer le temps de jeu (ticks hebdomadaires). 1h serveur = 1 semaine simulée.</div>
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          min={1}
+          max={520}
+          value={weeks}
+          onChange={(e) => setWeeks(Number(e.target.value) || 1)}
+          className="w-20 px-2 py-1 rounded bg-neutral-800 border border-neutral-700 text-sm"
+        />
+        <button
+          disabled={advancing}
+          onClick={handleAdvance}
+          className="px-3 py-1.5 rounded bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-sm"
+        >{advancing ? 'Avance…' : `Avancer ${weeks} semaine${weeks>1?'s':''}`}</button>
+      </div>
+      {msg && <p className="text-xs text-neutral-300">{msg}</p>}
+    </div>
   );
 }
 

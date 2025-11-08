@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Onboarding from "../../components/Onboarding";
 import { formatMoney } from "../../lib/format";
-import { showRewardedAd, getAdUnit } from "../../lib/ads";
+// Ads récompense désactivées temporairement: imports retirés
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 
@@ -669,27 +669,8 @@ export default function QuizPage() {
                 <p className="text-xs text-gray-400">
                   💡 Les tokens s'accumulent si vous ne jouez pas
                 </p>
-                <div className="mt-4">
-                  <button
-                    onClick={async () => {
-                      try {
-                        const watched = await showRewardedAd(getAdUnit(process.env.NEXT_PUBLIC_ADMOB_QUIZTOKEN_UNIT));
-                        if (!watched) return;
-                        const headers: Record<string,string> = { 'Content-Type': 'application/json', 'X-CSRF':'1' };
-                        if (playerId) headers['X-Player-ID'] = playerId;
-                        const res = await fetch(`${API_BASE}/api/games/${gameId}/tokens/ads`, { method:'POST', credentials:'include', headers, body: JSON.stringify({ type: 'quiz' }) });
-                        const data = await res.json();
-                        if (!res.ok) throw new Error(data?.error || 'Recharge indisponible');
-                        setFeedback({ type:'success', message: 'Recharge Quiz effectuée (20 tokens)' });
-                        loadStatus();
-                      } catch (e:any) {
-                        setFeedback({ type:'error', message: e.message });
-                      }
-                    }}
-                    className="px-6 py-3 bg-yellow-500 text-black rounded-lg font-bold hover:bg-yellow-400"
-                  >
-                    ▶️ Regarder une vidéo pour recharger (20)
-                  </button>
+                <div className="mt-4 text-sm text-gray-400">
+                  Recharge vidéo indisponible (maintenance temporaire).
                 </div>
               </>
             )}
@@ -717,25 +698,8 @@ export default function QuizPage() {
               </div>
               <div className="text-center text-sm text-gray-300">Sauts restants : <span className="font-bold">{session.skipsLeft ?? 0} / 3</span></div>
               {session.skipsLeft === 0 && (
-                <div className="mt-2 flex justify-center">
-                  <button
-                    onClick={async () => {
-                      try {
-                        const watched = await showRewardedAd(getAdUnit(process.env.NEXT_PUBLIC_ADMOB_QUIZSKIP_UNIT));
-                        if (!watched) return;
-                        const headers: Record<string,string> = { 'Content-Type':'application/json', 'X-CSRF':'1' };
-                        if (playerId) headers['X-Player-ID'] = playerId;
-                        const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/ad-skip`, { method:'POST', credentials:'include', headers, body: JSON.stringify({ sessionId: session.id }) });
-                        const data = await res.json();
-                        if (!res.ok) throw new Error(data?.error || 'Recharge skip impossible');
-                        setFeedback({ type:'success', message: 'Un saut a été rechargé ✅' });
-                        setSession((prev: any) => prev ? { ...prev, skipsLeft: data.skipsLeft } : prev);
-                      } catch (e:any) {
-                        setFeedback({ type:'error', message: e.message });
-                      }
-                    }}
-                    className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-semibold rounded-lg text-sm"
-                  >▶️ Recharger un saut (vidéo)</button>
+                <div className="mt-2 flex justify-center text-xs text-gray-400">
+                  Recharge de saut par vidéo momentanément indisponible.
                 </div>
               )}
               <div className="text-center">

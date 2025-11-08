@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import { showRewardedAd, getAdUnit } from "../../lib/ads";
+// Ads récompense désactivées temporairement
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 const MIN_BET = 5000;
@@ -186,26 +186,7 @@ export default function PariPage() {
     }
   }
 
-  async function adRechargePari() {
-    if (!gameId || !playerId) return;
-    try {
-      setError(null);
-      const ok = await showRewardedAd(getAdUnit(process.env.NEXT_PUBLIC_ADMOB_PARITOKEN_UNIT));
-      if (!ok) { setError('Annonce non complétée.'); return; }
-      const headers: Record<string,string> = { 'Content-Type': 'application/json', 'X-Player-ID': playerId };
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/tokens/ads`, {
-        method: 'POST', credentials: 'include', headers, body: JSON.stringify({ type: 'pari' })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data?.error || 'Recharge indisponible');
-      } else {
-        setPariTokens(Number(data.tokens ?? 100));
-      }
-    } catch (e:any) {
-      setError(String(e?.message || e));
-    }
-  }
+  // Recharge publicitaire désactivée
 
   // Stats cumulées
   const totalBets = history.reduce((acc,h)=> acc + (h.bet||0), 0);
@@ -232,9 +213,8 @@ export default function PariPage() {
             <div className="px-3 py-2 bg-white/5 rounded-md">Net: {totalNet.toLocaleString()} $</div>
           </div>
           {pariTokens <= 0 && (
-            <div className="p-3 bg-yellow-500/20 border border-yellow-500/40 rounded text-sm flex items-center justify-between">
-              <div>Vous n'avez plus de tokens. Regardez une annonce pour recharger à 100.</div>
-              <button onClick={adRechargePari} className="px-3 py-1 bg-yellow-500 text-black rounded hover:bg-yellow-400">▶️ Regarder une vidéo</button>
+            <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded text-sm text-center">
+              Recharge vidéo indisponible. Attendez la génération automatique des tokens.
             </div>
           )}
           <div className="space-y-2">

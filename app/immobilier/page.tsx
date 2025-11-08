@@ -20,6 +20,20 @@ type Template = {
   roofState?: string;
 };
 
+// Représentation minimale d'un holding pour typings locaux
+interface Holding {
+  id: string;
+  purchasePrice?: number;
+  currentValue?: number;
+  currentRent?: number;
+  mortgageDebt?: number;
+  weeklyPayment?: number;
+  mortgageRate?: number;
+  termYears?: number;
+  template?: Template;
+  refinanceLogs?: { id: string; at: string; amount: number; rate: number }[];
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
 
 async function revealOwnerFallback(
@@ -47,7 +61,7 @@ async function revealOwnerFallback(
 
 export default function ImmobilierPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [kindFilter, setKindFilter] = useState<"ALL" | "MAISON" | "DUPLEX" | "TRIPLEX" | "SIXPLEX" | "TOUR">("ALL");
+  const [kindFilter, setKindFilter] = useState<"ALL" | "MAISON" | "DUPLEX" | "TRIPLEX" | "SIXPLEX" | "TOUR" | "GRATTE_CIEL" | "VILLAGE_FUTURISTE">("ALL");
   const [gameId, setGameId] = useState("");
   const [playerId, setPlayerId] = useState("");
   const [nickname, setNickname] = useState("");
@@ -67,15 +81,19 @@ export default function ImmobilierPage() {
     return () => clearTimeout(id);
   }, [tease]);
   const [showHoldings, setShowHoldings] = useState(false);
-  const [holdings, setHoldings] = useState<any[]>([]);
+  const [holdings, setHoldings] = useState<Holding[]>([]);
   const [refiOpenId, setRefiOpenId] = useState<string>("");
   const [refiRate, setRefiRate] = useState<number>(0);
   const [refiPct, setRefiPct] = useState<number>(0);
   const [refiMode, setRefiMode] = useState<"pct" | "ltv" | "amount">("pct");
   const [refiLtvTarget, setRefiLtvTarget] = useState<number>(80); // % de valeur, max 80
   const [refiAmount, setRefiAmount] = useState<number>(0); // $ cash-out direct
+  // Bilan détaillé par bien
+  const [expandedBilanId, setExpandedBilanId] = useState<string>("");
+  const [holdingBilans, setHoldingBilans] = useState<Record<string, any>>({});
+  const [loadingBilan, setLoadingBilan] = useState<Record<string, boolean>>({});
   const purchaseRef = useRef<HTMLDivElement | null>(null);
-  const [economy, setEconomy] = useState<{ baseMortgageRate: number; appreciationAnnual: number; schedule: number[] } | null>(null);
+  const [economy, setEconomy] = useState<{ baseMortgageRate: number; appreciationAnnual: number; schedule: number[]; inflationAnnual?: number; inflationIndex?: number } | null>(null);
   const [scenario, setScenario] = useState<"prudent" | "central" | "optimiste">("central");
   const [showProjection, setShowProjection] = useState(false);
 
@@ -100,10 +118,10 @@ export default function ImmobilierPage() {
 
   type YearPoint = { year: number; net: number };
   const adjustedSchedule = useMemo(() => {
-    const base = economy?.schedule ?? [];
-    if (!base.length) return [] as number[];
-    const delta = scenario === "prudent" ? -0.005 : scenario === "optimiste" ? 0.005 : 0;
-    return base.map((v) => Math.max(0.02, Math.min(0.05, v + delta)));
+      const base: number[] = economy?.schedule ?? [];
+      if (!base.length) return [] as number[];
+      const delta: number = scenario === "prudent" ? -0.005 : scenario === "optimiste" ? 0.005 : 0;
+      return base.map((v: number) => Math.max(0.02, Math.min(0.05, v + delta)));
   }, [economy, scenario]);
 
   const projection: YearPoint[] = useMemo(() => {
@@ -112,14 +130,15 @@ export default function ImmobilierPage() {
     const schedule = adjustedSchedule.length ? adjustedSchedule : Array.from({ length: YEARS }, () => 0.02);
     const usedRate = economy?.baseMortgageRate ?? 0.05;
     // Copie mutable des valeurs pour simulation
-    const sims = holdings.map((h) => ({
-      value: Number(h.currentValue ?? 0),
-      debt: Number(h.mortgageDebt ?? 0),
+    type Sim = { value: number; debt: number; rate: number; payW: number };
+    const sims: Sim[] = holdings.map((h: any) => ({
+      value: Number(h?.currentValue ?? 0),
+      debt: Number(h?.mortgageDebt ?? 0),
       rate: usedRate,
-      payW: Number(h.weeklyPayment ?? 0),
+      payW: Number(h?.weeklyPayment ?? 0),
     }));
     const out: YearPoint[] = [];
-    let net0 = sims.reduce((sum, s) => sum + (s.value - s.debt), 0);
+    let net0 = sims.reduce((sum: number, s: Sim) => sum + (s.value - s.debt), 0);
     out.push({ year: 0, net: net0 });
     for (let y = 1; y <= YEARS; y++) {
       for (const s of sims) {
@@ -129,7 +148,7 @@ export default function ImmobilierPage() {
         s.debt = Math.max(0, s.debt - principal);
         s.value = s.value * (1 + (schedule[y - 1] ?? 0.02));
       }
-      const net = sims.reduce((sum, s) => sum + (s.value - s.debt), 0);
+      const net = sims.reduce((sum: number, s: Sim) => sum + (s.value - s.debt), 0);
       out.push({ year: y, net });
     }
     return out;
@@ -209,6 +228,7 @@ export default function ImmobilierPage() {
   // Déduction du type depuis units
   const kindOf = (u?: number) => {
     const units = Number(u || 1);
+    if (units >= 800) return "VILLAGE_FUTURISTE" as const;
     if (units >= 400) return "GRATTE_CIEL" as const;
     if (units >= 50) return "TOUR" as const;
     if (units === 6) return "SIXPLEX" as const;
@@ -217,9 +237,9 @@ export default function ImmobilierPage() {
     return "MAISON" as const;
   };
 
-  const filtered = useMemo(() => {
+  const filtered = useMemo<Template[]>(() => {
     if (kindFilter === "ALL") return templates;
-    return templates.filter((t) => kindOf(t.units) === kindFilter);
+    return templates.filter((t: Template) => kindOf(t.units) === kindFilter);
   }, [templates, kindFilter]);
 
 
@@ -236,6 +256,21 @@ export default function ImmobilierPage() {
       setError(err instanceof Error ? err.message : "Impossible de charger le parc immobilier");
     }
   }, [gameId, playerId]);
+
+  const loadHoldingBilan = useCallback(async (holdingId: string): Promise<void> => {
+    if (!gameId || !holdingId) return;
+    try {
+      setLoadingBilan((m: Record<string, boolean>) => ({ ...m, [holdingId]: true }));
+      const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/bilan/${holdingId}`);
+      if (!res.ok) throw new Error(`Erreur ${res.status}`);
+      const data = await res.json();
+      setHoldingBilans((m: Record<string, any>) => ({ ...m, [holdingId]: data }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de charger le bilan détaillé");
+    } finally {
+      setLoadingBilan((m: Record<string, boolean>) => ({ ...m, [holdingId]: false }));
+    }
+  }, [gameId]);
 
   const loadEconomy = useCallback(async () => {
     if (!gameId) return;
@@ -331,6 +366,7 @@ export default function ImmobilierPage() {
             { k: "SIXPLEX", label: "6‑plex" },
             { k: "TOUR", label: "Tours (50 log.)" },
             { k: "GRATTE_CIEL", label: "Gratte‑ciel (400 log.)" },
+            { k: "VILLAGE_FUTURISTE", label: "Village futuriste" },
           ] as const).map(({ k, label }) => (
             <button
               key={k}
@@ -357,6 +393,9 @@ export default function ImmobilierPage() {
               <p title={`Marge: base + 5 pts → ${(economy.baseMortgageRate * 100).toFixed(2)}% + 5.00 pts = ${((economy.baseMortgageRate + 0.05) * 100).toFixed(2)}%`} className="text-xs text-neutral-400">
                 Marge: base + 5 pts
               </p>
+            )}
+            {economy && (
+              <p className="text-xs text-neutral-500">Inflation {(Number(economy.inflationAnnual||0)*100).toFixed(1)}%/an · Indice {(Number(economy.inflationIndex||1)).toFixed(3)}×</p>
             )}
           </div>
         )}
@@ -451,8 +490,15 @@ export default function ImmobilierPage() {
                     const weeklyPay = Number(h.weeklyPayment ?? 0) || 0;
                     const taxes = Number(h.template?.taxes ?? 0) || 0;
                     const insurance = Number(h.template?.insurance ?? 0) || 0;
-                    const maintenance = Number(h.template?.maintenance ?? 0) || 0;
-                    const fixedWeekly = (taxes + insurance + maintenance) / 52;
+                    const maintenanceRaw = Number(h.template?.maintenance ?? 0) || 0;
+                    const states = [h.template?.plumbingState, h.template?.electricityState, h.template?.roofState].map((s: any) => String(s || '').toLowerCase());
+                    let mult = 1.0;
+                    for (const s of states) {
+                      if (s.includes('à rénover') || s.includes('a rénover') || s.includes('rénover')) mult = Math.max(mult, 1.5);
+                      else if (s.includes('moyen')) mult = Math.max(mult, 1.25);
+                    }
+                    const maintenanceAdj = maintenanceRaw * mult;
+                    const fixedWeekly = (taxes + insurance + maintenanceAdj) / 52;
                     acc.weeklyRent += weeklyRent;
                     acc.weeklyDebt += weeklyPay;
                     acc.weeklyFixed += fixedWeekly;
@@ -532,7 +578,17 @@ export default function ImmobilierPage() {
                       const value = Number(h.currentValue ?? 0) || 0;
                       const weeklyRent = Number(h.currentRent ?? 0) || 0;
                       const weeklyDebt = Number(h.weeklyPayment ?? 0) || 0;
-                      const weeklyFixed = ((Number(h.template?.taxes ?? 0) + Number(h.template?.insurance ?? 0) + Number(h.template?.maintenance ?? 0)) / 52) || 0;
+                      const taxes = Number(h.template?.taxes ?? 0) || 0;
+                      const insurance = Number(h.template?.insurance ?? 0) || 0;
+                      const maintenanceRaw = Number(h.template?.maintenance ?? 0) || 0;
+                      const states = [h.template?.plumbingState, h.template?.electricityState, h.template?.roofState].map((s: any) => String(s || '').toLowerCase());
+                      let mult = 1.0;
+                      for (const s of states) {
+                        if (s.includes('à rénover') || s.includes('a rénover') || s.includes('rénover')) mult = Math.max(mult, 1.5);
+                        else if (s.includes('moyen')) mult = Math.max(mult, 1.25);
+                      }
+                      const maintenanceAdj = maintenanceRaw * mult;
+                      const weeklyFixed = ((taxes + insurance + maintenanceAdj) / 52) || 0;
                       const netWeekly = weeklyRent - weeklyFixed - weeklyDebt;
                       const pct = (w: number) => (value > 0 ? (netWeekly * w) / value : 0);
                       const g1d = pct(1 / 7);
@@ -605,6 +661,18 @@ export default function ImmobilierPage() {
                         className="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-sm"
                       >
                         {refiOpenId === h.id ? "Annuler" : "Réhypothéquer"}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setExpandedBilanId((v) => v === h.id ? "" : h.id);
+                          if (expandedBilanId !== h.id && !holdingBilans[h.id]) {
+                            await loadHoldingBilan(h.id);
+                          }
+                        }}
+                        className="ml-2 px-3 py-1.5 rounded bg-neutral-700 hover:bg-neutral-600 text-sm"
+                        title="Voir le bilan détaillé et cumulé"
+                      >
+                        {expandedBilanId === h.id ? "Masquer bilan" : "Voir bilan détaillé"}
                       </button>
                       <button
                         onClick={async () => {
@@ -744,6 +812,93 @@ export default function ImmobilierPage() {
                         })()}
                       </div>
                     )}
+                    {/* Bilan détaillé cumulé */}
+                    {expandedBilanId === h.id && (
+                      <div className="mt-3 rounded border border-neutral-800 bg-neutral-950 p-3">
+                        {loadingBilan[h.id] && (
+                          <p className="text-xs text-neutral-400">Chargement du bilan…</p>
+                        )}
+                        {!loadingBilan[h.id] && (
+                          (() => {
+                            const b = holdingBilans[h.id] ?? {};
+                            const num = (v: any) => Number(v ?? 0) || 0;
+                            const purchasePrice = num(b.purchasePrice ?? h.purchasePrice);
+                            const downPayment = num(b.downPayment);
+                            const initialMortgageDebt = num(b.initialMortgageDebt);
+                            const accumulatedRent = num(b.accumulatedRent);
+                            const accumulatedInterest = num(b.accumulatedInterest);
+                            const accumulatedTaxes = num(b.accumulatedTaxes);
+                            const accumulatedInsurance = num(b.accumulatedInsurance);
+                            const accumulatedMaintenance = num(b.accumulatedMaintenance);
+                            const accumulatedNetCashflow = num(b.accumulatedNetCashflow);
+                            const nowDebt = num(h.mortgageDebt);
+                            return (
+                              <div className="text-xs text-neutral-300 space-y-2">
+                                <div className="grid sm:grid-cols-2 gap-2">
+                                  <div>
+                                    <div className="text-neutral-400">Prix d'achat</div>
+                                    <div className="font-medium">{formatMoney(Math.round(purchasePrice))}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-neutral-400">Mise de fonds</div>
+                                    <div className="font-medium">{formatMoney(Math.round(downPayment))}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-neutral-400">Dette initiale</div>
+                                    <div className="font-medium">{formatMoney(Math.round(initialMortgageDebt))}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-neutral-400">Dette actuelle</div>
+                                    <div className="font-medium">{formatMoney(Math.round(nowDebt))}</div>
+                                  </div>
+                                </div>
+                                <div className="grid sm:grid-cols-3 gap-2">
+                                  <div>
+                                    <div className="text-neutral-400">Loyers cumulés</div>
+                                    <div className="font-medium">{formatMoney(Math.round(accumulatedRent))}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-neutral-400">Intérêts payés</div>
+                                    <div className="font-medium">{formatMoney(Math.round(accumulatedInterest))}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-neutral-400">Cashflow net cumulé</div>
+                                    <div className={accumulatedNetCashflow >= 0 ? 'font-medium text-emerald-400' : 'font-medium text-rose-400'}>
+                                      {formatMoney(Math.round(accumulatedNetCashflow))}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-neutral-400">Taxes cumulées</div>
+                                    <div className="font-medium">{formatMoney(Math.round(accumulatedTaxes))}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-neutral-400">Assurance cumulée</div>
+                                    <div className="font-medium">{formatMoney(Math.round(accumulatedInsurance))}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-neutral-400">Entretien cumulé</div>
+                                    <div className="font-medium">{formatMoney(Math.round(accumulatedMaintenance))}</div>
+                                  </div>
+                                </div>
+                                {Array.isArray(h.refinanceLogs) && h.refinanceLogs.length > 0 && (
+                                  <div className="pt-2">
+                                    <div className="text-neutral-400 mb-1">Réhypothèques</div>
+                                    <ul className="space-y-1">
+                                      {h.refinanceLogs.map((r: any) => (
+                                        <li key={r.id} className="flex items-center justify-between text-neutral-300">
+                                          <span>{new Date(r.at).toLocaleString()}</span>
+                                          <span>+{formatMoney(Math.round(Number(r.amount || 0)))} à {(Number(r.rate) * 100).toFixed(2)}%</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()
+                        )}
+                      </div>
+                    )}
                   </article>
                 ))}
               </div>
@@ -814,12 +969,16 @@ export default function ImmobilierPage() {
               className="border border-neutral-800 rounded-lg bg-neutral-900 overflow-hidden"
             >
               <div className="aspect-video w-full bg-neutral-800 flex items-center justify-center text-neutral-500">
-                {tpl.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={tpl.imageUrl} alt={tpl.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xs">Pas de photo</span>
-                )}
+                {(() => {
+                  const k = kindOf(tpl.units);
+                  // Masquer l'image pour les gratte-ciel, afficher pour les autres (dont village futuriste)
+                  if (k === 'GRATTE_CIEL') return <span className="text-xs">Pas de photo</span>;
+                  if (tpl.imageUrl) return (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={tpl.imageUrl} alt={tpl.name} className="w-full h-full object-cover" />
+                  );
+                  return <span className="text-xs">Pas de photo</span>;
+                })()}
               </div>
               <div className="p-4 space-y-2">
               <div className="flex items-center justify-between">
@@ -828,7 +987,13 @@ export default function ImmobilierPage() {
                   <span className="text-xs px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700">
                     {(() => {
                       const k = kindOf(tpl.units);
-                      return k === 'GRATTE_CIEL' ? 'Gratte‑ciel' : k === 'TOUR' ? 'Tour' : k === 'SIXPLEX' ? '6‑plex' : k === 'TRIPLEX' ? 'Triplex' : k === 'DUPLEX' ? 'Duplex' : 'Maison';
+                      return k === 'VILLAGE_FUTURISTE' ? 'Village futuriste'
+                        : k === 'GRATTE_CIEL' ? 'Gratte‑ciel'
+                        : k === 'TOUR' ? 'Tour'
+                        : k === 'SIXPLEX' ? '6‑plex'
+                        : k === 'TRIPLEX' ? 'Triplex'
+                        : k === 'DUPLEX' ? 'Duplex'
+                        : 'Maison';
                     })()}
                   </span>
                   <span className="text-sm text-neutral-400">{tpl.city}</span>
@@ -836,9 +1001,12 @@ export default function ImmobilierPage() {
               </div>
               <p className="text-sm text-neutral-300">Prix: {formatMoney(tpl.price)}</p>
               <p className="text-sm text-neutral-300">Loyer unitaire: {formatMoney(tpl.baseRent)} {tpl.units ? `× ${tpl.units} log.` : ''}</p>
-              {Number(tpl.units ?? 0) >= 400 && (
-                <p className="text-xs text-indigo-300">100 étages · Centre commercial intégré · Multiplicateur 14–16× revenus</p>
-              )}
+              {(() => {
+                const u = Number(tpl.units ?? 0);
+                if (u >= 800) return <p className="text-xs text-fuchsia-300">Village futuriste · Habitat autonome · Prix fixe stratégique</p>;
+                if (u >= 400) return <p className="text-xs text-indigo-300">100 étages · Centre commercial intégré · Multiplicateur 14–16× revenus</p>;
+                return null;
+              })()}
               <p className="text-xs text-neutral-500">Charges: taxes {formatMoney(tpl.taxes)}/an, assurance {formatMoney(tpl.insurance)}/an, entretien {formatMoney(tpl.maintenance)}/an</p>
               <p className="text-xs text-neutral-500">État — Plomberie: {tpl.plumbingState ?? 'n/a'}, Électricité: {tpl.electricityState ?? 'n/a'}, Toiture: {tpl.roofState ?? 'n/a'}</p>
               {tpl.description && (
@@ -981,17 +1149,31 @@ function TemplatePreview({
   economy: { baseMortgageRate: number; appreciationAnnual: number; schedule: number[] } | null;
 }) {
   const [showTplProjection, setShowTplProjection] = useState(false);
-  const [vacancyRate, setVacancyRate] = useState<number>(0.05); // 5% par défaut
-  const [reservePerUnitMonthly, setReservePerUnitMonthly] = useState<number>(50); // 50$/logement/mois par défaut
+  // Vacance fixée par le jeu (5%) — non modifiable par le joueur
+  const vacancyRate = 0.05;
+  // Les réserves d'entretien sont calculées automatiquement à partir du champ `maintenance` du template
 
   const units = Math.max(1, Number(tpl.units ?? 1));
   const rentMonthlyGross = Number(tpl.baseRent ?? 0) * units;
   const vacancyMonthly = rentMonthlyGross * vacancyRate;
   const rentMonthly = Math.max(0, rentMonthlyGross - vacancyMonthly);
-  const expensesAnnual = Number(tpl.taxes ?? 0) + Number(tpl.insurance ?? 0) + Number(tpl.maintenance ?? 0);
+  // Maintenance ajustée selon l'état du bâtiment (plomberie/électricité/toiture)
+  const maintenanceRaw = Number(tpl.maintenance ?? 0);
+  const stateMultiplier = (() => {
+    const states = [tpl.plumbingState, tpl.electricityState, tpl.roofState].map(s => String(s || '').toLowerCase());
+    // Base multipliers: bon=1.0, moyen=1.25, à rénover=1.5
+    let mult = 1.0;
+    for (const s of states) {
+      if (s.includes('à rénover') || s.includes('a rénover') || s.includes('rénover')) mult = Math.max(mult, 1.5);
+      else if (s.includes('moyen')) mult = Math.max(mult, 1.25);
+    }
+    return mult;
+  })();
+  const maintenanceAnnualAdjusted = maintenanceRaw * stateMultiplier;
+  const expensesAnnual = Number(tpl.taxes ?? 0) + Number(tpl.insurance ?? 0) + maintenanceAnnualAdjusted;
   const expensesMonthly = expensesAnnual / 12;
-  const reservesMonthly = Math.max(0, reservePerUnitMonthly * units);
-  const reservesAnnual = reservesMonthly * 12;
+  const reservesMonthly = 0; // géré par le jeu via maintenanceAnnualAdjusted
+  const reservesAnnual = 0;
   const noiAnnual = Math.max(0, rentMonthly * 12 - expensesAnnual - reservesAnnual);
   const capRate = tpl.price ? noiAnnual / tpl.price : 0;
 
@@ -1031,28 +1213,14 @@ function TemplatePreview({
     <div className="mt-3 border-t border-neutral-800 pt-3 space-y-2">
       <h5 className="font-semibold text-sm">Bilan</h5>
       <div className="grid md:grid-cols-3 gap-3 text-xs text-neutral-300">
-        <label className="flex flex-col gap-1">
-          Vacance locative (%)
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={Math.round(vacancyRate * 100)}
-            onChange={(e) => setVacancyRate(Math.max(0, Math.min(1, Number(e.target.value) / 100)))}
-            className="px-2 py-1 rounded bg-neutral-900 border border-neutral-700"
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          Réserves entretien ($/logement/mois)
-          <input
-            type="number"
-            min={0}
-            step={5}
-            value={reservePerUnitMonthly}
-            onChange={(e) => setReservePerUnitMonthly(Math.max(0, Number(e.target.value)))}
-            className="px-2 py-1 rounded bg-neutral-900 border border-neutral-700"
-          />
-        </label>
+        <div className="flex flex-col gap-1">
+          <span>Vacance locative (définie par le jeu)</span>
+          <span className="text-neutral-400">{Math.round(vacancyRate * 100)}%</span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <span>Entretien (ajusté selon l'état)</span>
+          <span className="text-neutral-400">{formatMoney(Math.round(maintenanceAnnualAdjusted))}/an · ×{stateMultiplier.toFixed(2)}</span>
+        </div>
         {economy && (
           <div className="flex flex-col gap-1">
             <span>Indexation (réf.)</span>
@@ -1065,7 +1233,7 @@ function TemplatePreview({
         <li>Loyer brut: {formatMoney(Math.round(rentMonthlyGross))}/mois — Vacance: {Math.round(vacancyRate * 100)}%</li>
         <li>Loyer effectif: {formatMoney(Math.round(rentMonthly))}/mois</li>
         <li>Charges: {formatMoney(Math.round(expensesMonthly))}/mois ({formatMoney(Math.round(expensesAnnual))}/an)</li>
-        <li>Réserves: {formatMoney(Math.round(reservesMonthly))}/mois ({formatMoney(Math.round(reservesAnnual))}/an)</li>
+  {/* Réserves gérées par le jeu via maintenance ajustée */}
         <li>NOI: {formatMoney(Math.round(noiAnnual))}/an · Cap rate: {(capRate * 100).toFixed(2)}%</li>
         <li>Mise de fonds: {formatMoney(Math.round(downPayment))} ({Math.round(downPaymentPercent * 100)}%)</li>
         <li>Hypothèque: {formatMoney(Math.round(loan))} — Paiement: {formatMoney(Math.round(monthlyPayment))}/mois</li>

@@ -28,8 +28,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <a href="/">Dashboard</a>
                 <a href="/immobilier">Immobilier</a>
                 <a href="/bourse">Bourse</a>
-                <a href="/listings">Annonces</a>
-                <a href="/summary">Résumé</a>
+                <a href="/portefeuille">Portefeuille</a>
                 <a href="/pari">Pari</a>
               </nav>
               <UserBadge />

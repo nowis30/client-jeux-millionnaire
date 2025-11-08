@@ -1,10 +1,11 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import { apiFetch, API_BASE } from "../../lib/api";
+import { apiFetch, API_BASE, ApiError } from "../../lib/api";
 import { formatMoney, monthlyFromWeekly } from "../../lib/format";
 
 type Template = {
+  id?: string;
   name?: string;
   price: number;
   baseRent?: number;
@@ -13,6 +14,10 @@ type Template = {
   maintenance?: number;
   units?: number | null;
   city?: string | null;
+  imageUrl?: string | null;
+  plumbingState?: string | null;
+  electricityState?: string | null;
+  roofState?: string | null;
 };
 
 type Holding = {
@@ -39,6 +44,14 @@ type Listing = {
   template?: Template | null;
 };
 
+type Economy = {
+  baseMortgageRate: number;
+  appreciationAnnual: number;
+  inflationAnnual?: number;
+  inflationIndex?: number;
+  schedule?: number[];
+};
+
 export default function ListingsPage() {
   const [gameId, setGameId] = useState("");
   const [playerId, setPlayerId] = useState("");
@@ -49,6 +62,32 @@ export default function ListingsPage() {
   const [price, setPrice] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [tease, setTease] = useState<string | null>(null); // Toast taquin persistant 5s
+  const [economy, setEconomy] = useState<Economy | null>(null);
+  useEffect(() => {
+    if (!tease) return;
+    const id = setTimeout(() => setTease(null), 5000);
+    return () => clearTimeout(id);
+  }, [tease]);
+
+  async function revealOwnerFallback(gameId: string | null | undefined, templateId: string | null | undefined): Promise<boolean> {
+    if (!gameId || !templateId) return false;
+    try {
+      const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/owner/${templateId}`);
+      if (!res.ok) return false;
+      const data = await res.json();
+      const owner = data?.ownerNickname ? String(data.ownerNickname).trim() : "";
+      if (owner) {
+        setTease(`😜 Haha ${owner} a déjà acheté !`);
+      } else {
+        setTease(`😜 Haha c'est déjà acheté !`);
+      }
+      return true;
+    } catch {
+      setTease(`😜 Haha c'est déjà acheté !`);
+      return true;
+    }
+  }
 
   // Résoudre automatiquement la partie globale puis mon joueur
   useEffect(() => {
@@ -111,6 +150,20 @@ export default function ListingsPage() {
     return () => clearInterval(timer);
   }, [gameId, refreshHoldings, refreshListings]);
 
+  // Charger économie (inflation)
+  useEffect(() => {
+    (async () => {
+      if (!gameId) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/games/${gameId}/economy`);
+        if (res.ok) {
+          const data = await res.json();
+          setEconomy(data);
+        }
+      } catch {}
+    })();
+  }, [gameId]);
+
   // Socket.IO: rafraîchir en live sur events listings
   useEffect(() => {
     if (!gameId) return;
@@ -127,8 +180,20 @@ export default function ListingsPage() {
     return () => { socket.disconnect(); };
   }, [gameId, refreshListings, refreshHoldings]);
 
-  const myListings = useMemo(() => listings.filter(l => l.sellerId === playerId), [listings, playerId]);
-  const othersListings = useMemo(() => listings.filter(l => l.sellerId !== playerId), [listings, playerId]);
+  const myListings = useMemo<Listing[]>(() => listings.filter((l: Listing) => l.sellerId === playerId), [listings, playerId]);
+  const othersListings = useMemo<Listing[]>(() => listings.filter((l: Listing) => l.sellerId !== playerId), [listings, playerId]);
+
+  // Déduction du type (mêmes seuils que page Immobilier)
+  const kindOf = (u?: number | null) => {
+    const units = Number(u || 1);
+    if (units >= 800) return "VILLAGE_FUTURISTE" as const;
+    if (units >= 400) return "GRATTE_CIEL" as const;
+    if (units >= 50) return "TOUR" as const;
+    if (units === 6) return "SIXPLEX" as const;
+    if (units === 3) return "TRIPLEX" as const;
+    if (units === 2) return "DUPLEX" as const;
+    return "MAISON" as const;
+  };
 
   const handleCreateListing = useCallback(async () => {
     if (!gameId || !playerId || !selectedHoldingId || price <= 0) {
@@ -172,6 +237,8 @@ export default function ListingsPage() {
 
   const handleAccept = useCallback(async (id: string) => {
     if (!gameId || !playerId) return;
+  const listing = listings.find((l: Listing) => l.id === id);
+    const templateId = listing?.templateId || listing?.holding?.templateId || listing?.holding?.template?.id || listing?.template?.id;
     try {
       await apiFetch(`/api/games/${gameId}/listings/${id}/accept`, {
         method: "POST",
@@ -180,13 +247,32 @@ export default function ListingsPage() {
       });
       setMessage("Achat effectué via annonce");
       setError(null);
+      setTease(null);
       refreshListings();
       refreshHoldings();
     } catch (err) {
       setMessage(null);
-      setError(err instanceof Error ? err.message : "Échec d'achat");
+      const status = err instanceof ApiError ? err.status : undefined;
+      const msg = err instanceof Error ? err.message : "Échec d'achat";
+      setError(msg);
+      let handled = false;
+      try {
+        // Extraction pseudo vendeur si message contient patron vendu/acheté à <pseudo>
+        const re = /(vendu|achete|acheté)[\s\S]*?à\s+['"]?([^'"\n]+)['"]?/i;
+        const m = msg.match(re);
+        if (m && m[2]) {
+          const owner = m[2].trim();
+          setTease(`😜 Haha ${owner} a déjà vendu !`);
+          handled = true;
+        } else if (/déjà/i.test(msg) && /(vendu|achete|acheté)/i.test(msg)) {
+          handled = await revealOwnerFallback(gameId, templateId);
+        }
+      } catch { /* noop */ }
+      if (!handled && status === 400 && gameId && templateId) {
+        await revealOwnerFallback(gameId, templateId);
+      }
     }
-  }, [gameId, playerId, refreshListings, refreshHoldings]);
+  }, [gameId, playerId, listings, refreshListings, refreshHoldings]);
 
   return (
     <main className="space-y-6">
@@ -194,6 +280,9 @@ export default function ListingsPage() {
         <h2 className="text-xl font-semibold">Annonces P2P</h2>
         <p className="text-sm text-neutral-400">Publiez vos biens ou achetez ceux des autres joueurs.</p>
         {nickname && <p className="text-xs text-neutral-400 mt-1">Connecté en tant que <span className="font-medium">{nickname}</span></p>}
+        {economy && (
+          <p className="text-xs text-neutral-500 mt-1">Inflation: {(Number(economy.inflationAnnual||0)*100).toFixed(2)}%/an · Indice cumulé {(Number(economy.inflationIndex||1)).toFixed(4)}×</p>
+        )}
       </section>
 
       <section className="space-y-2">
@@ -221,13 +310,30 @@ export default function ListingsPage() {
             const t = h?.template ?? l.template ?? null;
             const units = t?.units || 1;
             const rentMonthly = (h?.currentRent ?? t?.baseRent ?? 0) * Number(units || 1);
-            const annualExpenses = (t?.taxes ?? 0) + (t?.insurance ?? 0) + (t?.maintenance ?? 0);
+            const maintenanceRaw = Number(t?.maintenance ?? 0) || 0;
+            const states = [t?.plumbingState, t?.electricityState, t?.roofState].map((s: any) => String(s || '').toLowerCase());
+            let mult = 1.0;
+            for (const s of states) {
+              if (s.includes('à rénover') || s.includes('a rénover') || s.includes('rénover')) mult = Math.max(mult, 1.5);
+              else if (s.includes('moyen')) mult = Math.max(mult, 1.25);
+            }
+            const maintenanceAdj = maintenanceRaw * mult;
+            const annualExpenses = (t?.taxes ?? 0) + (t?.insurance ?? 0) + maintenanceAdj;
             const mortgageMonthly = monthlyFromWeekly(h?.weeklyPayment ?? 0);
             const expensesMonthly = annualExpenses / 12;
             const cashflowMonthly = rentMonthly - expensesMonthly - mortgageMonthly;
             const equity = (h?.currentValue ?? t?.price ?? 0) - (h?.mortgageDebt ?? 0);
+            const k = kindOf(t?.units);
             return (
               <article key={l.id} className="border border-neutral-800 rounded bg-neutral-900 p-3 grid gap-2">
+                <div className="aspect-video w-full bg-neutral-800 flex items-center justify-center text-neutral-500 rounded">
+                  {(() => {
+                    if (k === 'GRATTE_CIEL') return <span className="text-[10px]">Pas de photo</span>;
+                    const img = t?.imageUrl;
+                    if (img) return <img src={String(img)} alt={t?.name || 'Immeuble'} className="w-full h-full object-cover" />;
+                    return <span className="text-[10px]">Pas de photo</span>;
+                  })()}
+                </div>
                 <div className="flex items-center justify-between">
                   <div className="text-sm">
                     <div>Prix: {formatMoney(l.price)}</div>
@@ -258,13 +364,30 @@ export default function ListingsPage() {
             const t = h?.template ?? l.template ?? null;
             const units = t?.units || 1;
             const rentMonthly = (h?.currentRent ?? t?.baseRent ?? 0) * Number(units || 1);
-            const annualExpenses = (t?.taxes ?? 0) + (t?.insurance ?? 0) + (t?.maintenance ?? 0);
+            const maintenanceRaw = Number(t?.maintenance ?? 0) || 0;
+            const states = [t?.plumbingState, t?.electricityState, t?.roofState].map((s: any) => String(s || '').toLowerCase());
+            let mult = 1.0;
+            for (const s of states) {
+              if (s.includes('à rénover') || s.includes('a rénover') || s.includes('rénover')) mult = Math.max(mult, 1.5);
+              else if (s.includes('moyen')) mult = Math.max(mult, 1.25);
+            }
+            const maintenanceAdj = maintenanceRaw * mult;
+            const annualExpenses = (t?.taxes ?? 0) + (t?.insurance ?? 0) + maintenanceAdj;
             const mortgageMonthly = monthlyFromWeekly(h?.weeklyPayment ?? 0);
             const expensesMonthly = annualExpenses / 12;
             const cashflowMonthly = rentMonthly - expensesMonthly - mortgageMonthly;
             const equity = (h?.currentValue ?? t?.price ?? 0) - (h?.mortgageDebt ?? 0);
+            const k = kindOf(t?.units);
             return (
               <article key={l.id} className="border border-neutral-800 rounded bg-neutral-900 p-3 grid gap-2">
+                <div className="aspect-video w-full bg-neutral-800 flex items-center justify-center text-neutral-500 rounded">
+                  {(() => {
+                    if (k === 'GRATTE_CIEL') return <span className="text-[10px]">Pas de photo</span>;
+                    const img = t?.imageUrl;
+                    if (img) return <img src={String(img)} alt={t?.name || 'Immeuble'} className="w-full h-full object-cover" />;
+                    return <span className="text-[10px]">Pas de photo</span>;
+                  })()}
+                </div>
                 <div className="flex items-center justify-between">
                   <div className="text-sm">
                     <div>Prix: {formatMoney(l.price)} {t?.city ? <span className="text-xs text-neutral-400">— {t.city}</span> : null}</div>
@@ -288,6 +411,11 @@ export default function ListingsPage() {
 
       {message && <p className="text-sm text-emerald-400">{message}</p>}
       {error && <p className="text-sm text-red-400">{error}</p>}
+      {tease && (
+        <div className="fixed top-4 right-4 z-50 bg-neutral-900 border border-amber-500/60 text-amber-200 px-4 py-2 rounded shadow-lg animate-fade-in">
+          {tease}
+        </div>
+      )}
     </main>
   );
 }

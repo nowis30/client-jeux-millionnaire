@@ -361,6 +361,10 @@ export default function ImmobilierPage() {
           mortgageYears,
         }),
       });
+      // Auto-maintien de la banque pour recompléter les types manquants (inclut 100 log.)
+      try {
+        await apiFetch(`/api/games/${gameId}/properties/maintain-bank`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      } catch {}
       setMessage(`Immeuble acheté!`);
       setError(null);
   setTease(null);
@@ -415,7 +419,7 @@ export default function ImmobilierPage() {
             { k: "DUPLEX", label: "Duplex" },
             { k: "TRIPLEX", label: "Triplex" },
             { k: "SIXPLEX", label: "6‑plex" },
-            { k: "TOUR", label: "Tours (50 log.)" },
+            { k: "TOUR", label: "Tours (50/100 log.)" },
             { k: "GRATTE_CIEL", label: "Gratte‑ciel (400 log.)" },
             { k: "VILLAGE_FUTURISTE", label: "Village futuriste" },
           ] as const).map(({ k, label }) => (
@@ -426,6 +430,11 @@ export default function ImmobilierPage() {
             >{label}</button>
           ))}
         </div>
+        {templates.some(t => Number(t.units||0) === 100) && (
+          <div className="mt-2 p-2 rounded border border-indigo-600/40 bg-indigo-600/10 text-[12px] text-indigo-200">
+            Nouveau: des tours de 100 logements sont maintenant disponibles (GRM ~13–15×).
+          </div>
+        )}
         {(nickname || cash != null) && (
           <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-300">
             {nickname && (

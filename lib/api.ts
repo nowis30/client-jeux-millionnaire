@@ -64,6 +64,27 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
     ...init,
     headers,
   });
+  // Si 401 et on a un bearer local, tenter un refresh côté serveur puis rejouer 1x
+  if (res.status === 401) {
+    try {
+      if (bearer) {
+        // tenter un refresh silencieux
+        const r = await fetch(`${API_BASE}/api/auth/refresh`, { credentials: "include", headers: { Authorization: `Bearer ${bearer}` } });
+        if (r.ok) {
+          const data = await r.json().catch(() => ({} as any));
+          if (data?.token) {
+            try { window.localStorage.setItem(TOKEN_KEY, data.token); } catch {}
+            headers["Authorization"] = `Bearer ${data.token}`;
+          }
+          // rejouer la requête originale une seule fois
+          const retry = await fetch(`${API_BASE}${path}`, { credentials: "include", ...init, headers });
+          if (!retry.ok) throw new ApiError(retry.status, retry.statusText);
+          if (retry.status === 204) return undefined as unknown as T;
+          return (await retry.json()) as T;
+        }
+      }
+    } catch {}
+  }
   if (!res.ok) {
     // Essayer d'extraire le message d'erreur renvoyé par le serveur (JSON ou texte)
     try {

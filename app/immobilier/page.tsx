@@ -247,6 +247,30 @@ export default function ImmobilierPage() {
     }
   }, [loadTemplates, gameId]);
 
+  const handleRefillSixplex10 = useCallback(async () => {
+    try {
+      await apiFetch(`/api/properties/refill/sixplex10`, { method: 'POST' });
+      await loadTemplates();
+      setMessage("Six-plex complétés à 10.");
+      setError(null);
+    } catch (err) {
+      setMessage(null);
+      setError(err instanceof Error ? err.message : "Échec du refill six-plex");
+    }
+  }, [loadTemplates]);
+
+  const handleRefillTower50x10 = useCallback(async () => {
+    try {
+      await apiFetch(`/api/properties/refill/tower50x10`, { method: 'POST' });
+      await loadTemplates();
+      setMessage("Tours 50 log. complétées à 10.");
+      setError(null);
+    } catch (err) {
+      setMessage(null);
+      setError(err instanceof Error ? err.message : "Échec du refill tours 50 log");
+    }
+  }, [loadTemplates]);
+
   
 
   useEffect(() => {
@@ -532,6 +556,12 @@ export default function ImmobilierPage() {
   <button onClick={handleReplenish} className="px-4 py-2 rounded bg-indigo-700 hover:bg-indigo-600">Remplir la banque (≥50)</button>
   <button onClick={handleBackfillRentByUnits} className="px-4 py-2 rounded bg-amber-700 hover:bg-amber-600" title="Corrige les loyers des immeubles existants en les multipliant par le nombre d'unités">
     Corriger loyers (× unités)
+  </button>
+  <button onClick={handleRefillSixplex10} className="px-4 py-2 rounded bg-teal-700 hover:bg-teal-600" title="Ajoute des 6‑plex jusqu'à en avoir 10 disponibles">
+    6‑plex → 10
+  </button>
+  <button onClick={handleRefillTower50x10} className="px-4 py-2 rounded bg-cyan-700 hover:bg-cyan-600" title="Ajoute des tours de 50 logements jusqu'à en avoir 10 disponibles">
+    Tours 50 log. → 10
   </button>
         <button
           onClick={async () => { setShowHoldings((v) => !v); if (!showHoldings) { await Promise.all([loadHoldings(), loadEconomy()]); } }}

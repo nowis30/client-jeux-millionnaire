@@ -70,6 +70,8 @@ export default function ImmobilierPage() {
   const [expandedTemplateId, setExpandedTemplateId] = useState<string>("");
   const [mortgageRate, setMortgageRate] = useState(0.05);
   const [downPaymentPercent, setDownPaymentPercent] = useState(0.2);
+  // Saisie utilisateur pour la mise de fonds en pourcentage (permet les états temporaires comme "" sans forcer 20)
+  const [downPaymentStr, setDownPaymentStr] = useState<string>("20");
   const [mortgageYears, setMortgageYears] = useState<number>(25);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +107,14 @@ export default function ImmobilierPage() {
       } catch {}
     })();
   }, []);
+
+  // Garder la string alignée avec le pourcentage si jamais celui-ci change ailleurs
+  useEffect(() => {
+    const pct = Math.round((downPaymentPercent || 0) * 100);
+    // Éviter les boucles si déjà égal
+    if (String(pct) !== downPaymentStr) setDownPaymentStr(String(pct));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [downPaymentPercent]);
 
   // --- Helpers projection 10 ans ---
   const formatCurrency = (n: number) => {
@@ -222,6 +232,8 @@ export default function ImmobilierPage() {
     }
   }, [loadTemplates, gameId]);
 
+  
+
   useEffect(() => {
     loadTemplates();
   }, [loadTemplates]);
@@ -292,6 +304,21 @@ export default function ImmobilierPage() {
   useEffect(() => {
     (async () => { if (gameId) await loadEconomy(); })();
   }, [gameId, loadEconomy]);
+
+  // Admin: backfill des loyers existants pour qu'ils soient multipliés par le nombre d'unités
+  const handleBackfillRentByUnits = useCallback(async () => {
+    if (!gameId) return;
+    try {
+      await apiFetch(`/api/games/${gameId}/properties/backfill-rent-by-units`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      setMessage('Correction des loyers effectuée (× unités).');
+      setError(null);
+      // Rafraîchir parc et soldes
+      await Promise.all([loadHoldings(), loadPlayer()]);
+    } catch (err) {
+      setMessage(null);
+      setError(err instanceof Error ? err.message : "Échec de la correction des loyers");
+    }
+  }, [gameId, loadHoldings, loadPlayer]);
 
   const handlePurchase = useCallback(async () => {
     if (!gameId || !playerId || !selectedTemplate) {
@@ -418,10 +445,25 @@ export default function ImmobilierPage() {
               type="number"
               min={20}
               max={100}
-              value={Math.round(downPaymentPercent * 100)}
+              value={downPaymentStr}
               onChange={(e) => {
-                const v = Math.max(20, Math.min(100, Number(e.target.value)));
-                setDownPaymentPercent(v / 100);
+                // Autoriser la saisie libre (y compris vide) sans recoller à 20 immédiatement
+                const raw = e.target.value;
+                setDownPaymentStr(raw);
+                const numeric = Number(raw.replace(',', '.'));
+                if (Number.isFinite(numeric)) {
+                  // Mettre à jour en live si dans la plage 20..100
+                  if (numeric >= 20 && numeric <= 100) {
+                    setDownPaymentPercent(numeric / 100);
+                  }
+                }
+              }}
+              onBlur={() => {
+                // À la sortie du champ, normaliser dans [20,100]
+                const numeric = Number(String(downPaymentStr).replace(',', '.'));
+                const clamped = Math.max(20, Math.min(100, Number.isFinite(numeric) ? numeric : 20));
+                setDownPaymentPercent(clamped / 100);
+                setDownPaymentStr(String(Math.round(clamped)));
               }}
               className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm"
             />
@@ -455,6 +497,9 @@ export default function ImmobilierPage() {
         <button onClick={handlePurchase} className="px-4 py-2 rounded bg-sky-600 hover:bg-sky-500">Acheter</button>
   <button onClick={loadTemplates} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Actualiser les immeubles</button>
   <button onClick={handleReplenish} className="px-4 py-2 rounded bg-indigo-700 hover:bg-indigo-600">Remplir la banque (≥50)</button>
+  <button onClick={handleBackfillRentByUnits} className="px-4 py-2 rounded bg-amber-700 hover:bg-amber-600" title="Corrige les loyers des immeubles existants en les multipliant par le nombre d'unités">
+    Corriger loyers (× unités)
+  </button>
         <button
           onClick={async () => { setShowHoldings((v) => !v); if (!showHoldings) { await Promise.all([loadHoldings(), loadEconomy()]); } }}
           className="px-4 py-2 rounded bg-emerald-700 hover:bg-emerald-600"

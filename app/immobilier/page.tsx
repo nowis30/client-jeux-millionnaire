@@ -271,6 +271,47 @@ export default function ImmobilierPage() {
     }
   }, [loadTemplates]);
 
+  const handleRefillTower100x5 = useCallback(async () => {
+    try {
+      await apiFetch(`/api/properties/refill/tower100x5`, { method: 'POST' });
+      await loadTemplates();
+      setMessage("Tours 100 log. complétées à 5.");
+      setError(null);
+    } catch (err) {
+      setMessage(null);
+      setError(err instanceof Error ? err.message : "Échec du refill tours 100 log");
+    }
+  }, [loadTemplates]);
+
+  const handlePlus10 = useCallback(async (units: number) => {
+    try {
+      await apiFetch(`/api/properties/refill/units/${units}/plus10`, { method: 'POST' });
+      await loadTemplates();
+      setMessage(`Stock ${units} unités augmenté de +10.`);
+      setError(null);
+    } catch (err) {
+      setMessage(null);
+      setError(err instanceof Error ? err.message : `Échec +10 (${units}u)`);
+    }
+  }, [loadTemplates]);
+
+  // Diagnostic CORS / online players
+  const [onlineDiag, setOnlineDiag] = useState<{online: number; users: any[]} | null>(null);
+  const [onlineErr, setOnlineErr] = useState<string | null>(null);
+  const runOnlineDiagnostic = useCallback(async () => {
+    if (!gameId) return;
+    try {
+      setOnlineErr(null);
+      const res = await fetch(`${API_BASE}/api/games/${gameId}/online`, { mode: 'cors' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setOnlineDiag({ online: data.online ?? 0, users: Array.isArray(data.users) ? data.users : [] });
+    } catch (e: any) {
+      setOnlineDiag(null);
+      setOnlineErr(e.message || 'Erreur CORS');
+    }
+  }, [gameId]);
+
   
 
   useEffect(() => {
@@ -563,6 +604,21 @@ export default function ImmobilierPage() {
   <button onClick={handleRefillTower50x10} className="px-4 py-2 rounded bg-cyan-700 hover:bg-cyan-600" title="Ajoute des tours de 50 logements jusqu'à en avoir 10 disponibles">
     Tours 50 log. → 10
   </button>
+  <button onClick={handleRefillTower100x5} className="px-4 py-2 rounded bg-fuchsia-700 hover:bg-fuchsia-600" title="Ajoute des tours de 100 logements jusqu'à en avoir 5 disponibles">
+    Tours 100 log. → 5
+  </button>
+  {/* Incrémental +10 */}
+  <div className="flex flex-wrap gap-2 mt-2">
+    <button onClick={() => handlePlus10(6)} className="px-3 py-1.5 rounded bg-teal-800 hover:bg-teal-700 text-xs" title="Ajoute +10 six‑plex au stock global">+10 six‑plex</button>
+    <button onClick={() => handlePlus10(50)} className="px-3 py-1.5 rounded bg-cyan-800 hover:bg-cyan-700 text-xs" title="Ajoute +10 tours 50 logements">+10 tours 50</button>
+    <button onClick={() => handlePlus10(100)} className="px-3 py-1.5 rounded bg-fuchsia-800 hover:bg-fuchsia-700 text-xs" title="Ajoute +10 tours 100 logements">+10 tours 100</button>
+    <button onClick={runOnlineDiagnostic} className="px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 text-xs" title="Diagnostic CORS / joueurs connectés">Diag online</button>
+  </div>
+  {(onlineDiag || onlineErr) && (
+    <p className="text-[11px] mt-1">
+      {onlineErr ? <span className="text-rose-400">Online: erreur {onlineErr}</span> : <span className="text-neutral-400">Online: {onlineDiag?.online} · Users: {onlineDiag?.users?.length}</span>}
+    </p>
+  )}
         <button
           onClick={async () => { setShowHoldings((v) => !v); if (!showHoldings) { await Promise.all([loadHoldings(), loadEconomy()]); } }}
           className="px-4 py-2 rounded bg-emerald-700 hover:bg-emerald-600"
@@ -824,8 +880,12 @@ export default function ImmobilierPage() {
                           const cappedNewDebt = Math.min(newDebt, maxDebt);
                           const cashOut = Math.max(0, cappedNewDebt - debt);
                               const currentRate = Number(h.mortgageRate ?? 0);
-                              const rateUnchanged = Math.abs((refiRate || currentRate) - currentRate) < 0.0005;
-                              const disabled = (available <= 0) || (cashOut <= 0 && rateUnchanged);
+                              // Considère comme "inchangé" uniquement si la différence est < 0.005% (5 bps),
+                              // afin qu'un pas d'entrée de 0.01% (1 bp) soit bien pris en compte.
+                              const rateUnchanged = Math.abs((refiRate || currentRate) - currentRate) < 0.00005;
+                              // Ancienne logique désactivait toujours si aucune marge (available<=0) même pour un simple changement de taux.
+                              // Nouvelle logique: autoriser un refinancement "taux seulement" même sans marge de cash-out.
+                              const disabled = (cashOut <= 0 && rateUnchanged);
                           return (
                             <>
                               <div className="text-xs text-neutral-300 flex flex-col gap-1">
@@ -895,7 +955,7 @@ export default function ImmobilierPage() {
                                     }
                                   }}
                                   disabled={disabled}
-                                  title={available <= 0 ? "Aucune marge disponible" : (cashOut <= 0 && rateUnchanged ? "Aucun changement (même taux et pas de cash-out)" : "")}
+                                  title={(cashOut <= 0 && rateUnchanged) ? "Aucun changement (même taux et pas de cash-out)" : (available <= 0 ? "Pas de marge de cash-out (80% LTV atteint) mais vous pouvez changer le taux" : "")}
                                   className={`px-3 py-1.5 rounded text-sm ${disabled ? 'bg-neutral-700 text-neutral-300 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500'}`}
                                 >
                                   Confirmer
@@ -1123,7 +1183,23 @@ export default function ImmobilierPage() {
       )}
 
       <section className="space-y-2">
-        <h3 className="text-lg font-semibold">Immeubles disponibles {templates.length ? <span className="text-sm text-neutral-400">({templates.length})</span> : null}</h3>
+        {(() => {
+          // Comptes par type (disponibles dans cette partie, donc templates[] déjà filtré par gameId)
+          const count = (u: number) => templates.filter(t => Number(t.units||0) === u).length;
+          const c6 = count(6);
+          const c50 = count(50);
+          const c100 = count(100);
+          return (
+            <div className="flex flex-wrap items-end gap-4">
+              <h3 className="text-lg font-semibold">Immeubles disponibles {templates.length ? <span className="text-sm text-neutral-400">({templates.length})</span> : null}</h3>
+              <div className="flex gap-3 text-xs text-neutral-400">
+                <span>6‑plex: <span className="text-neutral-200 font-medium">{c6}</span></span>
+                <span>Tours 50: <span className="text-neutral-200 font-medium">{c50}</span></span>
+                <span>Tours 100: <span className="text-neutral-200 font-medium">{c100}</span></span>
+              </div>
+            </div>
+          );
+        })()}
         <div className="grid gap-4 md:grid-cols-2">
           {filtered.map((tpl) => (
             <article

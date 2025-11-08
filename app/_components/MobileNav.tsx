@@ -9,6 +9,9 @@ const items = [
   { href: "/portefeuille", label: "Portefeuille" },
   { href: "/pari", label: "Pari" },
   { href: "/quiz", label: "Quiz" },
+  { href: "/tutoriel", label: "Tutoriel" },
+  { href: "/telecharger", label: "Télécharger" },
+  { href: "/contact", label: "Contact" },
 ];
 
 export default function MobileNav() {
@@ -16,8 +19,8 @@ export default function MobileNav() {
   // Masquer sur desktop
   return (
     <nav className="md:hidden fixed inset-x-0 bottom-0 z-40 safe-bottom bg-neutral-900/95 backdrop-blur border-t border-neutral-800">
-      <ul className="grid grid-cols-6 gap-1 px-2 py-2 text-[13px]">
-        {items.slice(0,6).map((item) => {
+  <ul className="grid grid-cols-9 gap-1 px-2 py-2 text-[13px]">
+        {items.map((item) => {
           const active = pathname === item.href;
           return (
             <li key={item.href} className="text-center">

@@ -1,4 +1,7 @@
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
+// Après mise en place du proxy Next (rewrites), on utilise des chemins relatifs.
+// En dev sans proxy (si NEXT_PUBLIC_API_BASE non défini), fallback localhost.
+const ABS_BACKEND = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
+export const API_BASE = typeof window === 'undefined' ? ABS_BACKEND : '';
 
 export class ApiError extends Error {
   status: number;
@@ -33,7 +36,7 @@ function getPlayerId(): string | null {
 async function ensureCsrf(): Promise<string | null> {
   try {
     if (CSRF_TOKEN) return CSRF_TOKEN;
-    const res = await fetch(`${API_BASE}/api/auth/csrf`, { credentials: "include" });
+  const res = await fetch(`${API_BASE}/api/auth/csrf`, { credentials: "include" });
     if (!res.ok) return null;
     const data = (await res.json()) as { csrf?: string };
     CSRF_TOKEN = data?.csrf ?? null;
@@ -69,7 +72,7 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
     try {
       if (bearer) {
         // tenter un refresh silencieux
-        const r = await fetch(`${API_BASE}/api/auth/refresh`, { credentials: "include", headers: { Authorization: `Bearer ${bearer}` } });
+  const r = await fetch(`${API_BASE}/api/auth/refresh`, { credentials: "include", headers: { Authorization: `Bearer ${bearer}` } });
         if (r.ok) {
           const data = await r.json().catch(() => ({} as any));
           if (data?.token) {

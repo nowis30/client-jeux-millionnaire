@@ -518,6 +518,17 @@ export default function DashboardPage() {
   return (
     <>
   <main className="space-y-6 overflow-x-hidden">
+      {/* Bannière Nouveautés (nov 2025) */}
+      <div className="rounded-lg border border-indigo-600 bg-gradient-to-r from-indigo-700/60 to-purple-700/50 p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 shadow">
+        <div className="text-sm md:text-base font-semibold text-indigo-100 flex items-center gap-2">
+          <span>✨ Nouveautés: Difficulté Quiz rééquilibrée, catégorie Anatomy (biologie), tutoriel complet.</span>
+        </div>
+        <div className="text-xs flex items-center gap-3">
+          <Link href="/tutoriel" className="px-3 py-1 rounded bg-indigo-500 hover:bg-indigo-400 text-black font-medium text-xs">Voir le tutoriel</Link>
+          <Link href="/quiz" className="px-3 py-1 rounded bg-purple-500 hover:bg-purple-400 text-black font-medium text-xs">Jouer au Quiz</Link>
+          <Link href="/telecharger" className="px-3 py-1 rounded bg-emerald-500 hover:bg-emerald-400 text-black font-medium text-xs">Télécharger l'app</Link>
+        </div>
+      </div>
       {/* Bandeau prix Amazon 20$ fin d'année */}
       <PrizeBanner />
       {!isLoggedIn ? (

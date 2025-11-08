@@ -1,12 +1,12 @@
 "use client";
 import { usePathname } from "next/navigation";
 
+// Navigation mobile: on remplace Annonces/Résumé par Portefeuille afin de refléter la navigation desktop
 const items = [
   { href: "/", label: "Accueil" },
   { href: "/immobilier", label: "Immo" },
   { href: "/bourse", label: "Bourse" },
-  { href: "/listings", label: "Annonces" },
-  { href: "/summary", label: "Résumé" },
+  { href: "/portefeuille", label: "Portefeuille" },
   { href: "/pari", label: "Pari" },
   { href: "/quiz", label: "Quiz" },
 ];

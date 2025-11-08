@@ -73,11 +73,11 @@ export default function PortefeuillePage() {
     const amount = Number(repayAmounts[holdingId] ?? 0);
     if (!gameId || !holdingId || amount <= 0) return alert('Montant invalide');
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/${holdingId}/repay`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount })
-      });
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data = await res.json();
+      // Utiliser apiFetch pour inclure automatiquement credentials, X-CSRF-Token, X-Player-ID
+      const data = await apiFetch<{ applied: number; newDebt: number; playerCash?: number }>(
+        `/api/games/${gameId}/properties/${holdingId}/repay`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount }) }
+      );
       alert(`Remboursement appliqué: ${formatMoney(Math.round(data.applied ?? amount))}`);
       // rafraîchir
       await Promise.all([loadPortfolio(), loadHoldings()]);

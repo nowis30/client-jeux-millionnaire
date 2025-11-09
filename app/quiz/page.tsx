@@ -47,6 +47,11 @@ export default function QuizPage() {
   const [timeLeft, setTimeLeft] = useState<number>(60);
   const [showTimeoutReveal, setShowTimeoutReveal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  
+  // Système de passes (gagné en regardant des pubs)
+  const [lifePasses, setLifePasses] = useState<number>(0);
+  const [showPassOffer, setShowPassOffer] = useState(false);
+  const [isLoadingAd, setIsLoadingAd] = useState(false);
 
   // À chaque nouvelle question, réinitialiser proprement l'état d'affichage
   useEffect(() => {
@@ -339,18 +344,24 @@ export default function QuizPage() {
           loadStats();
         }
       } else {
-        // Mauvaise réponse: afficher la bonne réponse pendant 5s puis réinitialiser
+        // Mauvaise réponse: vérifier si le joueur a une passe de vie
         setFeedback({ type: 'error', message: data.message });
         setRevealCorrect(data.correctAnswer as 'A'|'B'|'C'|'D');
-        // Garder la question affichée, désactiver les interactions
-        setTimeout(() => {
-          setRevealCorrect(null);
-          setSession(null);
-          setQuestion(null);
-          setSelectedAnswer(null);
-          loadStatus();
-          loadStats();
-        }, 5000);
+        
+        // Si le joueur a une passe, lui proposer de l'utiliser
+        if (lifePasses > 0) {
+          setShowPassOffer(true);
+        } else {
+          // Pas de passe: comportement normal, fin du quiz après 5s
+          setTimeout(() => {
+            setRevealCorrect(null);
+            setSession(null);
+            setQuestion(null);
+            setSelectedAnswer(null);
+            loadStatus();
+            loadStats();
+          }, 5000);
+        }
       }
     } catch (err: any) {
       console.error(err);
@@ -408,6 +419,39 @@ export default function QuizPage() {
       setFeedback({ type: 'error', message: err.message });
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Regarder une pub pour obtenir une passe de vie
+  async function watchAdForLifePass() {
+    setIsLoadingAd(true);
+    try {
+      const { showInterstitialAd } = await import('../../lib/ads');
+      const shown = await showInterstitialAd();
+      
+      if (shown) {
+        // Pub visionnée avec succès, donner une passe
+        setLifePasses(prev => prev + 1);
+        setFeedback({ type: 'success', message: '🎁 +1 Passe de vie obtenue !' });
+      } else {
+        setFeedback({ type: 'error', message: 'Aucune publicité disponible pour le moment' });
+      }
+    } catch (err) {
+      console.error('[Quiz] Error watching ad:', err);
+      setFeedback({ type: 'error', message: 'Erreur lors du chargement de la publicité' });
+    } finally {
+      setIsLoadingAd(false);
+    }
+  }
+
+  // Utiliser une passe pour continuer après une mauvaise réponse
+  function useLifePass() {
+    if (lifePasses > 0) {
+      setLifePasses(prev => prev - 1);
+      setShowPassOffer(false);
+      setFeedback({ type: 'success', message: '✨ Passe utilisée ! Vous continuez le quiz.' });
+      // Recharger le statut pour obtenir la prochaine question
+      setTimeout(() => loadStatus(), 1000);
     }
   }
 
@@ -713,6 +757,9 @@ export default function QuizPage() {
                 <div className={`text-lg font-mono px-4 py-1 rounded-full border ${timeLeft <= 5 ? 'bg-red-600 border-red-500 animate-pulse' : 'bg-black/30 border-white/20'}`}>⏱️ {timeLeft}s</div>
               </div>
               <div className="text-center text-sm text-gray-300">Sauts restants : <span className="font-bold">{session.skipsLeft ?? 0} / 3</span></div>
+              <div className="text-center text-sm text-purple-300 mt-1">
+                ✨ Passes de vie : <span className="font-bold">{lifePasses}</span>
+              </div>
               {session.skipsLeft === 0 && (
                 <div className="mt-2 flex justify-center text-xs text-gray-400">
                   Recharge de saut momentanément indisponible.
@@ -767,6 +814,14 @@ export default function QuizPage() {
             {/* Actions */}
             <div className="flex flex-col md:flex-row gap-4">
               <button
+                onClick={watchAdForLifePass}
+                disabled={isLoadingAd}
+                className="w-full md:w-auto px-4 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed rounded-xl font-bold text-sm transition shadow-lg"
+                title="Regarder une publicité pour obtenir une passe de vie"
+              >
+                {isLoadingAd ? "⏳ ..." : "📺 Pub → +1 Passe"}
+              </button>
+              <button
                 onClick={cashOut}
                 disabled={isAnswering || session.currentEarnings === 0}
                 className="w-full md:flex-1 px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-xl font-bold text-lg transition shadow-lg"
@@ -814,6 +869,48 @@ export default function QuizPage() {
       </div>
       {showTutorial && (
         <Onboarding onClose={() => setShowTutorial(false)} />
+      )}
+      
+      {/* Modal: Utiliser une passe après une mauvaise réponse */}
+      {showPassOffer && lifePasses > 0 && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-purple-900 to-pink-900 rounded-2xl p-8 max-w-md w-full shadow-2xl border-2 border-purple-500">
+            <div className="text-center">
+              <div className="text-6xl mb-4">✨</div>
+              <h3 className="text-2xl font-bold mb-4">Mauvaise réponse !</h3>
+              <p className="text-gray-200 mb-6">
+                Vous avez <span className="font-bold text-yellow-400">{lifePasses}</span> passe{lifePasses > 1 ? 's' : ''} de vie.
+                <br />
+                Voulez-vous en utiliser une pour continuer ?
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={useLifePass}
+                  className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 rounded-xl font-bold text-lg transition shadow-lg"
+                >
+                  ✓ Utiliser une passe et continuer
+                </button>
+                <button
+                  onClick={() => {
+                    setShowPassOffer(false);
+                    // Comportement normal: fin du quiz après 5s
+                    setTimeout(() => {
+                      setRevealCorrect(null);
+                      setSession(null);
+                      setQuestion(null);
+                      setSelectedAnswer(null);
+                      loadStatus();
+                      loadStats();
+                    }, 5000);
+                  }}
+                  className="w-full px-6 py-4 bg-gray-600 hover:bg-gray-500 rounded-xl font-bold transition"
+                >
+                  ✗ Non, arrêter le quiz
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

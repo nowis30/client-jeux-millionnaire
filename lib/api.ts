@@ -3,10 +3,20 @@
 // Pour Capacitor/mobile, on utilise toujours l'URL absolue
 const ABS_BACKEND = process.env.NEXT_PUBLIC_API_BASE ?? "https://server-jeux-millionnaire.onrender.com";
 const isCapacitor = typeof window !== 'undefined' && !!(window as any).Capacitor;
-export const API_BASE = (typeof window === 'undefined' || isCapacitor) ? ABS_BACKEND : '';
+// Détection d'environnement:
+// - En développement Next (localhost:3000) on peut utiliser les proxys/rewrite → chemins relatifs.
+// - En export statique (APK / domaine production nowis.store) il n'y a PAS d'API Next embarquée → on doit pointer vers le backend Render.
+// - Sur Capacitor (app mobile) on force toujours l'URL absolue.
+const isBrowser = typeof window !== 'undefined';
+const isLocalDev = isBrowser && /localhost:3000$/.test(window.location.host);
+// Possibilité de forcer absolu avec NEXT_PUBLIC_FORCE_ABS=1
+const forceAbs = process.env.NEXT_PUBLIC_FORCE_ABS === '1';
+export const API_BASE = (isCapacitor || forceAbs || !isLocalDev) ? ABS_BACKEND : '';
 
 console.log('[API] ABS_BACKEND:', ABS_BACKEND);
 console.log('[API] isCapacitor:', isCapacitor);
+console.log('[API] isLocalDev:', isLocalDev);
+console.log('[API] forceAbs:', forceAbs);
 console.log('[API] API_BASE:', API_BASE);
 
 export class ApiError extends Error {

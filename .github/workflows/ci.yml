@@ -21,5 +21,10 @@ jobs:
         run: npm ci
       - name: Build
         env:
-          NEXT_PUBLIC_API_BASE: https://api.example.local
+          NEXT_PUBLIC_API_BASE: https://server-jeux-millionnaire.onrender.com
+          NEXT_PUBLIC_APK_URL: ""
+          NEXT_PUBLIC_TRAILER_YT: ""
+          NEXT_PUBLIC_TRAILER_MP4: ""
+          NEXT_PUBLIC_GITHUB_REPO: ""
+          NEXT_PUBLIC_APK_FILENAME: ""
         run: npm run build

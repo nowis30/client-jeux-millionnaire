@@ -12,15 +12,10 @@ export default function TelechargerPage() {
   const [apkAvailable, setApkAvailable] = useState<boolean | null>(null);
   useEffect(() => {
     setUa(navigator.userAgent || "");
-    // Vérifier si l'APK est réellement disponible (HEAD)
-    (async () => {
-      try {
-        const res = await fetch(APK_URL, { method: 'HEAD' });
-        setApkAvailable(res.ok);
-      } catch {
-        setApkAvailable(false);
-      }
-    })();
+    // Vérifier si l'APK est configuré (simple vérification d'URL)
+    // Note: GitHub Releases ne supporte pas bien HEAD cross-origin, donc on vérifie juste si l'URL est définie
+    const hasValidUrl = Boolean(APK_URL && APK_URL.length > 0 && !APK_URL.startsWith('/'));
+    setApkAvailable(hasValidUrl);
   }, []);
 
   const isAndroid = useMemo(() => /Android/i.test(ua), [ua]);

@@ -392,6 +392,16 @@ export default function QuizPage() {
       setFeedback({ type: 'success', message: data.message });
       setSession(null);
       setQuestion(null);
+      
+      // Afficher une annonce après avoir encaissé (seulement sur mobile)
+      try {
+        const { showInterstitialAd } = await import('../../lib/ads');
+        await showInterstitialAd();
+      } catch (adErr) {
+        // Ignorer les erreurs pub (pas critique)
+        console.log('[Quiz] Ad not shown:', adErr);
+      }
+      
   setTimeout(() => { loadStatus(); loadStats(); }, 2000);
     } catch (err: any) {
       console.error(err);

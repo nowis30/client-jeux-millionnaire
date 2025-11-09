@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 const UserBadge = dynamic(() => import("./_components/UserBadge"), { ssr: false });
 const MobileNav = dynamic(() => import("./_components/MobileNav"), { ssr: false });
 const PresenceClient = dynamic(() => import("./_components/PresenceClient"), { ssr: false });
+const AdInitializer = dynamic(() => import("./_components/AdInitializer"), { ssr: false });
 export const metadata: Metadata = {
   title: "Héritier Millionnaire",
   description: "Simulez immobilier, bourse, quiz de culture financière et devenez l'héritier millionnaire.",
@@ -70,6 +71,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           </header>
           {/* Socket de présence global (toutes pages) */}
           <PresenceClient />
+          {/* Initialisation AdMob pour app Android */}
+          <AdInitializer />
           {children}
         </div>
         {/* Barre de navigation mobile fixe */}

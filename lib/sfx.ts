@@ -36,11 +36,15 @@ function playBeep(vol: number, freq: number) {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     const ctx = audioCtx!;
+    if (ctx.state === 'suspended') {
+      // tenter de reprendre le contexte si le beep est déclenché par un clic
+      ctx.resume().catch(()=>{});
+    }
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'square';
     osc.frequency.value = freq;
-    gain.gain.value = vol * 0.1; // faible
+    gain.gain.value = Math.min(1, Math.max(0, vol * 0.2)); // un peu plus audible sur PC
     osc.connect(gain).connect(ctx.destination);
     osc.start();
     setTimeout(() => { try { osc.stop(); } catch {}; }, 170);

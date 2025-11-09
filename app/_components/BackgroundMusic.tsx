@@ -69,8 +69,10 @@ export default function BackgroundMusic() {
       const gain = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.value = 220; // basse discrète
-      gain.gain.value = volume * 0.15; // beaucoup plus faible que la musique
+      gain.gain.value = Math.min(1, Math.max(0, volume * 0.3)); // un peu plus fort pour PC
       osc.connect(gain).connect(ctx.destination);
+      // reprendre le contexte si suspendu (Chrome desktop)
+      if (ctx.state === 'suspended') { ctx.resume().catch(()=>{}); }
       osc.start();
       oscRef.current = osc;
     } catch {}
@@ -97,6 +99,10 @@ export default function BackgroundMusic() {
     // Si le fichier existe, tenter play après interaction
     const tryPlay = () => {
       if (forcedPauseRef.current) return;
+      // tenter de reprendre le contexte audio Web si présent
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume().catch(()=>{});
+      }
       if (missingFile) { startFallbackTone(); cleanupInteraction(); return; }
       if (!audioRef.current) return;
       audioRef.current.play().catch(() => {
@@ -126,7 +132,13 @@ export default function BackgroundMusic() {
         if (a) a.pause();
         stopFallbackTone();
       } else if (enabled && !forcedPauseRef.current) {
-        if (missingFile) startFallbackTone(); else if (a) a.play().catch(()=>{});
+        if (missingFile) {
+          // reprendre AudioContext si nécessaire puis fallback
+          if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+            audioCtxRef.current.resume().catch(()=>{});
+          }
+          startFallbackTone();
+        } else if (a) a.play().catch(()=>{});
       }
     };
     document.addEventListener("visibilitychange", onVis);
@@ -144,7 +156,12 @@ export default function BackgroundMusic() {
       forcedPauseRef.current = false;
       const a = audioRef.current;
       if (enabled && !document.hidden) {
-        if (missingFile) startFallbackTone(); else if (a) a.play().catch(()=>{});
+        if (missingFile) {
+          if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+            audioCtxRef.current.resume().catch(()=>{});
+          }
+          startFallbackTone();
+        } else if (a) a.play().catch(()=>{});
       }
     };
     window.addEventListener("hm-music/pause", onPause as EventListener);

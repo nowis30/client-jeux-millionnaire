@@ -4,14 +4,48 @@ import { useState } from "react";
 type Step = { title: string; content: string };
 
 export default function OnboardingHome({ onClose, storageKey = "hm-tutorial-home" }: { onClose: () => void; storageKey?: string }) {
+  // Tutoriel enrichi (fusion des anciennes sections de la page /tutoriel)
   const steps: Step[] = [
-    { title: "Bienvenue !", content: "Objectif: faire croître ta valeur nette en investissant (immobilier, bourse), en jouant au quiz et en gérant bien ton risque." },
-    { title: "Acheter un immeuble", content: "Va dans ‘Immobilier’, choisis une propriété, vérifie le loyer, les charges et le taux. Clique ‘Acheter’." },
-    { title: "Acheter en bourse", content: "Va dans ‘Bourse’, sélectionne un symbole (ex: SP500/QQQ), entre la quantité et confirme l’achat." },
-    { title: "Vendre un immeuble", content: "Va dans ‘Annonces’, publie un bien ou vends ton bien existant. Le cash revient après la vente." },
-    { title: "Volet Pari (dés)", content: "Dans ‘Pari’ tu mises (min 5 000$) et lances 3 dés: double = x2, triple ou suite = x3, sinon tu perds la mise. NE RISQUE PAS TOUT: la chance tourne toujours ! Mise raisonnable = survie long terme." },
-    { title: "Inviter et gagner 1 000 000$", content: "Depuis la page d’accueil, ‘Inviter un ami’ → génère ton lien. Quand l’invitation est acceptée, tu reçois 1 000 000$." },
-    { title: "Astuce", content: "Diversifie tes placements, surveille les taux hypothécaires, utilise le quiz pour booster ton cash, et garde une réserve: le hasard du volet Pari peut autant aider que punir." },
+    {
+      title: "Objectif Global",
+      content:
+        "Fais croître ta valeur nette en combinant 4 moteurs: Immobilier (cashflow & appréciation), Bourse (diversification & dividendes), Quiz (accélérateur de capital), Pari (risque contrôlé). Garde toujours un coussin de liquidités pour saisir les opportunités et éviter de bloquer ton jeu.",
+    },
+    {
+      title: "Immobilier — Achat & Stocks",
+      content:
+        "Dans ‘Immobilier’, choisis un bien (ex: six‑plex, tour 50, tour 100). Vérifie loyer, taux et charges. Les boutons ‘refill’ et ‘+10’ maintiennent l’offre (6‑plex→10, tours50→10, tours100→5). Diversifie entre flux de loyers et valeur pour refinancements futurs.",
+    },
+    {
+      title: "Bourse — Positions & Dividendes",
+      content:
+        "Dans ‘Bourse’, sélectionne un symbole (SP500, TSX, QQQ, TLT, GLD). Les dividendes tombent périodiquement et renforcent ton cash. Mélange actifs cycliques (croissance) et défensifs (obligations/or) pour lisser la volatilité immobilière.",
+    },
+    {
+      title: "Quiz — Session de 10 Questions",
+      content:
+        "Consomme 1 token pour lancer: Q1-2 faciles, Q3-5 moyennes, Q6-10 difficiles. Chaque bonne réponse double ta somme de session (5k→10k→20k...). Tu peux encaisser à tout moment avant une erreur. Catégories variées (anatomy, finance, général). Optimise en sécurisant après une bonne série.",
+    },
+    {
+      title: "Pari — 3 Dés à Risque",
+      content:
+        "Mise (≥5 000$) puis lance 3 dés: double = x2, triple ou suite = x3, sinon perte de la mise. Ne sur‑expose pas ton capital avant un achat immobilier clé. Le volet Pari est un accélérateur ponctuel, pas un moteur principal durable.",
+    },
+    {
+      title: "Stratégies Rapides",
+      content:
+        "Démarrage: 1–2 six‑plex + quiz pour booster le cash. Milieu: entrée en bourse, viser tour 50 pour masse critique. Fin: grandes structures + quiz difficile avec encaissement prudent. Toujours anticiper pénurie: utiliser refill avant manque de stock.",
+    },
+    {
+      title: "Dépannage & Vérifications",
+      content:
+        "Problème quiz? Vérifie: tokens >0, endpoint /api/games/<id>/quiz/status = 200 (console réseau). Proxy /api/* corrige CORS. Besoin d’aide: lien contact dans la page ‘Contact’. Garde tes logs propres avant de reporter un bug.",
+    },
+    {
+      title: "Invitations Bonus",
+      content:
+        "Utilise ‘Inviter un ami’ sur l’accueil: quand validé tu reçois 1 000 000$. Profite-en pour créer un mini réseau et comparer vos stratégies de portefeuille.",
+    },
   ];
 
   const [i, setI] = useState(0);

@@ -3,7 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../lib/api";
 import { formatMoney } from "../../lib/format";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
+// API_BASE local supprimé: utiliser apiFetch + chemins relatifs
+const API_BASE = "";
 
 export default function PortefeuillePage() {
   const [gameId, setGameId] = useState("");
@@ -52,7 +53,7 @@ export default function PortefeuillePage() {
     if (!gameId || !target) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/players/${target}/portfolio`);
+  const res = await fetch(`/api/games/${gameId}/players/${target}/portfolio`);
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data = await res.json();
       setPortfolio(data);
@@ -68,7 +69,7 @@ export default function PortefeuillePage() {
     const target = viewPlayerId || playerId;
     if (!gameId || !target) return;
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/holdings/${target}`);
+  const res = await fetch(`/api/games/${gameId}/properties/holdings/${target}`);
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data = await res.json();
       setHoldings(data.holdings ?? []);

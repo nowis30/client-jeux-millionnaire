@@ -172,14 +172,16 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!gameId || !userEmail) return;
     try {
-      const s = io(process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001", {
+      // Socket via proxy rewrite /socket.io/* pour éviter CORS (voir next.config.js)
+      const s = io("/", {
+        path: "/socket.io",
         transports: ["websocket"],
         query: { gameId, nickname: userEmail },
       });
       setSocketRef(s);
       const poll = async () => {
         try {
-          const res = await fetch(`${API_BASE}/api/games/${gameId}/online`);
+          const res = await fetch(`/api/games/${gameId}/online`);
           if (!res.ok) return;
           const data = await res.json();
           setOnlineEmails(Array.isArray(data.users) ? data.users : []);
@@ -198,11 +200,11 @@ export default function DashboardPage() {
     setPortfolioPlayer(p);
     try {
       const [propsRes, mktRes, pricesRes, ecoRes, statsRes] = await Promise.all([
-        fetch(`${API_BASE}/api/games/${gameId}/properties/holdings/${p.id}`),
-        fetch(`${API_BASE}/api/games/${gameId}/markets/holdings/${p.id}`),
-        fetch(`${API_BASE}/api/games/${gameId}/markets/latest`),
-        fetch(`${API_BASE}/api/games/${gameId}/economy`),
-        fetch(`${API_BASE}/api/quiz/public-stats`),
+  fetch(`/api/games/${gameId}/properties/holdings/${p.id}`),
+  fetch(`/api/games/${gameId}/markets/holdings/${p.id}`),
+  fetch(`/api/games/${gameId}/markets/latest`),
+  fetch(`/api/games/${gameId}/economy`),
+  fetch(`/api/quiz/public-stats`),
       ]);
       const propsData = propsRes.ok ? await propsRes.json() : { holdings: [] };
       const mktData = mktRes.ok ? await mktRes.json() : { holdings: [] };

@@ -5,7 +5,8 @@ import Onboarding from "../../components/Onboarding";
 import { formatMoney } from "../../lib/format";
 // Ads récompense désactivées temporairement: imports retirés
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
+// API_BASE local supprimé: utiliser chemins relatifs (proxy /api/*)
+const API_BASE = "";
 
 const BASE_STAKE = 50000;
 // Échelle des gains + difficulté (1-4 enfant/facile, 5-7 moyen, 8-10 difficile)
@@ -69,7 +70,7 @@ export default function QuizPage() {
         try {
           const headers: Record<string,string> = { 'Content-Type':'application/json', 'X-CSRF':'1' };
           if (playerId) headers['X-Player-ID'] = playerId;
-          const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/timeout`, {
+          const res = await fetch(`/api/games/${gameId}/quiz/timeout`, {
             method:'POST', credentials:'include', headers, body: JSON.stringify({ sessionId: session.id, questionId: question.id })
           });
           if (!res.ok) {
@@ -140,7 +141,7 @@ export default function QuizPage() {
       // Charger puis rafraîchir le nombre en ligne
       const loadOnline = async () => {
         try {
-          const res = await fetch(`${API_BASE}/api/games/${gameId}/online`);
+    const res = await fetch(`/api/games/${gameId}/online`);
           if (!res.ok) return;
           const data = await res.json();
           setOnline(Number(data.online ?? 0));
@@ -154,7 +155,7 @@ export default function QuizPage() {
 
   async function loadStats() {
     try {
-      const res = await fetch(`${API_BASE}/api/quiz/public-stats`);
+  const res = await fetch(`/api/quiz/public-stats`);
       if (!res.ok) return;
       const data = await res.json();
       const dynamicCats: Array<{ category: string; remaining: number; total?: number; used?: number }> | undefined = Array.isArray(data.categories)
@@ -174,7 +175,7 @@ export default function QuizPage() {
         headers["X-Player-ID"] = playerId; // Ajout du playerId pour iOS/Safari
       }
       
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/status`, {
+  const res = await fetch(`/api/games/${gameId}/quiz/status`, {
         credentials: "include",
         headers,
       });
@@ -216,7 +217,7 @@ export default function QuizPage() {
         const headers: Record<string, string> = { "X-CSRF": "1" };
         if (playerId) headers["X-Player-ID"] = playerId;
 
-        const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/resume`, {
+  const res = await fetch(`/api/games/${gameId}/quiz/resume`, {
           method: "GET",
           credentials: "include",
           headers,
@@ -250,7 +251,7 @@ export default function QuizPage() {
         headers["X-Player-ID"] = playerId;
       }
 
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/start`, {
+  const res = await fetch(`/api/games/${gameId}/quiz/start`, {
         method: "POST",
         credentials: "include",
         headers,
@@ -296,7 +297,7 @@ export default function QuizPage() {
         headers["X-Player-ID"] = playerId;
       }
 
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/answer`, {
+  const res = await fetch(`/api/games/${gameId}/quiz/answer`, {
         method: "POST",
         credentials: "include",
         headers,
@@ -375,7 +376,7 @@ export default function QuizPage() {
         headers["X-Player-ID"] = playerId;
       }
 
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/cash-out`, {
+  const res = await fetch(`/api/games/${gameId}/quiz/cash-out`, {
         method: "POST",
         credentials: "include",
         headers,
@@ -417,7 +418,7 @@ export default function QuizPage() {
       };
       if (playerId) headers["X-Player-ID"] = playerId;
 
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/skip`, {
+  const res = await fetch(`/api/games/${gameId}/quiz/skip`, {
         method: 'POST',
         credentials: 'include',
         headers,

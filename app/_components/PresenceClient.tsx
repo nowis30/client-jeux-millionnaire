@@ -37,7 +37,9 @@ export default function PresenceClient() {
         if (!gameId) return;
 
         // 3) Ouvrir un socket de présence pour TOUTES les pages
-        const s = io(process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001", {
+        // Utiliser un chemin relatif avec rewrite /socket.io/* (ajouté dans next.config.js) pour éviter CORS
+        const s = io("/", {
+          path: "/socket.io",
           transports: ["websocket"],
           query: { gameId, nickname: me.email },
         });

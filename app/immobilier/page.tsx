@@ -34,7 +34,8 @@ interface Holding {
   refinanceLogs?: { id: string; at: string; amount: number; rate: number }[];
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
+// API_BASE local supprimé: utiliser chemins relatifs via proxy Next
+const API_BASE = "";
 
 async function revealOwnerFallback(
   gameId: string | null | undefined,
@@ -104,11 +105,7 @@ export default function ImmobilierPage() {
 
   // Préparer les cookies cross‑site (hm_guest + hm_csrf) le plus tôt possible
   useEffect(() => {
-    (async () => {
-      try {
-        await fetch(`${API_BASE}/api/auth/csrf`, { credentials: "include" });
-      } catch {}
-    })();
+    (async () => { try { await fetch(`/api/auth/csrf`, { credentials: "include" }); } catch {} })();
   }, []);
 
   // Charger statut admin pour afficher le bouton d'avance temporelle
@@ -302,7 +299,7 @@ export default function ImmobilierPage() {
     if (!gameId) return;
     try {
       setOnlineErr(null);
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/online`, { mode: 'cors' });
+  const res = await fetch(`/api/games/${gameId}/online`, { credentials: 'include' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setOnlineDiag({ online: data.online ?? 0, users: Array.isArray(data.users) ? data.users : [] });
@@ -340,7 +337,7 @@ export default function ImmobilierPage() {
   const loadHoldings = useCallback(async () => {
     if (!gameId || !playerId) return;
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/holdings/${playerId}`);
+  const res = await fetch(`/api/games/${gameId}/properties/holdings/${playerId}`);
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data = await res.json();
       setHoldings(data.holdings ?? []);
@@ -353,7 +350,7 @@ export default function ImmobilierPage() {
     if (!gameId || !holdingId) return;
     try {
       setLoadingBilan((m: Record<string, boolean>) => ({ ...m, [holdingId]: true }));
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/bilan/${holdingId}`);
+  const res = await fetch(`/api/games/${gameId}/properties/bilan/${holdingId}`);
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data = await res.json();
       // Normaliser: stocker directement l'objet bilan pour simplifier l'accès
@@ -369,7 +366,7 @@ export default function ImmobilierPage() {
   const loadEconomy = useCallback(async () => {
     if (!gameId) return;
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/economy`);
+  const res = await fetch(`/api/games/${gameId}/economy`);
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data = await res.json();
       setEconomy(data);

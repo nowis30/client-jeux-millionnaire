@@ -2,7 +2,8 @@
 import { useEffect, useState, useRef } from "react";
 // Ads récompense désactivées temporairement
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
+// API_BASE local supprimé: proxy Next via chemins relatifs
+const API_BASE = "";
 const MIN_BET = 5000;
 const DYN_FACTOR = 0.5; // 50% du cash comme plafond dynamique côté client (indicatif)
 
@@ -77,7 +78,7 @@ export default function PariPage() {
     if (gameId) return;
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/games`);
+  const res = await fetch(`/api/games`);
         if (!res.ok) return;
         const data = await res.json();
         const g = data.games?.[0];
@@ -93,7 +94,7 @@ export default function PariPage() {
       try {
         const headers: Record<string,string> = {};
         headers['X-Player-ID'] = playerId;
-        const res = await fetch(`${API_BASE}/api/games/${gameId}/me`, { headers, credentials:'include' });
+  const res = await fetch(`/api/games/${gameId}/me`, { headers, credentials:'include' });
         if (!res.ok) return;
         const data = await res.json();
         if (data.player?.cash != null) setCash(data.player.cash);
@@ -108,7 +109,7 @@ export default function PariPage() {
     const load = async () => {
       try {
         const headers: Record<string,string> = { 'X-Player-ID': playerId! };
-        const res = await fetch(`${API_BASE}/api/games/${gameId}/tokens`, { headers, credentials:'include' });
+  const res = await fetch(`/api/games/${gameId}/tokens`, { headers, credentials:'include' });
         if (!res.ok) return;
         const data = await res.json();
         if (!mounted) return;
@@ -163,7 +164,7 @@ export default function PariPage() {
     }, 120);
     try {
       const headers: Record<string,string> = { 'Content-Type':'application/json', 'X-Player-ID': playerId };
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/pari/play`, {
+  const res = await fetch(`/api/games/${gameId}/pari/play`, {
         method:'POST', credentials:'include', headers,
         body: JSON.stringify({ bet })
       });

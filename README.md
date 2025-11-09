@@ -5,10 +5,20 @@
 - API (Render) : https://server-jeux-millionnaire.onrender.com
 - Client (Vercel) : https://client-jeux-millionnaire.vercel.app/
 
-## Configuration
+## Configuration (proxy sans CORS)
 
-- NEXT_PUBLIC_API_BASE doit pointer vers l’API Render en prod.
-	- Exemple: `NEXT_PUBLIC_API_BASE=https://server-jeux-millionnaire.onrender.com`
+Le client Next.js proxy désormais toutes les requêtes vers le backend via des réécritures, ce qui élimine les problèmes de CORS et de cookies SameSite.
+
+- Réécritures configurées dans `next.config.js`:
+	- `/api/*` → `${API_PROXY_DEST}/api/*`
+	- `/socket.io/*` → `${API_PROXY_DEST}/socket.io/*` (WebSocket Socket.IO)
+- Variables d’environnement côté client:
+	- `API_PROXY_DEST` (recommandé): URL du backend (ex: `https://server-jeux-millionnaire.onrender.com`). Utilisée par les rewrites au build/runtime Vercel.
+	- `NEXT_PUBLIC_API_BASE` (optionnelle): sert uniquement pour les appels SSR (côté serveur) via `lib/api.ts`. En navigateur, on utilise des chemins relatifs.
+
+Implications:
+- Dans le code client, utilisez toujours des chemins relatifs (`/api/...`) ou le helper `apiFetch()`.
+- N’utilisez plus `process.env.NEXT_PUBLIC_API_BASE` dans les pages/components.
 
 ## Tutoriel utilisateur
 

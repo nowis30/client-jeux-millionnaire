@@ -10,6 +10,11 @@ const nextConfig = {
         source: '/api/:path*',
         destination: `${dest}/api/:path*`,
       },
+      // Proxy Socket.IO (WebSocket) aussi vers le backend
+      {
+        source: '/socket.io/:path*',
+        destination: `${dest}/socket.io/:path*`,
+      },
     ];
   },
 };

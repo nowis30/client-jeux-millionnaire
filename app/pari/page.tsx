@@ -1,9 +1,7 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { API_BASE, apiFetch } from "../../lib/api";
 // Ads récompense désactivées temporairement
-
-// API_BASE local supprimé: proxy Next via chemins relatifs
-const API_BASE = "";
 const MIN_BET = 5000;
 const DYN_FACTOR = 0.5; // 50% du cash comme plafond dynamique côté client (indicatif)
 
@@ -61,44 +59,54 @@ export default function PariPage() {
     return () => clearInterval(interval);
   }, [cooldown]);
 
-  // Charger session locale ou fallback partie globale
-  useEffect(() => {
+  const ensureSession = useCallback(async () => {
     try {
-      const sessionStr = localStorage.getItem('hm-session');
-      if (sessionStr) {
-        const s = JSON.parse(sessionStr);
-        if (s.gameId) setGameId(s.gameId);
-        if (s.playerId) setPlayerId(s.playerId);
+      const raw = localStorage.getItem('hm-session');
+      console.log('[Pari] session localStorage:', raw);
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s?.gameId) {
+          setGameId(s.gameId);
+          setPlayerId(s.playerId);
+          return true;
+        }
       }
-    } catch {}
+      console.warn('[Pari] Pas de session — fallback auto-join');
+      const list = await apiFetch<{ games: { id: string; code: string; status: string }[] }>(`/api/games`);
+      const g = list.games?.[0];
+      if (!g) throw new Error('Aucune partie disponible');
+      const joined = await apiFetch<{ playerId: string; code: string }>(`/api/games/${g.id}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const sess = { gameId: g.id, playerId: joined.playerId, nickname: '' };
+      try { localStorage.setItem('hm-session', JSON.stringify(sess)); } catch {}
+      setGameId(g.id);
+      setPlayerId(joined.playerId);
+      console.log('[Pari] Auto-join OK');
+      return true;
+    } catch (e:any) {
+      console.error('[Pari] ensureSession erreur:', e.message);
+      return false;
+    }
   }, []);
 
-  // Fallback: récupérer partie globale si pas de gameId
-  useEffect(() => {
-    if (gameId) return;
-    (async () => {
-      try {
-  const res = await fetch(`/api/games`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const g = data.games?.[0];
-        if (g?.id) setGameId(g.id);
-      } catch {}
-    })();
-  }, [gameId]);
+  useEffect(() => { (async () => { await ensureSession(); })(); }, [ensureSession]);
 
   // Charger infos joueur si gameId et playerId connus
   useEffect(() => {
     if (!gameId || !playerId) return;
     (async () => {
       try {
-        const headers: Record<string,string> = {};
-        headers['X-Player-ID'] = playerId;
-  const res = await fetch(`/api/games/${gameId}/me`, { headers, credentials:'include' });
+        const headers: Record<string,string> = { 'X-Player-ID': playerId };
+        const res = await fetch(`${API_BASE}/api/games/${gameId}/me`, { headers, credentials:'include' });
         if (!res.ok) return;
         const data = await res.json();
         if (data.player?.cash != null) setCash(data.player.cash);
-      } catch {}
+      } catch (e:any) {
+        console.warn('[Pari] /me erreur', e.message);
+      }
     })();
   }, [gameId, playerId]);
 
@@ -109,7 +117,7 @@ export default function PariPage() {
     const load = async () => {
       try {
         const headers: Record<string,string> = { 'X-Player-ID': playerId! };
-  const res = await fetch(`/api/games/${gameId}/tokens`, { headers, credentials:'include' });
+        const res = await fetch(`${API_BASE}/api/games/${gameId}/tokens`, { headers, credentials:'include' });
         if (!res.ok) return;
         const data = await res.json();
         if (!mounted) return;
@@ -117,7 +125,9 @@ export default function PariPage() {
         const s = Number(data?.pari?.secondsUntilNext ?? 0);
         setPariTokens(t);
         setNextTokenSec(s);
-      } catch {}
+      } catch (e:any) {
+        console.warn('[Pari] /tokens erreur', e.message);
+      }
     };
     load();
     const iv = setInterval(load, 15000);
@@ -164,7 +174,7 @@ export default function PariPage() {
     }, 120);
     try {
       const headers: Record<string,string> = { 'Content-Type':'application/json', 'X-Player-ID': playerId };
-  const res = await fetch(`/api/games/${gameId}/pari/play`, {
+      const res = await fetch(`${API_BASE}/api/games/${gameId}/pari/play`, {
         method:'POST', credentials:'include', headers,
         body: JSON.stringify({ bet })
       });

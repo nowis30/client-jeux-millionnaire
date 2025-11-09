@@ -1,7 +1,13 @@
 // Après mise en place du proxy Next (rewrites), on utilise des chemins relatifs.
-// En dev sans proxy (si NEXT_PUBLIC_API_BASE non défini), fallback localhost.
-const ABS_BACKEND = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
-export const API_BASE = typeof window === 'undefined' ? ABS_BACKEND : '';
+// En dev sans proxy (si NEXT_PUBLIC_API_BASE non défini), fallback vers le serveur Render (plutôt que localhost) pour l'APK mobile.
+// Pour Capacitor/mobile, on utilise toujours l'URL absolue
+const ABS_BACKEND = process.env.NEXT_PUBLIC_API_BASE ?? "https://server-jeux-millionnaire.onrender.com";
+const isCapacitor = typeof window !== 'undefined' && !!(window as any).Capacitor;
+export const API_BASE = (typeof window === 'undefined' || isCapacitor) ? ABS_BACKEND : '';
+
+console.log('[API] ABS_BACKEND:', ABS_BACKEND);
+console.log('[API] isCapacitor:', isCapacitor);
+console.log('[API] API_BASE:', API_BASE);
 
 export class ApiError extends Error {
   status: number;
@@ -49,6 +55,9 @@ async function ensureCsrf(): Promise<string | null> {
 export async function apiFetch<T = any>(path: string, init: RequestInit = {}): Promise<T> {
   const method = (init.method || "GET").toUpperCase();
   const headers: Record<string, string> = { ...(init.headers as any) };
+  
+  console.log(`[API] ${method} ${API_BASE}${path}`);
+  
   if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
     const token = await ensureCsrf();
     if (token) headers["x-csrf-token"] = token;
@@ -62,11 +71,15 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
     headers["X-Player-ID"] = playerId;
   }
   
-  const res = await fetch(`${API_BASE}${path}`, {
-    credentials: "include",
-    ...init,
-    headers,
-  });
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      credentials: "include",
+      ...init,
+      headers,
+    });
+    
+    console.log(`[API] Response ${res.status} ${res.statusText}`);
+    
   // Si 401 et on a un bearer local, tenter un refresh côté serveur puis rejouer 1x
   if (res.status === 401) {
     try {
@@ -111,4 +124,8 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
   }
   if (res.status === 204) return undefined as unknown as T;
   return (await res.json()) as T;
+  } catch (fetchError: any) {
+    console.error('[API] Fetch error:', fetchError);
+    throw new ApiError(0, `Erreur réseau: ${fetchError.message || 'Failed to fetch'}`);
+  }
 }

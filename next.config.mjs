@@ -4,11 +4,13 @@ const isDev = process.env.NODE_ENV !== 'production';
 
 export default withPWA({
   reactStrictMode: true,
-  output: 'standalone',
+  output: 'export',
+  trailingSlash: true,
   experimental: {
     appDir: true,
   },
   images: {
+    unoptimized: true,
     // Autoriser les images distantes (photos réalistes) depuis picsum.photos (ou à remplacer par vos domaines)
     domains: ['picsum.photos'],
   },
@@ -17,5 +19,16 @@ export default withPWA({
     disable: isDev,
     register: true,
     skipWaiting: true,
+    // Cache audio mp3 avec stratégie cache-first (peu modifié)
+    runtimeCaching: [
+      {
+        urlPattern: /^https?:.*\.(?:mp3)$/,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'hm-audio-cache',
+          expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 30 },
+        },
+      },
+    ],
   },
 });

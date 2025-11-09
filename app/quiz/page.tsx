@@ -1,12 +1,14 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Onboarding from "../../components/Onboarding";
 import { formatMoney } from "../../lib/format";
 // Ads récompense désactivées temporairement: imports retirés
 
 // API_BASE local supprimé: utiliser chemins relatifs (proxy /api/*)
-const API_BASE = "";
+// Utiliser API_BASE défini dans lib/api (abs pour Capacitor)
+import { API_BASE } from "../../lib/api";
+import { SFX } from "../../lib/sfx";
 
 const BASE_STAKE = 50000;
 // Échelle des gains + difficulté (1-4 enfant/facile, 5-7 moyen, 8-10 difficile)
@@ -75,7 +77,7 @@ export default function QuizPage() {
         try {
           const headers: Record<string,string> = { 'Content-Type':'application/json', 'X-CSRF':'1' };
           if (playerId) headers['X-Player-ID'] = playerId;
-          const res = await fetch(`/api/games/${gameId}/quiz/timeout`, {
+          const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/timeout`, {
             method:'POST', credentials:'include', headers, body: JSON.stringify({ sessionId: session.id, questionId: question.id })
           });
           if (!res.ok) {
@@ -105,39 +107,57 @@ export default function QuizPage() {
     return () => clearTimeout(id);
   }, [timeLeft, session, question, revealCorrect, showTimeoutReveal, playerId, gameId]);
 
-  useEffect(() => {
-    // Chercher la session dans localStorage (clé: hm-session)
+  const ensureSession = useCallback(async () => {
     try {
       const sessionStr = localStorage.getItem("hm-session");
       console.log("[Quiz] Session from localStorage:", sessionStr);
-      
-      if (!sessionStr) {
-        console.warn("[Quiz] No session found, redirecting to home");
-        router.push("/");
+      if (sessionStr) {
+        const sessionData = JSON.parse(sessionStr);
+        if (sessionData?.gameId) {
+          setGameId(sessionData.gameId);
+          setPlayerId(sessionData.playerId);
+          return true;
+        }
+      }
+      console.warn('[Quiz] No session found, fallback auto-join');
+      const resList = await fetch(`${API_BASE}/api/games`, { credentials: 'include' });
+      if (!resList.ok) throw new Error('Liste parties indisponible');
+      const dataList = await resList.json();
+      const g = dataList.games?.[0];
+      if (!g) throw new Error('Aucune partie disponible');
+      const resJoin = await fetch(`${API_BASE}/api/games/${g.id}/join`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+      });
+      if (!resJoin.ok) throw new Error('Join échoué');
+      const dataJoin = await resJoin.json();
+      const sess = { gameId: g.id, playerId: dataJoin.playerId, nickname: '' };
+      try { localStorage.setItem('hm-session', JSON.stringify(sess)); } catch {}
+      setGameId(g.id);
+      setPlayerId(dataJoin.playerId);
+      return true;
+    } catch (e:any) {
+      console.error('[Quiz] ensureSession error:', e.message);
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const ok = await ensureSession();
+      if (!ok) {
+        setTimeout(() => router.push('/'), 1500);
         return;
       }
-      
-      const sessionData = JSON.parse(sessionStr);
-      console.log("[Quiz] Parsed session:", sessionData);
-      
-      if (!sessionData.gameId) {
-        console.warn("[Quiz] No game ID in session, redirecting to home");
-        router.push("/");
-        return;
-      }
-      
-      setGameId(sessionData.gameId);
-      setPlayerId(sessionData.playerId); // Stocker le playerId aussi
-      // Afficher le tutoriel une seule fois
       try {
         const seen = localStorage.getItem("hm-tutorial-quiz");
         if (!seen) setShowTutorial(true);
       } catch {}
-    } catch (err) {
-      console.error("[Quiz] Error loading session:", err);
-      router.push("/");
-    }
-  }, [router]);
+      // Pause musique globale (événement) quand on arrive sur la page quiz
+      try { window.dispatchEvent(new Event('hm-music/pause')); } catch {}
+    })();
+    // À la sortie de la page, reprendre la musique
+    return () => { try { window.dispatchEvent(new Event('hm-music/resume')); } catch {} };
+  }, [ensureSession, router]);
 
   useEffect(() => {
     if (gameId) {
@@ -146,7 +166,7 @@ export default function QuizPage() {
       // Charger puis rafraîchir le nombre en ligne
       const loadOnline = async () => {
         try {
-    const res = await fetch(`/api/games/${gameId}/online`);
+  const res = await fetch(`${API_BASE}/api/games/${gameId}/online`, { credentials: 'include' });
           if (!res.ok) return;
           const data = await res.json();
           setOnline(Number(data.online ?? 0));
@@ -160,7 +180,7 @@ export default function QuizPage() {
 
   async function loadStats() {
     try {
-  const res = await fetch(`/api/quiz/public-stats`);
+  const res = await fetch(`${API_BASE}/api/quiz/public-stats`, { credentials: 'include' });
       if (!res.ok) return;
       const data = await res.json();
       const dynamicCats: Array<{ category: string; remaining: number; total?: number; used?: number }> | undefined = Array.isArray(data.categories)
@@ -180,7 +200,7 @@ export default function QuizPage() {
         headers["X-Player-ID"] = playerId; // Ajout du playerId pour iOS/Safari
       }
       
-  const res = await fetch(`/api/games/${gameId}/quiz/status`, {
+  const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/status`, {
         credentials: "include",
         headers,
       });
@@ -222,7 +242,7 @@ export default function QuizPage() {
         const headers: Record<string, string> = { "X-CSRF": "1" };
         if (playerId) headers["X-Player-ID"] = playerId;
 
-  const res = await fetch(`/api/games/${gameId}/quiz/resume`, {
+  const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/resume`, {
           method: "GET",
           credentials: "include",
           headers,
@@ -256,7 +276,7 @@ export default function QuizPage() {
         headers["X-Player-ID"] = playerId;
       }
 
-  const res = await fetch(`/api/games/${gameId}/quiz/start`, {
+  const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/start`, {
         method: "POST",
         credentials: "include",
         headers,
@@ -302,7 +322,7 @@ export default function QuizPage() {
         headers["X-Player-ID"] = playerId;
       }
 
-  const res = await fetch(`/api/games/${gameId}/quiz/answer`, {
+  const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/answer`, {
         method: "POST",
         credentials: "include",
         headers,
@@ -321,6 +341,8 @@ export default function QuizPage() {
       const data = await res.json();
 
       if (data.correct) {
+        // Son de victoire
+        SFX.correct();
         if (data.completed) {
           setFeedback({ type: 'success', message: data.message });
           setSession(null);
@@ -347,6 +369,8 @@ export default function QuizPage() {
         // Mauvaise réponse: vérifier si le joueur a une passe de vie
         setFeedback({ type: 'error', message: data.message });
         setRevealCorrect(data.correctAnswer as 'A'|'B'|'C'|'D');
+        // Son d'échec
+        SFX.wrong();
         
         // Si le joueur a une passe, lui proposer de l'utiliser
         if (lifePasses > 0) {
@@ -387,7 +411,7 @@ export default function QuizPage() {
         headers["X-Player-ID"] = playerId;
       }
 
-  const res = await fetch(`/api/games/${gameId}/quiz/cash-out`, {
+  const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/cash-out`, {
         method: "POST",
         credentials: "include",
         headers,
@@ -403,15 +427,23 @@ export default function QuizPage() {
       setFeedback({ type: 'success', message: data.message });
       setSession(null);
       setQuestion(null);
+  // Son de victoire à l'encaissement
+  SFX.correct();
       
       // Afficher une annonce après avoir encaissé (seulement sur mobile)
-      try {
-        const { showInterstitialAd } = await import('../../lib/ads');
-        await showInterstitialAd();
-      } catch (adErr) {
-        // Ignorer les erreurs pub (pas critique)
-        console.log('[Quiz] Ad not shown:', adErr);
-      }
+      // Attendre un peu pour s'assurer que l'init AdMob est terminée
+      setTimeout(async () => {
+        try {
+          const { showInterstitialAd } = await import('../../lib/ads');
+          const shown = await showInterstitialAd();
+          if (!shown) {
+            console.log('[Quiz] Ad not ready or cooldown active');
+          }
+        } catch (adErr) {
+          // Ignorer les erreurs pub (pas critique)
+          console.log('[Quiz] Ad error:', adErr);
+        }
+      }, 500);
       
   setTimeout(() => { loadStatus(); loadStats(); }, 2000);
     } catch (err: any) {
@@ -433,6 +465,8 @@ export default function QuizPage() {
         // Pub visionnée avec succès, donner une passe
         setLifePasses(prev => prev + 1);
         setFeedback({ type: 'success', message: '🎁 +1 Passe de vie obtenue !' });
+        // Son de récompense
+        SFX.reward();
       } else {
         setFeedback({ type: 'error', message: 'Aucune publicité disponible pour le moment' });
       }
@@ -450,6 +484,8 @@ export default function QuizPage() {
       setLifePasses(prev => prev - 1);
       setShowPassOffer(false);
       setFeedback({ type: 'success', message: '✨ Passe utilisée ! Vous continuez le quiz.' });
+      // Son de récompense lors de l'utilisation d'une passe
+      SFX.reward();
       // Recharger le statut pour obtenir la prochaine question
       setTimeout(() => loadStatus(), 1000);
     }
@@ -472,7 +508,7 @@ export default function QuizPage() {
       };
       if (playerId) headers["X-Player-ID"] = playerId;
 
-  const res = await fetch(`/api/games/${gameId}/quiz/skip`, {
+  const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/skip`, {
         method: 'POST',
         credentials: 'include',
         headers,

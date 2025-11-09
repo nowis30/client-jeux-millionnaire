@@ -20,23 +20,27 @@ export default function DashboardPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userEmail, setUserEmail] = useState<string>("");
+  const [authError, setAuthError] = useState<string | null>(null);
   // Vérifier la session utilisateur (auth)
   useEffect(() => {
     (async () => {
       try {
+        console.log('[Auth] Tentative /api/auth/me ...');
         const me = await apiFetch<{ id: string; email: string; isAdmin: boolean }>("/api/auth/me");
+        console.log('[Auth] Succès /api/auth/me', me);
         setIsLoggedIn(true);
         setIsAdmin(!!me.isAdmin);
         setUserEmail(me.email);
+        setAuthError(null);
       } catch {
         setIsLoggedIn(false);
         setIsAdmin(false);
         setUserEmail("");
-        // Redirection automatique vers /login si non connecté
-        router.replace("/login");
+        setAuthError('Non connecté. Redirection vers la page de connexion...');
+        setTimeout(() => { if (!isLoggedIn) router.replace('/login'); }, 1200);
       }
     })();
-  }, [router]);
+  }, [router, isLoggedIn]);
   const [leaderboard, setLeaderboard] = useState<Entry[]>([]);
   const [gameId, setGameId] = useState("");
   const [playerId, setPlayerId] = useState("");
@@ -70,6 +74,17 @@ export default function DashboardPage() {
   const [inviteAccepted, setInviteAccepted] = useState<string | null>(null);
   const [onlineEmails, setOnlineEmails] = useState<string[]>([]);
   const [socketRef, setSocketRef] = useState<Socket | null>(null);
+  
+    // Affichage debug auth si erreur
+    const AuthDebugBanner = () => {
+      if (!authError) return null;
+      return (
+        <div className="p-3 mb-4 rounded bg-red-900/40 border border-red-700 text-sm">
+          <p className="font-semibold">Auth: {authError}</p>
+          <p className="mt-1 text-xs opacity-75">Si cela persiste, ouvrez la page /debug-auth pour plus de détails (token, cookies).</p>
+        </div>
+      );
+    };
 
   useEffect(() => {
     const session = loadSession();
@@ -123,12 +138,15 @@ export default function DashboardPage() {
   const updateState = useCallback(async () => {
     if (!gameId) return;
     try {
-  const data = await apiFetch<{ status: string; players: GamePlayer[]; code: string }>(`/api/games/${gameId}/state`);
+      console.log('[Home] Fetch state gameId=', gameId);
+      const data = await apiFetch<{ status: string; players: GamePlayer[]; code: string }>(`/api/games/${gameId}/state`);
+      console.log('[Home] State reçu:', data);
       setGameStatus(data.status);
       setPlayers(data.players ?? []);
       setGameCode(data.code ?? "");
       setError(null);
     } catch (err) {
+      console.warn('[Home] Échec state', err);
       setError(err instanceof Error ? err.message : "Échec de récupération de l'état");
     }
   }, [gameId]);
@@ -137,18 +155,18 @@ export default function DashboardPage() {
   const autoJoinGlobal = useCallback(async () => {
     if (autoJoinAttempted || !isLoggedIn || gameId) return;
     setAutoJoinAttempted(true);
-    
+    console.log('[Home] AutoJoin déclenché isLoggedIn=', isLoggedIn, 'gameId=', gameId);
     try {
       const list = await apiFetch<{ games: { id: string; code: string; status: string }[] }>(`/api/games`);
+      console.log('[Home] Liste des games:', list);
       const g = list.games?.[0];
       if (!g) throw new Error("Partie introuvable");
-      
       const data = await apiFetch<{ playerId: string; code: string }>(`/api/games/${g.id}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-      
+      console.log('[Home] Join OK:', data);
       setGameId(g.id);
       setPlayerId(data.playerId);
       setGameCode(g.code);
@@ -158,8 +176,7 @@ export default function DashboardPage() {
       setMessage(`Vous avez rejoint la partie mondiale en tant que ${userEmail}`);
       updateState();
     } catch (err: any) {
-      console.error("[AutoJoin] Erreur:", err);
-      // Ne pas afficher d'erreur si l'utilisateur existe déjà
+      console.error('[AutoJoin] Erreur join:', err?.message || err);
     }
   }, [autoJoinAttempted, isLoggedIn, gameId, userEmail, refreshSession, updateState]);
 
@@ -172,16 +189,17 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!gameId || !userEmail) return;
     try {
-      // Socket via proxy rewrite /socket.io/* pour éviter CORS (voir next.config.js)
-      const s = io("/", {
+      // Connexion Socket.IO directe au serveur API (nécessaire en APK/Capacitor)
+      const s = io(API_BASE, {
         path: "/socket.io",
         transports: ["websocket"],
+        withCredentials: true,
         query: { gameId, nickname: userEmail },
       });
       setSocketRef(s);
       const poll = async () => {
         try {
-          const res = await fetch(`/api/games/${gameId}/online`);
+          const res = await fetch(`${API_BASE}/api/games/${gameId}/online`, { credentials: 'include' });
           if (!res.ok) return;
           const data = await res.json();
           setOnlineEmails(Array.isArray(data.users) ? data.users : []);
@@ -200,11 +218,11 @@ export default function DashboardPage() {
     setPortfolioPlayer(p);
     try {
       const [propsRes, mktRes, pricesRes, ecoRes, statsRes] = await Promise.all([
-  fetch(`/api/games/${gameId}/properties/holdings/${p.id}`),
-  fetch(`/api/games/${gameId}/markets/holdings/${p.id}`),
-  fetch(`/api/games/${gameId}/markets/latest`),
-  fetch(`/api/games/${gameId}/economy`),
-  fetch(`/api/quiz/public-stats`),
+        fetch(`${API_BASE}/api/games/${gameId}/properties/holdings/${p.id}`, { credentials: 'include' }),
+        fetch(`${API_BASE}/api/games/${gameId}/markets/holdings/${p.id}`, { credentials: 'include' }),
+        fetch(`${API_BASE}/api/games/${gameId}/markets/latest`, { credentials: 'include' }),
+        fetch(`${API_BASE}/api/games/${gameId}/economy`, { credentials: 'include' }),
+        fetch(`${API_BASE}/api/quiz/public-stats`, { credentials: 'include' }),
       ]);
       const propsData = propsRes.ok ? await propsRes.json() : { holdings: [] };
       const mktData = mktRes.ok ? await mktRes.json() : { holdings: [] };
@@ -520,6 +538,8 @@ export default function DashboardPage() {
   return (
     <>
   <main className="space-y-6 overflow-x-hidden">
+      <div className="text-xs opacity-60">DEBUG API_BASE: {API_BASE}</div>
+  <AuthDebugBanner />
       {/* Bannière Nouveautés (nov 2025) */}
       <div className="rounded-lg border border-indigo-600 bg-gradient-to-r from-indigo-700/60 to-purple-700/50 p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 shadow">
         <div className="text-sm md:text-base font-semibold text-indigo-100 flex items-center gap-2">
@@ -695,6 +715,16 @@ export default function DashboardPage() {
         <Link href="/listings" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-center w-full">Annonces</Link>
         <Link href="/summary" className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 text-center w-full">Résumé</Link>
         <Link href="/quiz" className="px-4 py-2 rounded bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 font-bold text-center w-full">💰 Quiz</Link>
+      </section>
+
+      {/* Bouton Bonus gratuit */}
+      <section className="w-full">
+        <Link 
+          href="/bonus" 
+          className="block px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-bold text-center w-full text-lg shadow-lg transition-all hover:scale-105"
+        >
+          📺 Bonus Gratuit - Gagnez $5,000 !
+        </Link>
       </section>
 
       {portfolioPlayer && (

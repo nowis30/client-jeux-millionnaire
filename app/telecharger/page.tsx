@@ -2,11 +2,12 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
-const APK_FILENAME = process.env.NEXT_PUBLIC_APK_FILENAME || "heritier-millionnaire-v1.0.apk";
+const APK_FILENAME = process.env.NEXT_PUBLIC_APK_FILENAME || "heritier-millionnaire-v1.0.2.apk";
 // Lien principal: RAW GitHub direct (le plus fiable dans WebView Android)
-const APK_URL = process.env.NEXT_PUBLIC_APK_URL || "https://raw.githubusercontent.com/nowis30/jeux-millionnaire-APK/main/heritier-millionnaire-v1.0.apk";
+const APK_URL = process.env.NEXT_PUBLIC_APK_URL || `https://raw.githubusercontent.com/nowis30/jeux-millionnaire-APK/main/${APK_FILENAME}`;
 // Miroir: CDN jsDelivr (rapide, mais peut nécessiter propagation)
-const APK_URL_MIRROR = "https://cdn.jsdelivr.net/gh/nowis30/jeux-millionnaire-APK@main/heritier-millionnaire-v1.0.apk";
+const APK_URL_MIRROR = process.env.NEXT_PUBLIC_APK_URL_MIRROR || `https://cdn.jsdelivr.net/gh/nowis30/jeux-millionnaire-APK@main/${APK_FILENAME}`;
+const APK_VERSION = process.env.NEXT_PUBLIC_APK_VERSION || (APK_FILENAME.match(/v(\d+\.\d+\.\d+)/)?.[1] ?? "1.0.2");
 const TRAILER_YT = process.env.NEXT_PUBLIC_TRAILER_YT || ""; // ex: https://www.youtube.com/embed/XXXXXXXX
 const TRAILER_MP4 = process.env.NEXT_PUBLIC_TRAILER_MP4 || ""; // ex: https://cdn.exemple.com/trailer.mp4
 
@@ -43,7 +44,7 @@ export default function TelechargerPage() {
 
       {/* Bloc téléchargement APK */}
       <section className="rounded-lg border border-emerald-600/40 bg-emerald-600/10 p-4 space-y-3">
-        <h3 className="font-semibold text-emerald-200">📱 APK Android - Version 1.0</h3>
+  <h3 className="font-semibold text-emerald-200">📱 APK Android - Version {APK_VERSION}</h3>
         <p className="text-sm text-emerald-100/90">
           {isAndroid ? (
             <>Vous êtes sur Android. Après le téléchargement, ouvrez le fichier .apk et autorisez l'installation depuis le navigateur si nécessaire.</>
@@ -64,7 +65,7 @@ export default function TelechargerPage() {
               download
               className="inline-flex items-center gap-2 px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-black font-medium"
             >
-              ⬇️ Télécharger l'APK v1.0 {primaryOk === false && '(miroir)'}
+              ⬇️ Télécharger l'APK v{APK_VERSION} {primaryOk === false && '(miroir)'}
             </a>
             <a
               href={APK_URL_MIRROR}

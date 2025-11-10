@@ -2,8 +2,9 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { API_BASE, apiFetch } from "../../lib/api";
 // Ads récompense désactivées temporairement
-const MIN_BET = 5000;
-const DYN_FACTOR = 0.5; // 50% du cash comme plafond dynamique côté client (indicatif)
+const MIN_BET = 5000; 
+const DYN_FACTOR = 0.5; // 50% du cash comme plafond dynamique côté client (indicatif) 
+const AUTO_ROLL_MIN_DELAY_MS = 2500; // Délai minimum entre deux lancers auto
 
 interface RollResult {
   dice: number[];
@@ -29,7 +30,16 @@ export default function PariPage() {
   const [animDice, setAnimDice] = useState<[number,number,number] | null>(null);
   const [history, setHistory] = useState<RollResult[]>([]);
   const [cooldown, setCooldown] = useState<number>(0); // ms remaining
-  const cooldownRef = useRef<NodeJS.Timeout | null>(null);
+  const cooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [autoRoll, setAutoRoll] = useState(false);
+  const [autoCountdown, setAutoCountdown] = useState<number>(0);
+  const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoRollRef = useRef(false);
+  const rollingRef = useRef(false);
+  const pariTokensRef = useRef(0);
+  const cooldownStateRef = useRef(0);
+  const nextTokenSecRef = useRef(0);
   const dynamicCap = cash != null ? Math.min(1_000_000_000, Math.max(MIN_BET, Math.floor(Math.max(0, cash) * DYN_FACTOR))) : null;
 
   // Charger historique depuis localStorage
@@ -58,6 +68,91 @@ export default function PariPage() {
     }, 200);
     return () => clearInterval(interval);
   }, [cooldown]);
+
+  useEffect(() => {
+    autoRollRef.current = autoRoll;
+    if (!autoRoll) {
+      clearAutoTimers();
+    }
+  }, [autoRoll]);
+
+  useEffect(() => { rollingRef.current = rolling; }, [rolling]);
+  useEffect(() => { pariTokensRef.current = pariTokens; }, [pariTokens]);
+  useEffect(() => { cooldownStateRef.current = cooldown; }, [cooldown]);
+  useEffect(() => { nextTokenSecRef.current = nextTokenSec; }, [nextTokenSec]);
+
+  useEffect(() => {
+    return () => {
+      if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
+      if (autoCountdownRef.current) clearInterval(autoCountdownRef.current);
+    };
+  }, []);
+
+  function clearAutoTimers() {
+    if (autoTimerRef.current) {
+      clearTimeout(autoTimerRef.current);
+      autoTimerRef.current = null;
+    }
+    if (autoCountdownRef.current) {
+      clearInterval(autoCountdownRef.current);
+      autoCountdownRef.current = null;
+    }
+    setAutoCountdown(0);
+  }
+
+  function scheduleAutoRoll(customDelay?: number) {
+    if (!autoRollRef.current) return;
+    clearAutoTimers();
+
+    let delay = customDelay ?? AUTO_ROLL_MIN_DELAY_MS;
+    if (cooldownStateRef.current > 0) {
+      delay = Math.max(delay, cooldownStateRef.current + 500);
+    }
+
+    if (pariTokensRef.current <= 0) {
+      if (nextTokenSecRef.current > 0) {
+        delay = Math.max(delay, nextTokenSecRef.current * 1000 + 500);
+      } else {
+        setAutoRoll(false);
+        setError(prev => prev ?? "Auto-roll arrêté (plus de tokens).");
+        return;
+      }
+    }
+
+    const start = Date.now();
+    setAutoCountdown(delay);
+    autoTimerRef.current = setTimeout(() => {
+      autoTimerRef.current = null;
+      if (autoCountdownRef.current) {
+        clearInterval(autoCountdownRef.current);
+        autoCountdownRef.current = null;
+      }
+      setAutoCountdown(0);
+      if (!autoRollRef.current) return;
+
+      if (rollingRef.current) {
+        scheduleAutoRoll(500);
+        return;
+      }
+
+      if (pariTokensRef.current <= 0) {
+        if (nextTokenSecRef.current > 0) {
+          scheduleAutoRoll(Math.max(AUTO_ROLL_MIN_DELAY_MS, nextTokenSecRef.current * 1000 + 500));
+          return;
+        }
+        setAutoRoll(false);
+        setError(prev => prev ?? "Auto-roll arrêté (plus de tokens).");
+        return;
+      }
+
+      void play();
+    }, delay);
+
+    autoCountdownRef.current = setInterval(() => {
+      const remaining = Math.max(0, delay - (Date.now() - start));
+      setAutoCountdown(remaining);
+    }, 200);
+  }
 
   const ensureSession = useCallback(async () => {
     try {
@@ -194,8 +289,26 @@ export default function PariPage() {
     } finally {
       clearInterval(animInterval);
       setRolling(false);
+      if (autoRollRef.current) {
+        scheduleAutoRoll();
+      }
     }
   }
+
+  useEffect(() => {
+    if (!autoRoll) return;
+    if (rolling) return;
+    if (autoTimerRef.current) return;
+
+    if (pariTokens > 0 && cooldown <= 0) {
+      scheduleAutoRoll(400);
+      return;
+    }
+
+    if (pariTokens <= 0 && nextTokenSec > 0) {
+      scheduleAutoRoll(Math.max(AUTO_ROLL_MIN_DELAY_MS, nextTokenSec * 1000 + 500));
+    }
+  }, [autoRoll, rolling, pariTokens, cooldown, nextTokenSec]);
 
   // Recharge publicitaire désactivée
 
@@ -257,6 +370,28 @@ export default function PariPage() {
           >
             {rolling ? 'Lancement…' : cooldown>0 ? `Cooldown ${(cooldown/1000).toFixed(1)}s` : pariTokens<=0 ? 'Pas de tokens' : 'Lancer les dés'}
           </button>
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-300">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setAutoRoll(prev => !prev)}
+                className={`px-3 py-1 rounded-full border text-xs font-semibold transition ${autoRoll ? 'bg-emerald-400 text-black border-emerald-300 hover:bg-emerald-300' : 'bg-white/10 border-white/20 text-gray-200 hover:bg-white/20'}`}
+                title="Active lancers automatiques tant que des tokens sont disponibles"
+              >
+                {autoRoll ? 'Auto-roll activé' : 'Activer auto-roll'}
+              </button>
+              <span className="font-medium text-gray-200">Auto-roll</span>
+            </div>
+            {autoRoll && (
+              <span className="text-xs text-indigo-200">
+                {pariTokens <= 0
+                  ? `En attente de tokens… (~${Math.max(0, nextTokenSec)}s)`
+                  : autoCountdown > 0
+                    ? `Prochain lancer auto dans ${(autoCountdown/1000).toFixed(1)}s`
+                    : 'Lancer auto imminent'}
+              </span>
+            )}
+          </div>
           {error && <div className="p-3 bg-red-600/80 rounded text-sm">{error}</div>}
         </div>
         <div className="bg-white/5 backdrop-blur rounded-xl p-6 space-y-6">

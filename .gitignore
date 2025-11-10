@@ -29,3 +29,15 @@ Thumbs.db
 
 # Misc
 *.local
+next.config.mjs.pwa
+
+# Audio SFX (versionner seulement le dossier, pas les fichiers binaires)
+# Audio SFX (versionner seulement certains fichiers ou tous si nécessaire)
+# Anciennement on ignorait tous les mp3, cela empêche le déploiement sur Render/Vercel si les assets ne sont pas copiés manuellement.
+# On autorise explicitement les fichiers de base nécessaires au jeu.
+public/audio/*.wav
+!public/audio/theme.mp3
+!public/audio/sfx-correct.mp3
+!public/audio/sfx-wrong.mp3
+!public/audio/sfx-reward.mp3
+!public/audio/.gitkeep

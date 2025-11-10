@@ -4,12 +4,12 @@ import Link from "next/link";
 import { Browser } from "@capacitor/browser";
 
 const APK_FILENAME = process.env.NEXT_PUBLIC_APK_FILENAME || "heritier-millionnaire-v1.0.2.apk";
-// Lien principal: RAW GitHub direct (le plus fiable dans WebView Android)
-const APK_URL = process.env.NEXT_PUBLIC_APK_URL || `https://raw.githubusercontent.com/nowis30/jeux-millionnaire-APK/main/${APK_FILENAME}`;
+// Défauts statiques (fallback)
+const APK_URL_DEFAULT = process.env.NEXT_PUBLIC_APK_URL || `https://raw.githubusercontent.com/nowis30/jeux-millionnaire-APK/main/${APK_FILENAME}`;
 const APK_URL_FALLBACK = process.env.NEXT_PUBLIC_APK_URL_FALLBACK || `https://raw.githubusercontent.com/nowis30/jeux-millionnaire-APK/main/${APK_FILENAME}`;
-// Miroir: CDN jsDelivr (rapide, mais peut nécessiter propagation)
 const APK_URL_MIRROR = process.env.NEXT_PUBLIC_APK_URL_MIRROR || `https://cdn.jsdelivr.net/gh/nowis30/jeux-millionnaire-APK@main/${APK_FILENAME}`;
-const APK_VERSION = process.env.NEXT_PUBLIC_APK_VERSION || (APK_FILENAME.match(/v(\d+\.\d+\.\d+)/)?.[1] ?? "1.0.2");
+const APK_VERSION_DEFAULT = process.env.NEXT_PUBLIC_APK_VERSION || (APK_FILENAME.match(/v(\d+\.\d+\.\d+)/)?.[1] ?? "1.0.2");
+const GITHUB_REPO = process.env.NEXT_PUBLIC_GITHUB_REPO || "nowis30/jeux-millionnaire-APK";
 const TRAILER_YT = process.env.NEXT_PUBLIC_TRAILER_YT || ""; // ex: https://www.youtube.com/embed/XXXXXXXX
 const TRAILER_MP4 = process.env.NEXT_PUBLIC_TRAILER_MP4 || ""; // ex: https://cdn.exemple.com/trailer.mp4
 
@@ -18,22 +18,66 @@ export default function TelechargerPage() {
   const [apkAvailable, setApkAvailable] = useState<boolean | null>(null);
   const [usingFallback, setUsingFallback] = useState<boolean>(false);
   const [opening, setOpening] = useState<boolean>(false);
+  const [resolvedUrl, setResolvedUrl] = useState<string>(APK_URL_DEFAULT);
+  const [resolvedVersion, setResolvedVersion] = useState<string>(APK_VERSION_DEFAULT);
+  const [releaseLoading, setReleaseLoading] = useState<boolean>(false);
+  const [releaseError, setReleaseError] = useState<string | null>(null);
+
   useEffect(() => {
     setUa(navigator.userAgent || "");
-    // Vérifier si l'APK est configuré (simple vérification d'URL)
-    // Note: GitHub Releases ne supporte pas bien HEAD cross-origin, donc on vérifie juste si l'URL est définie
-    const hasValidUrl = Boolean(APK_URL && APK_URL.length > 0 && !APK_URL.startsWith('/'));
-    setApkAvailable(hasValidUrl);
-    // Vérifier si l'asset release répond (HEAD). Si 404 => fallback
+    setResolvedUrl(APK_URL_DEFAULT);
+    setResolvedVersion(APK_VERSION_DEFAULT);
+    const hasDefaultUrl = Boolean(APK_URL_DEFAULT && APK_URL_DEFAULT.length > 0 && !APK_URL_DEFAULT.startsWith('/'));
+    setApkAvailable(hasDefaultUrl);
+
     (async () => {
-      if (!hasValidUrl) return;
+      if (!GITHUB_REPO) return; // pas de détection si repo absent
       try {
-        const resp = await fetch(APK_URL, { method: 'HEAD' });
-        if (!resp.ok && APK_URL_FALLBACK) {
-          setUsingFallback(true);
+        setReleaseLoading(true);
+        setReleaseError(null);
+        const cacheKey = `hm-latest-release-${GITHUB_REPO}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const { url, version, ts } = JSON.parse(cached);
+          if (url && Date.now() - (ts ?? 0) < 60 * 60 * 1000) {
+            setResolvedUrl(url);
+            if (version) setResolvedVersion(String(version).replace(/^v/i,'').trim());
+            return;
+          }
         }
-      } catch (e) {
-        if (APK_URL_FALLBACK) setUsingFallback(true);
+        const latestUrl = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
+        let resp = await fetch(latestUrl, { headers: { 'Accept': 'application/vnd.github+json' } });
+        if (resp.status === 404) {
+          // fallback liste
+          const listUrl = `https://api.github.com/repos/${GITHUB_REPO}/releases`;
+          resp = await fetch(listUrl, { headers: { 'Accept': 'application/vnd.github+json' } });
+        }
+        if (!resp.ok) throw new Error(`GitHub API ${resp.status}`);
+        const data = await resp.json();
+        const rel = Array.isArray(data) ? data[0] : data;
+        const assets = rel?.assets ?? [];
+        const apkAsset = assets.find((a:any) => a?.name?.endsWith('.apk') || a?.content_type?.includes('android.package-archive'));
+        if (apkAsset?.browser_download_url) {
+          setResolvedUrl(apkAsset.browser_download_url);
+          const verRaw = rel?.name || rel?.tag_name || APK_VERSION_DEFAULT;
+          const ver = String(verRaw).replace(/^v/i,'').trim();
+          setResolvedVersion(ver);
+          localStorage.setItem(cacheKey, JSON.stringify({ url: apkAsset.browser_download_url, version: verRaw, ts: Date.now() }));
+        } else {
+          // HEAD sur défaut pour éventuel fallback
+          const head = await fetch(APK_URL_DEFAULT, { method: 'HEAD' });
+          if (!head.ok && APK_URL_FALLBACK) setUsingFallback(true);
+        }
+      } catch (e:any) {
+        setReleaseError(e?.message || 'Erreur release');
+        try {
+          const head = await fetch(APK_URL_DEFAULT, { method: 'HEAD' });
+          if (!head.ok && APK_URL_FALLBACK) setUsingFallback(true);
+        } catch {
+          if (APK_URL_FALLBACK) setUsingFallback(true);
+        }
+      } finally {
+        setReleaseLoading(false);
       }
     })();
   }, []);
@@ -63,7 +107,7 @@ export default function TelechargerPage() {
 
       {/* Bloc téléchargement APK */}
       <section className="rounded-lg border border-emerald-600/40 bg-emerald-600/10 p-4 space-y-3">
-  <h3 className="font-semibold text-emerald-200">📱 APK Android - Version {APK_VERSION}</h3>
+  <h3 className="font-semibold text-emerald-200">📱 APK Android - Version {resolvedVersion}</h3>
         <p className="text-sm text-emerald-100/90">
           {isAndroid ? (
             <>Vous êtes sur Android. Après le téléchargement, ouvrez le fichier .apk et autorisez l'installation depuis le navigateur si nécessaire.</>
@@ -81,11 +125,11 @@ export default function TelechargerPage() {
           <div className="flex flex-wrap items-center gap-3">
             {/* Bouton principal: ouverture externe pour contourner limite 20MB en WebView */}
             <button
-              onClick={() => openExtern(usingFallback ? APK_URL_FALLBACK : APK_URL)}
+              onClick={() => openExtern(usingFallback ? APK_URL_FALLBACK : resolvedUrl)}
               disabled={opening}
               className="inline-flex items-center gap-2 px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-black font-medium"
             >
-              {opening ? 'Ouverture…' : `⬇️ Télécharger l'APK v${APK_VERSION} ${usingFallback ? '(fallback)' : ''}`}
+              {opening ? 'Ouverture…' : `⬇️ Télécharger l'APK v${resolvedVersion} ${usingFallback ? '(fallback)' : ''}`}
             </button>
             {/* Lien miroir explicite */}
             <button
@@ -104,6 +148,8 @@ export default function TelechargerPage() {
             >
               Releases GitHub
             </a>
+            {releaseLoading && <span className="text-xs text-neutral-400">(recherche…)</span>}
+            {releaseError && <span className="text-xs text-rose-300">({releaseError})</span>}
           </div>
         ) : (
           <div className="rounded border border-emerald-700/50 bg-emerald-900/20 p-3 text-sm text-neutral-200">

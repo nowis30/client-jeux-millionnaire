@@ -3,22 +3,32 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 const APK_FILENAME = process.env.NEXT_PUBLIC_APK_FILENAME || "heritier-millionnaire-v1.0.apk";
-// Lien principal: CDN (jsDelivr) vers le fichier committé dans le repo APK
-const APK_URL = process.env.NEXT_PUBLIC_APK_URL || "https://cdn.jsdelivr.net/gh/nowis30/jeux-millionnaire-APK@main/heritier-millionnaire-v1.0.apk";
-// Miroir: RAW GitHub direct (utile si le CDN met du temps à propager)
-const APK_URL_MIRROR = "https://raw.githubusercontent.com/nowis30/jeux-millionnaire-APK/main/heritier-millionnaire-v1.0.apk";
+// Lien principal: RAW GitHub direct (le plus fiable dans WebView Android)
+const APK_URL = process.env.NEXT_PUBLIC_APK_URL || "https://raw.githubusercontent.com/nowis30/jeux-millionnaire-APK/main/heritier-millionnaire-v1.0.apk";
+// Miroir: CDN jsDelivr (rapide, mais peut nécessiter propagation)
+const APK_URL_MIRROR = "https://cdn.jsdelivr.net/gh/nowis30/jeux-millionnaire-APK@main/heritier-millionnaire-v1.0.apk";
 const TRAILER_YT = process.env.NEXT_PUBLIC_TRAILER_YT || ""; // ex: https://www.youtube.com/embed/XXXXXXXX
 const TRAILER_MP4 = process.env.NEXT_PUBLIC_TRAILER_MP4 || ""; // ex: https://cdn.exemple.com/trailer.mp4
 
 export default function TelechargerPage() {
   const [ua, setUa] = useState<string>("");
   const [apkAvailable, setApkAvailable] = useState<boolean | null>(null);
+  const [primaryOk, setPrimaryOk] = useState<boolean | null>(null);
   useEffect(() => {
     setUa(navigator.userAgent || "");
     // Vérifier si l'APK est configuré (simple vérification d'URL)
     // Note: GitHub Releases ne supporte pas bien HEAD cross-origin, donc on vérifie juste si l'URL est définie
     const hasValidUrl = Boolean(APK_URL && APK_URL.length > 0 && !APK_URL.startsWith('/'));
     setApkAvailable(hasValidUrl);
+    // Test léger du primaire: tentative GET HEAD fallback sur fetch (certaines plateformes bloquent HEAD)
+    (async () => {
+      try {
+        const resp = await fetch(APK_URL, { method: 'GET' });
+        setPrimaryOk(resp.ok);
+      } catch (e) {
+        setPrimaryOk(false);
+      }
+    })();
   }, []);
 
   const isAndroid = useMemo(() => /Android/i.test(ua), [ua]);
@@ -50,11 +60,11 @@ export default function TelechargerPage() {
         {apkAvailable ? (
           <div className="flex flex-wrap items-center gap-3">
             <a
-              href={APK_URL}
+              href={primaryOk === false ? APK_URL_MIRROR : APK_URL}
               download
               className="inline-flex items-center gap-2 px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-black font-medium"
             >
-              ⬇️ Télécharger l'APK v1.0
+              ⬇️ Télécharger l'APK v1.0 {primaryOk === false && '(miroir)'}
             </a>
             <a
               href={APK_URL_MIRROR}
@@ -72,6 +82,11 @@ export default function TelechargerPage() {
             >
               Voir toutes les versions sur GitHub
             </a>
+            {primaryOk === false && (
+              <span className="text-xs text-emerald-300">
+                (CDN indisponible, bascule automatique sur miroir)
+              </span>
+            )}
           </div>
         ) : (
           <div className="rounded border border-emerald-700/50 bg-emerald-900/20 p-3 text-sm text-neutral-200">

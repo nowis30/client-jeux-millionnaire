@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { initializeAds } from "../../lib/ads";
 
 /**
  * Bandeau de consentement RGPD pour les publicités
@@ -27,6 +28,12 @@ export default function ConsentBanner() {
       localStorage.setItem("hm-ad-consent-date", new Date().toISOString());
     } catch {}
     setShow(false);
+
+    // Initialiser les publicités immédiatement après consentement
+    // (sur web/no native, la fonction est un no-op)
+    initializeAds().catch((err: unknown) => {
+      console.error("[ConsentBanner] initializeAds failed after accept:", err);
+    });
   };
 
   const handleRefuse = () => {

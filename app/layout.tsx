@@ -8,6 +8,7 @@ const MobileNav = dynamic(() => import("./_components/MobileNav"), { ssr: false 
 const PresenceClient = dynamic(() => import("./_components/PresenceClient"), { ssr: false });
 const AdInitializer = dynamic(() => import("./_components/AdInitializer"), { ssr: false });
 const BackgroundMusic = dynamic(() => import("./_components/BackgroundMusic"), { ssr: false });
+const ConsentBanner = dynamic(() => import("./_components/ConsentBanner"), { ssr: false });
 export const metadata: Metadata = {
   title: "Héritier Millionnaire",
   description: "Simulez immobilier, bourse, quiz de culture financière et devenez l'héritier millionnaire.",
@@ -78,6 +79,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <AdInitializer />
           {/* Musique de fond (lecture après première interaction utilisateur) */}
           <BackgroundMusic />
+          {/* Bandeau de consentement RGPD */}
+          <ConsentBanner />
           {children}
         </div>
         {/* Barre de navigation mobile fixe */}

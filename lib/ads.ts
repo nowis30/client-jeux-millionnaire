@@ -61,6 +61,17 @@ export async function initializeAds(): Promise<void> {
     return;
   }
 
+  // Vérifier le consentement RGPD
+  if (typeof window !== 'undefined') {
+    try {
+      const consent = localStorage.getItem('hm-ad-consent');
+      if (consent !== 'accepted') {
+        console.log('[Ads] User has not accepted ad consent, skipping initialization');
+        return;
+      }
+    } catch {}
+  }
+
   try {
     const AdMob = getAdMobPlugin();
     if (!AdMob) {

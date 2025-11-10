@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
-const APK_FILENAME = process.env.NEXT_PUBLIC_APK_FILENAME || "app-release.apk";
-const APK_URL = process.env.NEXT_PUBLIC_APK_URL || `/${APK_FILENAME}`; // fallback vers un fichier dans /public si présent
+const APK_FILENAME = process.env.NEXT_PUBLIC_APK_FILENAME || "heritier-millionnaire-v1.0.apk";
+const APK_URL = process.env.NEXT_PUBLIC_APK_URL || "https://github.com/nowis30/jeux-millionnaire-APK/raw/main/heritier-millionnaire-v1.0.apk"; // GitHub Releases
 const TRAILER_YT = process.env.NEXT_PUBLIC_TRAILER_YT || ""; // ex: https://www.youtube.com/embed/XXXXXXXX
 const TRAILER_MP4 = process.env.NEXT_PUBLIC_TRAILER_MP4 || ""; // ex: https://cdn.exemple.com/trailer.mp4
 
@@ -30,7 +30,7 @@ export default function TelechargerPage() {
 
       {/* Bloc téléchargement APK */}
       <section className="rounded-lg border border-emerald-600/40 bg-emerald-600/10 p-4 space-y-3">
-        <h3 className="font-semibold text-emerald-200">APK Android</h3>
+        <h3 className="font-semibold text-emerald-200">📱 APK Android - Version 1.0</h3>
         <p className="text-sm text-emerald-100/90">
           {isAndroid ? (
             <>Vous êtes sur Android. Après le téléchargement, ouvrez le fichier .apk et autorisez l'installation depuis le navigateur si nécessaire.</>
@@ -38,6 +38,12 @@ export default function TelechargerPage() {
             <>Le fichier APK s'installe sur Android. Depuis iOS ou desktop, téléchargez et transférez le fichier sur un appareil Android.</>
           )}
         </p>
+        <div className="text-xs text-neutral-300 space-y-1">
+          <div>✨ AdMob production intégré</div>
+          <div>🔒 Consentement RGPD</div>
+          <div>🎵 Musique et effets sonores</div>
+          <div>📦 Taille: 18.23 MB</div>
+        </div>
         {apkAvailable ? (
           <div className="flex flex-wrap items-center gap-3">
             <a
@@ -45,9 +51,16 @@ export default function TelechargerPage() {
               download
               className="inline-flex items-center gap-2 px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-black font-medium"
             >
-              ⬇️ Télécharger l'APK
+              ⬇️ Télécharger l'APK v1.0
             </a>
-            <span className="text-xs text-neutral-400">Lien direct: <a className="underline break-all" href={APK_URL}>{APK_URL}</a></span>
+            <a
+              href="https://github.com/nowis30/jeux-millionnaire-APK"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-emerald-300 hover:text-emerald-200 underline"
+            >
+              Voir toutes les versions sur GitHub
+            </a>
           </div>
         ) : (
           <div className="rounded border border-emerald-700/50 bg-emerald-900/20 p-3 text-sm text-neutral-200">

@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
-const APK_FILENAME = process.env.NEXT_PUBLIC_APK_FILENAME || "HeritierMillionnaire.apk";
-const APK_URL = process.env.NEXT_PUBLIC_APK_URL || "https://github.com/nowis30/jeux-millionnaire-APK/releases/latest/download/HeritierMillionnaire.apk"; // GitHub Releases latest
+const APK_FILENAME = process.env.NEXT_PUBLIC_APK_FILENAME || "heritier-millionnaire-v1.0.apk";
+const APK_URL = process.env.NEXT_PUBLIC_APK_URL || "https://github.com/nowis30/jeux-millionnaire-APK/raw/refs/heads/main/heritier-millionnaire-v1.0.apk"; // Direct link to file in repo
 const TRAILER_YT = process.env.NEXT_PUBLIC_TRAILER_YT || ""; // ex: https://www.youtube.com/embed/XXXXXXXX
 const TRAILER_MP4 = process.env.NEXT_PUBLIC_TRAILER_MP4 || ""; // ex: https://cdn.exemple.com/trailer.mp4
 

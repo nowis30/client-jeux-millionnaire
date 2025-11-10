@@ -6,6 +6,7 @@ import { Browser } from "@capacitor/browser";
 const APK_FILENAME = process.env.NEXT_PUBLIC_APK_FILENAME || "heritier-millionnaire-v1.0.2.apk";
 // Lien principal: RAW GitHub direct (le plus fiable dans WebView Android)
 const APK_URL = process.env.NEXT_PUBLIC_APK_URL || `https://raw.githubusercontent.com/nowis30/jeux-millionnaire-APK/main/${APK_FILENAME}`;
+const APK_URL_FALLBACK = process.env.NEXT_PUBLIC_APK_URL_FALLBACK || `https://raw.githubusercontent.com/nowis30/jeux-millionnaire-APK/main/${APK_FILENAME}`;
 // Miroir: CDN jsDelivr (rapide, mais peut nécessiter propagation)
 const APK_URL_MIRROR = process.env.NEXT_PUBLIC_APK_URL_MIRROR || `https://cdn.jsdelivr.net/gh/nowis30/jeux-millionnaire-APK@main/${APK_FILENAME}`;
 const APK_VERSION = process.env.NEXT_PUBLIC_APK_VERSION || (APK_FILENAME.match(/v(\d+\.\d+\.\d+)/)?.[1] ?? "1.0.2");
@@ -15,6 +16,7 @@ const TRAILER_MP4 = process.env.NEXT_PUBLIC_TRAILER_MP4 || ""; // ex: https://cd
 export default function TelechargerPage() {
   const [ua, setUa] = useState<string>("");
   const [apkAvailable, setApkAvailable] = useState<boolean | null>(null);
+  const [usingFallback, setUsingFallback] = useState<boolean>(false);
   const [opening, setOpening] = useState<boolean>(false);
   useEffect(() => {
     setUa(navigator.userAgent || "");
@@ -22,6 +24,18 @@ export default function TelechargerPage() {
     // Note: GitHub Releases ne supporte pas bien HEAD cross-origin, donc on vérifie juste si l'URL est définie
     const hasValidUrl = Boolean(APK_URL && APK_URL.length > 0 && !APK_URL.startsWith('/'));
     setApkAvailable(hasValidUrl);
+    // Vérifier si l'asset release répond (HEAD). Si 404 => fallback
+    (async () => {
+      if (!hasValidUrl) return;
+      try {
+        const resp = await fetch(APK_URL, { method: 'HEAD' });
+        if (!resp.ok && APK_URL_FALLBACK) {
+          setUsingFallback(true);
+        }
+      } catch (e) {
+        if (APK_URL_FALLBACK) setUsingFallback(true);
+      }
+    })();
   }, []);
 
   const isAndroid = useMemo(() => /Android/i.test(ua), [ua]);
@@ -67,11 +81,11 @@ export default function TelechargerPage() {
           <div className="flex flex-wrap items-center gap-3">
             {/* Bouton principal: ouverture externe pour contourner limite 20MB en WebView */}
             <button
-              onClick={() => openExtern(APK_URL)}
+              onClick={() => openExtern(usingFallback ? APK_URL_FALLBACK : APK_URL)}
               disabled={opening}
               className="inline-flex items-center gap-2 px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-black font-medium"
             >
-              {opening ? 'Ouverture…' : `⬇️ Télécharger l'APK v${APK_VERSION}`}
+              {opening ? 'Ouverture…' : `⬇️ Télécharger l'APK v${APK_VERSION} ${usingFallback ? '(fallback)' : ''}`}
             </button>
             {/* Lien miroir explicite */}
             <button
@@ -83,12 +97,12 @@ export default function TelechargerPage() {
               Ouvrir le miroir
             </button>
             <a
-              href="https://github.com/nowis30/jeux-millionnaire-APK"
+              href="https://github.com/nowis30/jeux-millionnaire-APK/releases"
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-emerald-300 hover:text-emerald-200 underline"
             >
-              Voir toutes les versions sur GitHub
+              Releases GitHub
             </a>
           </div>
         ) : (

@@ -115,9 +115,7 @@ export default function BoursePage() {
   const loadPrices = useCallback(async () => {
     if (!gameId) return;
     try {
-  const res = await fetch(`${API_BASE}/api/games/${gameId}/markets/latest`);
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data: { prices: Price[] } = await res.json();
+      const data = await apiFetch<{ prices: Price[] }>(`/api/games/${gameId}/markets/latest`);
       setPrices(data.prices ?? []);
       setError(null);
     } catch (err) {
@@ -132,9 +130,7 @@ export default function BoursePage() {
   const loadHistory = useCallback(async (sym: string, years = 10) => {
     if (!gameId) return;
     try {
-  const res = await fetch(`${API_BASE}/api/games/${gameId}/markets/history/${sym}?years=${years}`);
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data: { symbol: string; data: { at: string; price: number }[] } = await res.json();
+      const data = await apiFetch<{ symbol: string; data: { at: string; price: number }[] }>(`/api/games/${gameId}/markets/history/${sym}?years=${years}`);
       setHistory((prev) => ({ ...prev, [sym]: data.data }));
     } catch {}
   }, [gameId]);
@@ -142,9 +138,7 @@ export default function BoursePage() {
   const loadHoldings = useCallback(async () => {
     if (!gameId || !playerId) return;
     try {
-  const res = await fetch(`${API_BASE}/api/games/${gameId}/markets/holdings/${playerId}`);
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data: { holdings: Holding[] } = await res.json();
+      const data = await apiFetch<{ holdings: Holding[] }>(`/api/games/${gameId}/markets/holdings/${playerId}`);
       setHoldings(data.holdings ?? []);
       setError(null);
     } catch (err) {
@@ -155,9 +149,7 @@ export default function BoursePage() {
   const loadDividendsKpi = useCallback(async () => {
     if (!gameId || !playerId) return;
     try {
-  const res = await fetch(`${API_BASE}/api/games/${gameId}/markets/dividends/${playerId}`);
-      if (!res.ok) return;
-      const data = await res.json();
+      const data = await apiFetch<any>(`/api/games/${gameId}/markets/dividends/${playerId}`);
       setDivKpi(data?.totals ?? null);
     } catch {}
   }, [gameId, playerId]);
@@ -187,9 +179,7 @@ export default function BoursePage() {
     (async () => {
       if (!gameId) return;
       try {
-  const res = await fetch(`${API_BASE}/api/games/${gameId}/economy`);
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await apiFetch<any>(`/api/games/${gameId}/economy`);
         setEconomy({ baseMortgageRate: Number(data.baseMortgageRate ?? 0.05) });
       } catch {}
     })();

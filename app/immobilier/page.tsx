@@ -44,7 +44,7 @@ async function revealOwnerFallback(
   if (!gameId || !templateId) return false;
   try {
     const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/owner/${templateId}`);
-    if (!res.ok) return false;
+  if (!res.ok) throw new Error(`Erreur ${res.status}`);
     const data = await res.json();
     const owner = data?.ownerNickname ? String(data.ownerNickname).trim() : "";
     if (owner) {
@@ -336,9 +336,7 @@ export default function ImmobilierPage() {
   const loadHoldings = useCallback(async () => {
     if (!gameId || !playerId) return;
     try {
-  const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/holdings/${playerId}`);
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data = await res.json();
+      const data = await apiFetch<{ holdings: any[] }>(`/api/games/${gameId}/properties/holdings/${playerId}`);
       setHoldings(data.holdings ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de charger le parc immobilier");
@@ -349,10 +347,7 @@ export default function ImmobilierPage() {
     if (!gameId || !holdingId) return;
     try {
       setLoadingBilan((m: Record<string, boolean>) => ({ ...m, [holdingId]: true }));
-  const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/bilan/${holdingId}`);
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data = await res.json();
-      // Normaliser: stocker directement l'objet bilan pour simplifier l'accès
+      const data = await apiFetch<any>(`/api/games/${gameId}/properties/bilan/${holdingId}`);
       const bilanObj = (data?.bilan) ? data.bilan : data;
       setHoldingBilans((m: Record<string, any>) => ({ ...m, [holdingId]: { bilan: bilanObj } }));
     } catch (err) {
@@ -365,11 +360,8 @@ export default function ImmobilierPage() {
   const loadEconomy = useCallback(async () => {
     if (!gameId) return;
     try {
-  const res = await fetch(`${API_BASE}/api/games/${gameId}/economy`);
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data = await res.json();
+      const data = await apiFetch<any>(`/api/games/${gameId}/economy`);
       setEconomy(data);
-      // Synchroniser le champ de taux hypothécaire du formulaire avec le taux courant du jeu
       if (typeof data?.baseMortgageRate === "number") {
         setMortgageRate(Number(data.baseMortgageRate));
       }

@@ -18,6 +18,8 @@ interface AdMobPlugin {
   loadRewardedAd(): Promise<void>;
   showRewardedAd(): Promise<RewardEarned>;
   isRewardedAdReady(): Promise<{ ready: boolean }>;
+  // UMP consent (natif). Retourne { npa: boolean }
+  requestConsent?: () => Promise<{ npa: boolean }>;
 }
 
 let isInitialized = false;
@@ -64,8 +66,30 @@ export async function initializeAds(): Promise<void> {
   // Vérifier le consentement RGPD
   if (typeof window !== 'undefined') {
     try {
-      const consent = localStorage.getItem('hm-ad-consent');
-      if (consent !== 'accepted') {
+      let consent = localStorage.getItem('hm-ad-consent');
+      // Si pas encore décidé côté Web, tenter le consentement natif via UMP
+      if (!consent) {
+        const AdMobMaybe = getAdMobPlugin();
+        if (AdMobMaybe && typeof AdMobMaybe.requestConsent === 'function') {
+          try {
+            const res = await AdMobMaybe.requestConsent();
+            // res.npa === true => Non-personalized Ads
+            if (res && typeof res.npa === 'boolean') {
+              const value = res.npa ? 'npa' : 'accepted';
+              try {
+                localStorage.setItem('hm-ad-consent', value);
+                localStorage.setItem('hm-ad-consent-date', new Date().toISOString());
+              } catch {}
+              consent = value;
+            }
+          } catch (e) {
+            console.warn('[Ads] Native requestConsent failed:', e);
+          }
+        }
+      }
+
+      // Autoriser l'init si consent = 'accepted' (personnalisé) OU 'npa' (non personnalisé)
+      if (consent !== 'accepted' && consent !== 'npa') {
         console.log('[Ads] User has not accepted ad consent, skipping initialization');
         return;
       }

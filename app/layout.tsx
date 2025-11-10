@@ -67,6 +67,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <Link href="/tutoriel" prefetch={false}>Tutoriel</Link>
                 <Link href="/telecharger" prefetch={false}>Télécharger</Link>
                 <Link href="/contact" prefetch={false} className="text-rose-300 hover:text-rose-200" title="Des difficultés ou suggestions ? Contactez le support">Contact</Link>
+                <Link href="/confidentialite" prefetch={false} className="text-neutral-300 hover:text-neutral-100">Confidentialité</Link>
               </nav>
               <UserBadge />
             </div>

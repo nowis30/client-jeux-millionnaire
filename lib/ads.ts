@@ -20,6 +20,8 @@ interface AdMobPlugin {
   isRewardedAdReady(): Promise<{ ready: boolean }>;
   // UMP consent (natif). Retourne { npa: boolean }
   requestConsent?: () => Promise<{ npa: boolean }>;
+  // Capacitor event bridge
+  addListener?: (eventName: string, callback: (data: any) => void) => { remove: () => void };
 }
 
 let isInitialized = false;
@@ -105,6 +107,17 @@ export async function initializeAds(): Promise<void> {
     
     await AdMob.initialize();
     isInitialized = true;
+
+    // Brancher des listeners utiles pour le debugging et la télémétrie légère
+    try {
+      AdMob.addListener?.('adShowed', () => console.log('[Ads] Event: adShowed'));
+      AdMob.addListener?.('adDismissed', () => console.log('[Ads] Event: adDismissed'));
+      AdMob.addListener?.('rewardedAdShowed', () => console.log('[Ads] Event: rewardedAdShowed'));
+      AdMob.addListener?.('rewardedAdDismissed', () => console.log('[Ads] Event: rewardedAdDismissed'));
+      AdMob.addListener?.('rewardEarned', (r) => console.log('[Ads] Event: rewardEarned', r));
+    } catch (e) {
+      console.warn('[Ads] Failed to attach listeners:', e);
+    }
     
     // Précharger les annonces
     await loadInterstitialAd();

@@ -189,11 +189,26 @@ export default function BackgroundMusic() {
         } else if (a) a.play().catch(()=>{});
       }
     };
+    const onPlayNow = () => {
+      // Force lecture immédiate (page accueil) même si ready=false (tentatives multiples)
+      forcedPauseRef.current = false;
+      const a = audioRef.current;
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume().catch(()=>{});
+      }
+      if (enabled) {
+        if (missingFile) startFallbackTone(); else if (a) {
+          a.play().catch(()=>{});
+        }
+      }
+    };
     window.addEventListener("hm-music/pause", onPause as EventListener);
     window.addEventListener("hm-music/resume", onResume as EventListener);
+    window.addEventListener("hm-music/play-now", onPlayNow as EventListener);
     return () => {
       window.removeEventListener("hm-music/pause", onPause as EventListener);
       window.removeEventListener("hm-music/resume", onResume as EventListener);
+      window.removeEventListener("hm-music/play-now", onPlayNow as EventListener);
     };
   }, [enabled]);
 

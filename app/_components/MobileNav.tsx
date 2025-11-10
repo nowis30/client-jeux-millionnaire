@@ -1,6 +1,7 @@
 "use client";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useState } from "react";
 
 // Navigation mobile compacte avec bouton flottant et tiroir de liens
 const items = [
@@ -17,7 +18,12 @@ const items = [
 
 export default function MobileNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const handleNavigate = useCallback((href: string) => {
+    setOpen(false);
+    router.push(href);
+  }, [router]);
   // Masqué sur desktop
   return (
     <div className="md:hidden">
@@ -36,7 +42,7 @@ export default function MobileNav() {
 
       {/* Boutons persistants Quiz & Pari */}
       <div className="fixed z-40 bottom-4 right-4 flex gap-3">
-        <a
+        <Link
           href="/quiz"
           className={[
             "relative group flex flex-col items-center justify-center w-16 h-16 rounded-xl shadow-lg border",
@@ -44,11 +50,12 @@ export default function MobileNav() {
               ? "bg-sky-600 border-sky-500 text-white"
               : "bg-sky-700 border-sky-600 text-white hover:bg-sky-600",
           ].join(" ")}
+          prefetch={false}
         >
           <span className="text-sm font-semibold">Quiz</span>
           <span className="absolute -top-2 -right-2 bg-white text-sky-700 text-[10px] px-1.5 py-0.5 rounded-full shadow group-hover:scale-110 transition-transform">★</span>
-        </a>
-        <a
+        </Link>
+        <Link
           href="/pari"
           className={[
             "flex flex-col items-center justify-center w-16 h-16 rounded-xl shadow-lg border",
@@ -56,9 +63,10 @@ export default function MobileNav() {
               ? "bg-amber-600 border-amber-500 text-white"
               : "bg-amber-700 border-amber-600 text-white hover:bg-amber-600",
           ].join(" ")}
+          prefetch={false}
         >
           <span className="text-sm font-semibold">Pari</span>
-        </a>
+        </Link>
       </div>
 
       {/* Tiroir plein écran */}
@@ -83,12 +91,13 @@ export default function MobileNav() {
             </div>
             <ul className="grid grid-cols-2 gap-2 text-[15px]">
               {items.map((item) => {
-                const active = pathname === item.href || pathname?.startsWith(item.href + "/");
+                const normalized = item.href === "/" ? "/" : item.href.replace(/\/$/, "");
+                const active = pathname === normalized || pathname?.startsWith(`${normalized}/`);
                 return (
                   <li key={item.href}>
-                    <a
-                      href={item.href}
-                      onClick={() => setOpen(false)}
+                    <button
+                      type="button"
+                      onClick={() => handleNavigate(item.href)}
                       className={[
                         "block w-full rounded-lg px-4 py-3 border font-medium",
                         active
@@ -97,7 +106,7 @@ export default function MobileNav() {
                       ].join(" ")}
                     >
                       {item.label}
-                    </a>
+                    </button>
                   </li>
                 );
               })}
@@ -105,9 +114,9 @@ export default function MobileNav() {
 
             {/* Aide / raccourcis dans tiroir */}
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <a
-                href="/quiz"
-                onClick={() => setOpen(false)}
+              <button
+                type="button"
+                onClick={() => handleNavigate("/quiz")}
                 className={[
                   "block w-full text-center rounded-lg px-4 py-3 font-semibold shadow",
                   pathname?.startsWith("/quiz")
@@ -116,10 +125,10 @@ export default function MobileNav() {
                 ].join(" ")}
               >
                 Démarrer Quiz
-              </a>
-              <a
-                href="/pari"
-                onClick={() => setOpen(false)}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNavigate("/pari")}
                 className={[
                   "block w-full text-center rounded-lg px-4 py-3 font-semibold shadow",
                   pathname?.startsWith("/pari")
@@ -128,7 +137,7 @@ export default function MobileNav() {
                 ].join(" ")}
               >
                 Lancer Pari
-              </a>
+              </button>
             </div>
           </nav>
         </div>

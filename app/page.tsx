@@ -7,6 +7,7 @@ import { clearSession, loadSession, saveSession } from "../lib/session";
 import OnboardingHome from "../components/OnboardingHome";
 import { apiFetch, API_BASE } from "../lib/api";
 import { formatMoney } from "../lib/format";
+import { showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown } from "../lib/ads";
 
 type Entry = { playerId: string; nickname: string; netWorth: number };
 type GamePlayer = { id: string; nickname: string; cash: number; netWorth: number };
@@ -79,6 +80,14 @@ export default function DashboardPage() {
   const [inviteAccepted, setInviteAccepted] = useState<string | null>(null);
   const [onlineEmails, setOnlineEmails] = useState<string[]>([]);
   const [socketRef, setSocketRef] = useState<Socket | null>(null);
+  const [bonusRewardAmount, setBonusRewardAmount] = useState(1_000_000);
+  const [bonusCooldown, setBonusCooldown] = useState(0);
+  const [bonusReady, setBonusReady] = useState(false);
+  const [bonusLoading, setBonusLoading] = useState(false);
+  const [bonusMessage, setBonusMessage] = useState<string | null>(null);
+  const [bonusError, setBonusError] = useState<string | null>(null);
+  const [adReady, setAdReady] = useState(false);
+  const [isNativeEnv, setIsNativeEnv] = useState(false);
   
     // Affichage debug auth si erreur
     const AuthDebugBanner = () => {
@@ -97,6 +106,15 @@ export default function DashboardPage() {
       setGameId(session.gameId);
       setPlayerId(session.playerId ?? "");
       if (session.nickname) setKnownNickname(session.nickname);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      setIsNativeEnv(Boolean((window as any).Capacitor?.isNativePlatform?.()));
+    } catch {
+      setIsNativeEnv(false);
     }
   }, []);
 
@@ -156,6 +174,36 @@ export default function DashboardPage() {
     }
   }, [gameId]);
 
+  const refreshBonusStatus = useCallback(async () => {
+    if (!gameId || !playerId) return;
+    try {
+      const data = await apiFetch<{ available: boolean; secondsUntilAvailable: number; rewardAmount: number }>(`/api/games/${gameId}/bonus/status`);
+      setBonusReady(Boolean(data.available));
+      setBonusCooldown(Math.max(0, Number(data.secondsUntilAvailable ?? 0)));
+      if (typeof data.rewardAmount === "number" && !Number.isNaN(data.rewardAmount)) {
+        setBonusRewardAmount(data.rewardAmount);
+      }
+      setBonusError(null);
+    } catch (err: any) {
+      if (err?.status === 404) return;
+      if (err?.message) {
+        setBonusError(err.message);
+      } else {
+        setBonusError("Impossible de récupérer le bonus.");
+      }
+    }
+  }, [gameId, playerId]);
+
+  const formatBonusCooldown = useCallback((seconds: number) => {
+    const total = Math.max(0, Math.floor(seconds));
+    const mins = Math.floor(total / 60);
+    const secs = total % 60;
+    if (mins > 0) {
+      return `${mins}min ${secs}s`;
+    }
+    return `${secs}s`;
+  }, []);
+
   // Rejoindre automatiquement la partie globale dès la connexion
   const autoJoinGlobal = useCallback(async () => {
     if (autoJoinAttempted || !isLoggedIn || gameId) return;
@@ -184,6 +232,52 @@ export default function DashboardPage() {
       console.error('[AutoJoin] Erreur join:', err?.message || err);
     }
   }, [autoJoinAttempted, isLoggedIn, gameId, userEmail, refreshSession, updateState]);
+
+  const handleWatchBonusAd = useCallback(async () => {
+    if (!gameId || !playerId) {
+      setBonusError("Rejoignez la partie mondiale pour débloquer le bonus.");
+      return;
+    }
+    if (bonusLoading) return;
+
+    setBonusLoading(true);
+    setBonusError(null);
+    setBonusMessage(null);
+
+    try {
+      const displayed = await showRewardedAdForReward((amount, type) => {
+        console.log(`[Bonus] Reward callback ${amount} ${type}`);
+      });
+      if (!displayed) {
+        setBonusError("La publicité n'est pas prête. Réessayez dans quelques instants.");
+        return;
+      }
+
+      const result = await apiFetch<{ rewardAmount?: number; secondsUntilNext?: number }>(`/api/games/${gameId}/bonus/redeem`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      const awarded = Number(result?.rewardAmount ?? bonusRewardAmount);
+      setBonusRewardAmount(awarded);
+      setBonusMessage(`+${formatMoney(awarded)}`);
+      const serverCooldown = Number(result?.secondsUntilNext ?? 0);
+      const pluginCooldown = getRewardedAdCooldown();
+      const nextCooldown = Math.max(serverCooldown, pluginCooldown);
+      setBonusCooldown(nextCooldown);
+      setBonusReady(false);
+      refreshBonusStatus();
+      updateState();
+    } catch (err: any) {
+      if (err?.status === 429) {
+        refreshBonusStatus();
+      }
+      setBonusError(err?.message || "Impossible de créditer le bonus.");
+    } finally {
+      setBonusLoading(false);
+    }
+  }, [gameId, playerId, bonusLoading, bonusRewardAmount, refreshBonusStatus, updateState]);
 
   // Déclencher le auto-join dès que l'utilisateur est connecté
   useEffect(() => {
@@ -517,6 +611,49 @@ export default function DashboardPage() {
     updateState();
   }, [gameId, updateState]);
 
+  useEffect(() => {
+    refreshBonusStatus();
+  }, [refreshBonusStatus]);
+
+  useEffect(() => {
+    if (bonusCooldown <= 0) return;
+    const timer = setTimeout(() => {
+      setBonusCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [bonusCooldown]);
+
+  useEffect(() => {
+    let mounted = true;
+    const checkReady = async () => {
+      try {
+        const ready = await isRewardedAdReady();
+        if (mounted) setAdReady(ready);
+      } catch {
+        if (mounted) setAdReady(false);
+      }
+    };
+    checkReady();
+    const interval = setInterval(checkReady, 5000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isNativeEnv) return;
+    const syncCooldown = () => {
+      const local = getRewardedAdCooldown();
+      if (local > 0) {
+        setBonusCooldown((prev) => (local > prev ? local : prev));
+      }
+    };
+    syncCooldown();
+    const interval = setInterval(syncCooldown, 5000);
+    return () => clearInterval(interval);
+  }, [isNativeEnv]);
+
 
   // Tente de récupérer mon joueur courant si playerId manquant
   useEffect(() => {
@@ -539,6 +676,15 @@ export default function DashboardPage() {
       .map((p) => ({ playerId: p.id, nickname: p.nickname, netWorth: p.netWorth }))
       .sort((a, b) => b.netWorth - a.netWorth);
   }, [leaderboard, players]);
+
+  const bonusButtonDisabled = !gameId || !playerId || bonusLoading || bonusCooldown > 0 || !adReady;
+  const bonusButtonLabel = (() => {
+    if (!gameId || !playerId) return "Connexion en cours...";
+    if (bonusLoading) return "Chargement de la publicité...";
+    if (bonusCooldown > 0) return `Disponible dans ${formatBonusCooldown(bonusCooldown)}`;
+    if (!adReady) return isNativeEnv ? "Chargement de la publicité..." : "Disponible dans l'app mobile";
+    return `Regarder la publicité pour ${formatMoney(bonusRewardAmount)}`;
+  })();
 
   return (
     <>
@@ -565,59 +711,91 @@ export default function DashboardPage() {
           <a href="/login" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 inline-block">Aller à la page de connexion</a>
         </section>
       ) : (
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Partie Mondiale du Millionnaire</h2>
-          <div className="flex items-center gap-3">
-            {userEmail && (
-              <p className="text-sm text-neutral-400 flex items-center gap-2">
-                Connecté: <span className="text-emerald-400 flex items-center gap-1">
-                  {onlineEmails.includes(userEmail) && <span className="inline-block w-2 h-2 rounded-full bg-green-500" title="En ligne" />}
-                  {userEmail}
-                </span>
-              </p>
+        <>
+          <section className="rounded-xl border border-emerald-600/60 bg-gradient-to-r from-emerald-900/70 to-green-800/60 p-4 shadow-lg space-y-3">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="space-y-1 text-sm text-emerald-100">
+                <p className="text-lg md:text-xl font-semibold text-white">Bonus pub : {formatMoney(bonusRewardAmount)}</p>
+                <p className="text-emerald-100/80 text-sm">Regardez une publicité pour créditer instantanément {formatMoney(bonusRewardAmount)} sur votre compte.</p>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full md:w-auto">
+                <button
+                  onClick={handleWatchBonusAd}
+                  disabled={bonusButtonDisabled}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-all w-full sm:w-auto ${bonusButtonDisabled ? "bg-emerald-700/40 text-emerald-200/70 cursor-not-allowed" : "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-black shadow-lg shadow-emerald-900/40"}`}
+                >{bonusButtonLabel}</button>
+                <Link href="/bonus" className="text-xs text-emerald-100/80 underline text-center">En savoir plus</Link>
+              </div>
+            </div>
+            {!isNativeEnv && (
+              <p className="text-xs text-emerald-100/70 text-center md:text-right">Disponible dans l'application mobile. Téléchargez-la via l'onglet Télécharger.</p>
             )}
-            {isAdmin && <span className="px-2 py-1 rounded bg-red-700 text-xs font-semibold">ADMIN</span>}
-          </div>
-        </div>
-        {gameId && playerId && (
-          <div className="bg-emerald-900/30 border border-emerald-700/50 rounded-lg p-3">
-            <p className="text-emerald-300 text-sm">✅ Vous êtes automatiquement inscrit à la partie mondiale !</p>
-            <p className="text-neutral-400 text-xs mt-1">Pseudo: {knownNickname || userEmail}</p>
-          </div>
-        )}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
-          <button
-            onClick={async () => {
-              try { await apiFetch<{ ok: boolean }>("/api/auth/logout", { method: "POST" }); } catch {}
-              // Double filet: purge locale explicite des cookies si navigateur ne retire pas les SameSite=None (dev HTTP)
-              try {
-                if (typeof document !== 'undefined') {
-                  const exp = 'Thu, 01 Jan 1970 00:00:00 GMT';
-                  document.cookie = 'hm_auth=; expires=' + exp + '; path=/';
-                  document.cookie = 'hm_csrf=; expires=' + exp + '; path=/';
-                  document.cookie = 'hm_guest=; expires=' + exp + '; path=/';
-                }
-              } catch {}
-              try { if (typeof window !== "undefined") window.localStorage.removeItem("HM_TOKEN"); } catch {}
-              try { if (typeof window !== "undefined") window.localStorage.removeItem("hm-session"); } catch {}
-              clearSession(); setIsLoggedIn(false); setIsAdmin(false); setUserEmail('');
-              router.replace("/login");
-            }}
-            className="px-4 py-2 rounded bg-rose-700 hover:bg-rose-600 w-full sm:w-auto"
-          >Se déconnecter</button>
-          <button onClick={createInvite} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 w-full sm:w-auto">Inviter un ami (gagne 1M$)</button>
-          <button onClick={handleShare} className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 w-full sm:w-auto">Partager le jeu</button>
-          <a href={`mailto:?subject=${encodeURIComponent("Rejoins le jeu du Millionnaire")}&body=${encodeURIComponent("Rejoins-moi: " + shareUrl)}`} className="px-4 py-2 rounded bg-indigo-700 hover:bg-indigo-600 text-center w-full sm:w-auto">Inviter par email</a>
-        </div>
-        {inviteLink && (
-          <div className="text-xs text-neutral-300">Lien d'invitation: <a href={inviteLink} className="underline break-all">{inviteLink}</a></div>
-        )}
-        {(inviteMsg || shareStatus) && <p className="text-xs text-neutral-400">{inviteMsg || shareStatus}</p>}
-        {inviteAccepted && <p className="text-xs text-emerald-400">Invitation appliquée. Merci !</p>}
-        {message && <p className="text-sm text-emerald-400">{message}</p>}
-        {error && <p className="text-sm text-red-400">{error}</p>}
-      </section>
+            {bonusMessage && (
+              <div className="rounded-lg border border-emerald-500/60 bg-emerald-500/15 px-3 py-2 text-sm text-emerald-100 text-center">
+                {bonusMessage} crédité sur votre compte !
+              </div>
+            )}
+            {bonusError && (
+              <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-100 text-center">
+                {bonusError}
+              </div>
+            )}
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Partie Mondiale du Millionnaire</h2>
+              <div className="flex items-center gap-3">
+                {userEmail && (
+                  <p className="text-sm text-neutral-400 flex items-center gap-2">
+                    Connecté: <span className="text-emerald-400 flex items-center gap-1">
+                      {onlineEmails.includes(userEmail) && <span className="inline-block w-2 h-2 rounded-full bg-green-500" title="En ligne" />}
+                      {userEmail}
+                    </span>
+                  </p>
+                )}
+                {isAdmin && <span className="px-2 py-1 rounded bg-red-700 text-xs font-semibold">ADMIN</span>}
+              </div>
+            </div>
+            {gameId && playerId && (
+              <div className="bg-emerald-900/30 border border-emerald-700/50 rounded-lg p-3">
+                <p className="text-emerald-300 text-sm">✅ Vous êtes automatiquement inscrit à la partie mondiale !</p>
+                <p className="text-neutral-400 text-xs mt-1">Pseudo: {knownNickname || userEmail}</p>
+              </div>
+            )}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+              <button
+                onClick={async () => {
+                  try { await apiFetch<{ ok: boolean }>("/api/auth/logout", { method: "POST" }); } catch {}
+                  // Double filet: purge locale explicite des cookies si navigateur ne retire pas les SameSite=None (dev HTTP)
+                  try {
+                    if (typeof document !== 'undefined') {
+                      const exp = 'Thu, 01 Jan 1970 00:00:00 GMT';
+                      document.cookie = 'hm_auth=; expires=' + exp + '; path=/';
+                      document.cookie = 'hm_csrf=; expires=' + exp + '; path=/';
+                      document.cookie = 'hm_guest=; expires=' + exp + '; path=/';
+                    }
+                  } catch {}
+                  try { if (typeof window !== "undefined") window.localStorage.removeItem("HM_TOKEN"); } catch {}
+                  try { if (typeof window !== "undefined") window.localStorage.removeItem("hm-session"); } catch {}
+                  clearSession(); setIsLoggedIn(false); setIsAdmin(false); setUserEmail('');
+                  router.replace("/login");
+                }}
+                className="px-4 py-2 rounded bg-rose-700 hover:bg-rose-600 w-full sm:w-auto"
+              >Se déconnecter</button>
+              <button onClick={createInvite} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 w-full sm:w-auto">Inviter un ami (gagne 1M$)</button>
+              <button onClick={handleShare} className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 w-full sm:w-auto">Partager le jeu</button>
+              <a href={`mailto:?subject=${encodeURIComponent("Rejoins le jeu du Millionnaire")}&body=${encodeURIComponent("Rejoins-moi: " + shareUrl)}`} className="px-4 py-2 rounded bg-indigo-700 hover:bg-indigo-600 text-center w-full sm:w-auto">Inviter par email</a>
+            </div>
+            {inviteLink && (
+              <div className="text-xs text-neutral-300">Lien d'invitation: <a href={inviteLink} className="underline break-all">{inviteLink}</a></div>
+            )}
+            {(inviteMsg || shareStatus) && <p className="text-xs text-neutral-400">{inviteMsg || shareStatus}</p>}
+            {inviteAccepted && <p className="text-xs text-emerald-400">Invitation appliquée. Merci !</p>}
+            {message && <p className="text-sm text-emerald-400">{message}</p>}
+            {error && <p className="text-sm text-red-400">{error}</p>}
+          </section>
+        </>
       )}
 
       <section>
@@ -728,7 +906,7 @@ export default function DashboardPage() {
           href="/bonus" 
           className="block px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-bold text-center w-full text-lg shadow-lg transition-all hover:scale-105"
         >
-          📺 Bonus Gratuit - Gagnez $5,000 !
+          📺 Bonus Gratuit - Gagnez $1,000,000 !
         </Link>
       </section>
 

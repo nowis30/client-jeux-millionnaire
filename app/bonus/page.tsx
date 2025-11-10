@@ -1,18 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown } from '../../lib/ads';
+import { loadSession } from '../../lib/session';
+import { apiFetch } from '../../lib/api';
+import { formatMoney } from '../../lib/format';
 
 export default function BonusPage() {
-  const [isReady, setIsReady] = useState(false);
+  const [gameId, setGameId] = useState<string | null>(null);
+  const [playerId, setPlayerId] = useState<string | null>(null);
+  const [serverAvailable, setServerAvailable] = useState(false);
+  const [adReady, setAdReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [reward, setReward] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<string>('');
-
-  const REWARD_AMOUNT = 5000; // $5,000 par pub
+  const [rewardAmount, setRewardAmount] = useState(1_000_000);
 
   // Debug : Vérifier Capacitor
   useEffect(() => {
@@ -32,21 +37,51 @@ export default function BonusPage() {
     setTimeout(checkCapacitor, 2000); // Revérifier après 2 secondes
   }, []);
 
+  useEffect(() => {
+    const session = loadSession();
+    if (session) {
+      setGameId(session.gameId || null);
+      setPlayerId(session.playerId || null);
+    }
+  }, []);
+
+  const refreshStatus = useCallback(async () => {
+    if (!gameId || !playerId) return;
+    try {
+      const data = await apiFetch<{ available: boolean; secondsUntilAvailable: number; rewardAmount: number }>(`/api/games/${gameId}/bonus/status`);
+      setServerAvailable(Boolean(data.available));
+      setCooldown(Math.max(0, Number(data.secondsUntilAvailable ?? 0)));
+      if (typeof data.rewardAmount === "number" && !Number.isNaN(data.rewardAmount)) {
+        setRewardAmount(data.rewardAmount);
+      }
+      setError(null);
+    } catch (err: any) {
+      if (err?.status === 404) return;
+      const message = err?.message || "Impossible de récupérer la disponibilité du bonus.";
+      setError(message);
+    }
+  }, [gameId, playerId]);
+
+  useEffect(() => {
+    refreshStatus();
+  }, [refreshStatus]);
+
   // Vérifier si une pub est disponible
   useEffect(() => {
     const checkAdReady = async () => {
       const ready = await isRewardedAdReady();
-      setIsReady(ready);
-      
+      setAdReady(ready);
+
       const remainingCooldown = getRewardedAdCooldown();
-      setCooldown(remainingCooldown);
+      if (remainingCooldown > 0) {
+        setCooldown(remainingCooldown);
+      }
     };
 
     checkAdReady();
-    
-    // Vérifier toutes les 5 secondes
+
     const interval = setInterval(checkAdReady, 5000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -62,36 +97,48 @@ export default function BonusPage() {
   }, [cooldown]);
 
   const handleWatchAd = async () => {
-    if (!isReady || isLoading || cooldown > 0) return;
+    if (!gameId || !playerId) {
+      setError("Rejoignez la partie mondiale pour débloquer ce bonus.");
+      return;
+    }
+    if (isLoading || cooldown > 0 || !serverAvailable || !adReady) return;
 
     setIsLoading(true);
     setError(null);
     setReward(null);
 
     try {
-      const success = await showRewardedAdForReward((amount: number, type: string) => {
+      const displayed = await showRewardedAdForReward((amount: number, type: string) => {
         console.log(`Récompense AdMob gagnée: ${amount} ${type}`);
       });
 
-      if (success) {
-        // Simuler la récompense (à remplacer par un vrai appel API)
-        setReward(REWARD_AMOUNT);
-        
-        // TODO: Appeler l'API pour créditer le joueur
-        // await fetch('/api/players/add-bonus', {
-        //   method: 'POST',
-        //   body: JSON.stringify({ amount: REWARD_AMOUNT })
-        // });
-        
-        // Réinitialiser le cooldown
-        setCooldown(getRewardedAdCooldown());
-        setIsReady(false);
-      } else {
+      if (!displayed) {
         setError("La pub n'a pas pu être affichée. Réessayez dans quelques instants.");
+        return;
       }
+
+      const response = await apiFetch<{ rewardAmount?: number; secondsUntilNext?: number }>(`/api/games/${gameId}/bonus/redeem`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      const awarded = Number(response?.rewardAmount ?? rewardAmount);
+      setReward(awarded);
+      setRewardAmount(awarded);
+
+      const serverCooldown = Number(response?.secondsUntilNext ?? 0);
+      const pluginCooldown = getRewardedAdCooldown();
+      setCooldown(Math.max(serverCooldown, pluginCooldown));
+      setServerAvailable(false);
+      setAdReady(false);
+      refreshStatus();
     } catch (err: any) {
+      if (err?.status === 429) {
+        refreshStatus();
+      }
       console.error('Erreur lors de l\'affichage de la pub:', err);
-      setError(err.message || "Une erreur s'est produite");
+      setError(err?.message || "Une erreur s'est produite");
     } finally {
       setIsLoading(false);
     }
@@ -110,7 +157,7 @@ export default function BonusPage() {
     return `${secs}s`;
   };
 
-  const isDisabled = !isReady || isLoading || cooldown > 0;
+  const isDisabled = !gameId || !playerId || isLoading || cooldown > 0 || !serverAvailable || !adReady;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white p-4">
@@ -132,7 +179,7 @@ export default function BonusPage() {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2">💰 Bonus Gratuit</h1>
           <p className="text-xl text-white/80">
-            Regardez une pub et gagnez de l'argent !
+            Regardez une pub et gagnez {formatMoney(rewardAmount)} !
           </p>
         </div>
 
@@ -143,7 +190,7 @@ export default function BonusPage() {
             <div className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full px-8 py-4 mb-4">
               <div className="text-sm text-white/90 uppercase tracking-wider mb-1">Récompense</div>
               <div className="text-5xl font-bold text-white">
-                ${REWARD_AMOUNT.toLocaleString()}
+                {formatMoney(rewardAmount)}
               </div>
             </div>
             <p className="text-white/70 text-sm">
@@ -192,9 +239,13 @@ export default function BonusPage() {
                 </svg>
                 Chargement de la publicité...
               </span>
+            ) : !gameId || !playerId ? (
+              <span>Connexion en cours...</span>
             ) : cooldown > 0 ? (
               <span>⏱️ Disponible dans {formatCooldown(cooldown)}</span>
-            ) : !isReady ? (
+            ) : !serverAvailable ? (
+              <span>🔄 Bonus en préparation...</span>
+            ) : !adReady ? (
               <span>📺 Chargement de la pub...</span>
             ) : (
               <span className="flex items-center justify-center gap-2">

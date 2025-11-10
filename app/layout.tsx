@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
+import Link from "next/link";
 import "./globals.css";
 import dynamic from "next/dynamic";
 const UserBadge = dynamic(() => import("./_components/UserBadge"), { ssr: false });
@@ -57,15 +58,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <h1 className="text-xl md:text-2xl font-bold">Héritier Millionnaire</h1>
             <div className="flex items-center gap-3 md:gap-4">
               <nav className="hidden md:block space-x-4">
-                <a href="/">Dashboard</a>
-                <a href="/immobilier">Immobilier</a>
-                <a href="/bourse">Bourse</a>
-                <a href="/portefeuille">Portefeuille</a>
-                <a href="/pari">Pari</a>
-                <a href="/quiz">Quiz</a>
-                <a href="/tutoriel">Tutoriel</a>
-                <a href="/telecharger">Télécharger</a>
-                <a href="/contact" className="text-rose-300 hover:text-rose-200" title="Des difficultés ou suggestions ? Contactez le support">Contact</a>
+                <Link href="/" prefetch={false}>Dashboard</Link>
+                <Link href="/immobilier" prefetch={false}>Immobilier</Link>
+                <Link href="/bourse" prefetch={false}>Bourse</Link>
+                <Link href="/portefeuille" prefetch={false}>Portefeuille</Link>
+                <Link href="/pari" prefetch={false}>Pari</Link>
+                <Link href="/quiz" prefetch={false}>Quiz</Link>
+                <Link href="/tutoriel" prefetch={false}>Tutoriel</Link>
+                <Link href="/telecharger" prefetch={false}>Télécharger</Link>
+                <Link href="/contact" prefetch={false} className="text-rose-300 hover:text-rose-200" title="Des difficultés ou suggestions ? Contactez le support">Contact</Link>
               </nav>
               <UserBadge />
             </div>

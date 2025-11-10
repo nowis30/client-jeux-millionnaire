@@ -36,12 +36,13 @@ export default function PresenceClient() {
         }
         if (!gameId) return;
 
-        // 3) Ouvrir un socket de présence pour TOUTES les pages
-        // Utiliser un chemin relatif avec rewrite /socket.io/* (ajouté dans next.config.js) pour éviter CORS
-        const s = io("/", {
+        // 3) Ouvrir un socket de présence en pointant vers l'API backend absolue
+        // En prod (Vercel export), l'hôte web n'héberge pas le socket. On cible directement le serveur (API_BASE).
+        const s = io(API_BASE, {
           path: "/socket.io",
           transports: ["websocket"],
           query: { gameId, nickname: me.email },
+          withCredentials: true,
         });
         socketRef.current = s;
         setReady(true);

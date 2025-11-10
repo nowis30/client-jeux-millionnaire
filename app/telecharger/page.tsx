@@ -15,7 +15,6 @@ const TRAILER_MP4 = process.env.NEXT_PUBLIC_TRAILER_MP4 || ""; // ex: https://cd
 export default function TelechargerPage() {
   const [ua, setUa] = useState<string>("");
   const [apkAvailable, setApkAvailable] = useState<boolean | null>(null);
-  const [primaryOk, setPrimaryOk] = useState<boolean | null>(null);
   const [opening, setOpening] = useState<boolean>(false);
   useEffect(() => {
     setUa(navigator.userAgent || "");
@@ -23,15 +22,6 @@ export default function TelechargerPage() {
     // Note: GitHub Releases ne supporte pas bien HEAD cross-origin, donc on vérifie juste si l'URL est définie
     const hasValidUrl = Boolean(APK_URL && APK_URL.length > 0 && !APK_URL.startsWith('/'));
     setApkAvailable(hasValidUrl);
-    // Test léger du primaire: tentative GET HEAD fallback sur fetch (certaines plateformes bloquent HEAD)
-    (async () => {
-      try {
-        const resp = await fetch(APK_URL, { method: 'GET' });
-        setPrimaryOk(resp.ok);
-      } catch (e) {
-        setPrimaryOk(false);
-      }
-    })();
   }, []);
 
   const isAndroid = useMemo(() => /Android/i.test(ua), [ua]);
@@ -77,11 +67,11 @@ export default function TelechargerPage() {
           <div className="flex flex-wrap items-center gap-3">
             {/* Bouton principal: ouverture externe pour contourner limite 20MB en WebView */}
             <button
-              onClick={() => openExtern(primaryOk === false ? APK_URL_MIRROR : APK_URL)}
+              onClick={() => openExtern(APK_URL)}
               disabled={opening}
               className="inline-flex items-center gap-2 px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-black font-medium"
             >
-              {opening ? 'Ouverture…' : `⬇️ Télécharger l'APK v${APK_VERSION} ${primaryOk === false ? '(miroir)' : ''}`}
+              {opening ? 'Ouverture…' : `⬇️ Télécharger l'APK v${APK_VERSION}`}
             </button>
             {/* Lien miroir explicite */}
             <button
@@ -100,11 +90,6 @@ export default function TelechargerPage() {
             >
               Voir toutes les versions sur GitHub
             </a>
-            {primaryOk === false && (
-              <span className="text-xs text-emerald-300">
-                (CDN indisponible, bascule automatique sur miroir)
-              </span>
-            )}
           </div>
         ) : (
           <div className="rounded border border-emerald-700/50 bg-emerald-900/20 p-3 text-sm text-neutral-200">

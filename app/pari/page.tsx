@@ -464,13 +464,13 @@ export default function PariPage() {
           </div>
           {pariTokens <= 0 && (
             <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded text-sm text-center">
-              Plus de tokens disponibles. Attendez la régénération automatique (+5/h) ou regardez une pub pour +20 tokens.
+              Plus de tokens. Attendez la régénération (+5/h) ou regardez une pub pour une recharge max (100 tokens).
             </div>
           )}
           <div className="bg-indigo-900/40 border border-indigo-500/30 rounded-lg p-4 space-y-3">
             <div>
               <div className="text-sm font-semibold text-indigo-100">Recharge publicitaire 🎁</div>
-              <p className="text-xs text-indigo-200/70">Regardez une pub récompensée pour regagner +20 tokens (cooldown 30 min).</p>
+              <p className="text-xs text-indigo-200/70">Regardez une pub pour une recharge MAX (jusqu'à 100) · cooldown 5 min.</p>
             </div>
             <button
               type="button"
@@ -485,7 +485,7 @@ export default function PariPage() {
                   : pariTokens >= 100
                     ? 'Tokens déjà au maximum'
                   : adReady
-                    ? '📺 Regarder une pub (+20 tokens)'
+                    ? '📺 Pub: Recharge MAX'
                     : 'Pub indisponible sur cette plateforme'}
             </button>
             {adMessage && <div className="text-xs text-emerald-300">{adMessage}</div>}

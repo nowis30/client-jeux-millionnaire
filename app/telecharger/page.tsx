@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Browser } from "@capacitor/browser";
 
 const APK_FILENAME = process.env.NEXT_PUBLIC_APK_FILENAME || "heritier-millionnaire-v1.0.2.apk";
 // Lien principal: RAW GitHub direct (le plus fiable dans WebView Android)
@@ -15,6 +16,7 @@ export default function TelechargerPage() {
   const [ua, setUa] = useState<string>("");
   const [apkAvailable, setApkAvailable] = useState<boolean | null>(null);
   const [primaryOk, setPrimaryOk] = useState<boolean | null>(null);
+  const [opening, setOpening] = useState<boolean>(false);
   useEffect(() => {
     setUa(navigator.userAgent || "");
     // Vérifier si l'APK est configuré (simple vérification d'URL)
@@ -34,6 +36,19 @@ export default function TelechargerPage() {
 
   const isAndroid = useMemo(() => /Android/i.test(ua), [ua]);
   const isIOS = useMemo(() => /iPhone|iPad|iPod/i.test(ua), [ua]);
+
+  const openExtern = useCallback(async (url: string) => {
+    try {
+      setOpening(true);
+      // Sur Android (Capacitor), ouvrir via Browser (Custom Tabs) pour éviter limites WebView
+      await Browser.open({ url, toolbarColor: '#10b981' });
+    } catch (e) {
+      // Fallback: ouvrir dans un nouvel onglet
+      window.open(url, '_blank');
+    } finally {
+      setOpening(false);
+    }
+  }, []);
 
   return (
     <main className="max-w-3xl mx-auto space-y-6">
@@ -60,21 +75,23 @@ export default function TelechargerPage() {
         </div>
         {apkAvailable ? (
           <div className="flex flex-wrap items-center gap-3">
-            <a
-              href={primaryOk === false ? APK_URL_MIRROR : APK_URL}
-              download
-              className="inline-flex items-center gap-2 px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-black font-medium"
+            {/* Bouton principal: ouverture externe pour contourner limite 20MB en WebView */}
+            <button
+              onClick={() => openExtern(primaryOk === false ? APK_URL_MIRROR : APK_URL)}
+              disabled={opening}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-black font-medium"
             >
-              ⬇️ Télécharger l'APK v{APK_VERSION} {primaryOk === false && '(miroir)'}
-            </a>
-            <a
-              href={APK_URL_MIRROR}
-              download
-              className="inline-flex items-center gap-2 px-3 py-2 rounded border border-emerald-700/60 bg-emerald-900/20 hover:bg-emerald-900/30 text-emerald-200 text-xs"
+              {opening ? 'Ouverture…' : `⬇️ Télécharger l'APK v${APK_VERSION} ${primaryOk === false ? '(miroir)' : ''}`}
+            </button>
+            {/* Lien miroir explicite */}
+            <button
+              onClick={() => openExtern(APK_URL_MIRROR)}
+              disabled={opening}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded border border-emerald-700/60 bg-emerald-900/20 hover:bg-emerald-900/30 disabled:opacity-60 text-emerald-200 text-xs"
               title="Miroir direct RAW GitHub"
             >
-              Miroir (RAW GitHub)
-            </a>
+              Ouvrir le miroir
+            </button>
             <a
               href="https://github.com/nowis30/jeux-millionnaire-APK"
               target="_blank"

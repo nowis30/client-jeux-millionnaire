@@ -3,11 +3,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Onboarding from "../../components/Onboarding";
 import { formatMoney } from "../../lib/format";
-// Ads récompense désactivées temporairement: imports retirés
 
 // API_BASE local supprimé: utiliser chemins relatifs (proxy /api/*)
 // Utiliser API_BASE défini dans lib/api (abs pour Capacitor)
-import { API_BASE } from "../../lib/api";
+import { API_BASE, apiFetch, ApiError } from "../../lib/api";
+import { initializeAds, showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown } from "../../lib/ads";
 import { SFX } from "../../lib/sfx";
 
 const BASE_STAKE = 50000;
@@ -54,6 +54,11 @@ export default function QuizPage() {
   const [lifePasses, setLifePasses] = useState<number>(0);
   const [showPassOffer, setShowPassOffer] = useState(false);
   const [isLoadingAd, setIsLoadingAd] = useState(false);
+  const [tokenAdReady, setTokenAdReady] = useState(false);
+  const [tokenAdCooldown, setTokenAdCooldown] = useState(0);
+  const [tokenAdLoading, setTokenAdLoading] = useState(false);
+  const [tokenAdMessage, setTokenAdMessage] = useState<string | null>(null);
+  const [tokenAdError, setTokenAdError] = useState<string | null>(null);
 
   // À chaque nouvelle question, réinitialiser proprement l'état d'affichage
   useEffect(() => {
@@ -67,6 +72,37 @@ export default function QuizPage() {
       setShowTimeoutReveal(false);
     }
   }, [question?.id]);
+
+  useEffect(() => {
+    void initializeAds();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const update = async () => {
+      try {
+        const ready = await isRewardedAdReady();
+        if (!cancelled) setTokenAdReady(ready);
+        if (!cancelled) {
+          const pluginCooldown = getRewardedAdCooldown();
+          if (pluginCooldown > 0) {
+            setTokenAdCooldown(prev => Math.max(prev, pluginCooldown));
+          }
+        }
+      } catch {}
+    };
+    update();
+    const interval = setInterval(update, 15000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
+  useEffect(() => {
+    if (tokenAdCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setTokenAdCooldown(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [tokenAdCooldown > 0]);
 
   // Timer 30s
   useEffect(() => {
@@ -190,9 +226,11 @@ export default function QuizPage() {
     } catch {}
   }
 
-  async function loadStatus() {
+  async function loadStatus(options?: { silent?: boolean }) {
     try {
-      setLoading(true);
+      if (!options?.silent) {
+        setLoading(true);
+      }
       console.log("[Quiz] Loading status for game:", gameId);
       
       const headers: Record<string, string> = { "X-CSRF": "1" };
@@ -216,6 +254,9 @@ export default function QuizPage() {
       const data = await res.json();
       console.log("[Quiz] Status data:", data);
       setStatus(data);
+      if (typeof data?.adCooldownSeconds === 'number') {
+        setTokenAdCooldown(prev => Math.max(prev, Number(data.adCooldownSeconds)));
+      }
 
       if (data.hasActiveSession) {
         setSession(data.session);
@@ -231,6 +272,91 @@ export default function QuizPage() {
       setLoading(false);
     }
   }
+
+  async function handleTokenAdRecharge() {
+    if (!gameId || !playerId) {
+      setTokenAdError("Session introuvable. Rejoignez d'abord une partie.");
+      return;
+    }
+    if (tokenAdLoading) return;
+
+    setTokenAdLoading(true);
+    setTokenAdError(null);
+    setTokenAdMessage(null);
+
+    try {
+      const ready = await isRewardedAdReady();
+      if (!ready) {
+        const pluginCooldown = getRewardedAdCooldown();
+        if (pluginCooldown > 0) {
+          setTokenAdCooldown(prev => Math.max(prev, pluginCooldown));
+        }
+        throw new Error("La publicité n'est pas encore prête. Réessayez bientôt.");
+      }
+
+      const displayed = await showRewardedAdForReward();
+      if (!displayed) {
+        throw new Error("Impossible d'afficher la publicité maintenant.");
+      }
+
+      const res = await apiFetch<{ tokens?: number; added?: number; cooldownSeconds?: number }>(
+        `/api/games/${gameId}/tokens/ads`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Player-ID': playerId },
+          body: JSON.stringify({ type: 'quiz' }),
+        }
+      );
+
+      const added = Number(res?.added ?? 0);
+      const updatedTokens = typeof res?.tokens === 'number' ? Number(res.tokens) : undefined;
+      if (typeof updatedTokens === 'number') {
+        setStatus((prev: any) => prev ? { ...prev, tokens: updatedTokens, canPlay: updatedTokens > 0 } : prev);
+      }
+      setTokenAdMessage(added > 0 ? `+${added} tokens ajoutés ✅` : 'Tokens déjà au maximum ✅');
+
+      const serverCooldown = Number(res?.cooldownSeconds ?? 0);
+      const pluginCooldown = getRewardedAdCooldown();
+      const nextCooldown = Math.max(serverCooldown, pluginCooldown);
+      if (nextCooldown > 0) {
+        setTokenAdCooldown(prev => Math.max(prev, nextCooldown));
+      }
+
+      await loadStatus({ silent: true });
+    } catch (err: any) {
+      if (err instanceof ApiError) {
+        setTokenAdError(err.message);
+        if (err.status === 429) {
+          const match = err.message.match(/(\d+)/);
+          if (match) {
+            const minutes = Number(match[1]);
+            if (!Number.isNaN(minutes)) {
+              setTokenAdCooldown(prev => Math.max(prev, minutes * 60));
+            }
+          }
+        }
+      } else if (err instanceof Error) {
+        setTokenAdError(err.message);
+      } else {
+        setTokenAdError('Recharge indisponible pour le moment.');
+      }
+    } finally {
+      setTokenAdLoading(false);
+      setTimeout(() => {
+        void isRewardedAdReady().then(ready => setTokenAdReady(ready));
+      }, 500);
+    }
+  }
+
+  const formatAdCooldown = useCallback((seconds: number) => {
+    if (seconds <= 0) return '';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins > 0) {
+      return `${mins}m ${secs.toString().padStart(2, '0')}s`;
+    }
+    return `${secs}s`;
+  }, []);
 
   async function startSession(existingSessionId?: string, isResume = false) {
     try {
@@ -725,6 +851,30 @@ export default function QuizPage() {
               )}
             </div>
 
+              <div className="mb-6 bg-indigo-900/40 border border-indigo-500/30 rounded-lg p-4 space-y-3">
+                <div>
+                  <div className="text-sm font-semibold text-indigo-100">Recharge instantanée 🎁</div>
+                  <p className="text-xs text-indigo-200/70">Regardez une pub pour regagner +20 tokens (cooldown 30 min).</p>
+                </div>
+                <button
+                  onClick={handleTokenAdRecharge}
+                  disabled={tokenAdLoading || tokenAdCooldown > 0 || !tokenAdReady || (status?.tokens ?? 0) >= 20}
+                  className={`w-full py-2 rounded-lg font-semibold transition ${tokenAdLoading || tokenAdCooldown > 0 || !tokenAdReady || (status?.tokens ?? 0) >= 20 ? 'bg-white/10 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-400 to-green-500 text-black hover:from-emerald-300 hover:to-green-400'}`}
+                >
+                  {tokenAdLoading
+                    ? 'Lecture en cours…'
+                    : tokenAdCooldown > 0
+                      ? `Disponible dans ${formatAdCooldown(tokenAdCooldown)}`
+                      : (status?.tokens ?? 0) >= 20
+                        ? 'Tokens déjà au maximum'
+                      : tokenAdReady
+                        ? '📺 Regarder une pub (+20 tokens)'
+                        : 'Pub indisponible sur cette plateforme'}
+                </button>
+                {tokenAdMessage && <div className="text-xs text-emerald-300">{tokenAdMessage}</div>}
+                {tokenAdError && <div className="text-xs text-red-300">{tokenAdError}</div>}
+              </div>
+
             {status.canPlay ? (
               <>
                 <h2 className="text-2xl font-bold mb-4">Prêt à jouer ?</h2>
@@ -765,8 +915,8 @@ export default function QuizPage() {
                 <p className="text-xs text-gray-400">
                   💡 Les tokens s'accumulent si vous ne jouez pas
                 </p>
-                <div className="mt-4 text-sm text-gray-400">
-                  Recharge désactivée temporairement.
+                <div className="mt-4 text-sm text-gray-300">
+                  Ou gagnez immédiatement +20 tokens en regardant une publicité ci-dessus.
                 </div>
               </>
             )}

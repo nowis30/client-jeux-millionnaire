@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
-import { API_BASE, apiFetch } from "../../lib/api";
-// Ads récompense désactivées temporairement
+import { API_BASE, apiFetch, ApiError } from "../../lib/api";
+import { initializeAds, showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown } from "../../lib/ads";
 const MIN_BET = 5000; 
 const DYN_FACTOR = 0.5; // 50% du cash comme plafond dynamique côté client (indicatif) 
 const AUTO_ROLL_MIN_DELAY_MS = 2500; // Délai minimum entre deux lancers auto
@@ -41,6 +41,11 @@ export default function PariPage() {
   const cooldownStateRef = useRef(0);
   const nextTokenSecRef = useRef(0);
   const dynamicCap = cash != null ? Math.min(1_000_000_000, Math.max(MIN_BET, Math.floor(Math.max(0, cash) * DYN_FACTOR))) : null;
+  const [adReady, setAdReady] = useState(false);
+  const [adCooldown, setAdCooldown] = useState(0);
+  const [adLoading, setAdLoading] = useState(false);
+  const [adMessage, setAdMessage] = useState<string | null>(null);
+  const [adErrorMessage, setAdErrorMessage] = useState<string | null>(null);
 
   // Charger historique depuis localStorage
   useEffect(() => {
@@ -87,6 +92,37 @@ export default function PariPage() {
       if (autoCountdownRef.current) clearInterval(autoCountdownRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    void initializeAds();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const update = async () => {
+      try {
+        const ready = await isRewardedAdReady();
+        if (!cancelled) setAdReady(ready);
+        if (!cancelled) {
+          const pluginCooldown = getRewardedAdCooldown();
+          if (pluginCooldown > 0) {
+            setAdCooldown(prev => Math.max(prev, pluginCooldown));
+          }
+        }
+      } catch {}
+    };
+    update();
+    const interval = setInterval(update, 15000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
+  useEffect(() => {
+    if (adCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setAdCooldown(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [adCooldown > 0]);
 
   function clearAutoTimers() {
     if (autoTimerRef.current) {
@@ -189,6 +225,25 @@ export default function PariPage() {
 
   useEffect(() => { (async () => { await ensureSession(); })(); }, [ensureSession]);
 
+  const refreshPariStatus = useCallback(async () => {
+    if (!gameId || !playerId) return;
+    try {
+      const data = await apiFetch<{ pari?: { tokens?: number; secondsUntilNext?: number; adCooldownSeconds?: number } }>(
+        `/api/games/${gameId}/tokens`,
+        { headers: { 'X-Player-ID': playerId } }
+      );
+      const t = Number(data?.pari?.tokens ?? 0);
+      const s = Number(data?.pari?.secondsUntilNext ?? 0);
+      setPariTokens(t);
+      setNextTokenSec(s);
+      if (typeof data?.pari?.adCooldownSeconds === 'number') {
+        setAdCooldown(prev => Math.max(prev, Number(data.pari!.adCooldownSeconds)));
+      }
+    } catch (e: any) {
+      console.warn('[Pari] /tokens erreur', e?.message ?? e);
+    }
+  }, [gameId, playerId]);
+
   // Charger infos joueur si gameId et playerId connus
   useEffect(() => {
     if (!gameId || !playerId) return;
@@ -210,24 +265,13 @@ export default function PariPage() {
     if (!gameId || !playerId) return;
     let mounted = true;
     const load = async () => {
-      try {
-        const headers: Record<string,string> = { 'X-Player-ID': playerId! };
-        const res = await fetch(`${API_BASE}/api/games/${gameId}/tokens`, { headers, credentials:'include' });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!mounted) return;
-        const t = Number(data?.pari?.tokens ?? 0);
-        const s = Number(data?.pari?.secondsUntilNext ?? 0);
-        setPariTokens(t);
-        setNextTokenSec(s);
-      } catch (e:any) {
-        console.warn('[Pari] /tokens erreur', e.message);
-      }
+      if (!mounted) return;
+      await refreshPariStatus();
     };
-    load();
+    void load();
     const iv = setInterval(load, 15000);
     return () => { mounted = false; clearInterval(iv); };
-  }, [gameId, playerId]);
+  }, [gameId, playerId, refreshPariStatus]);
 
   function adjustBet(v: number) {
     setBet(prev => {
@@ -239,6 +283,80 @@ export default function PariPage() {
       return next;
     });
   }
+
+  const handleWatchAd = useCallback(async () => {
+    if (!gameId || !playerId) {
+      setAdErrorMessage("Session inconnue. Rejoignez une partie depuis l'accueil.");
+      return;
+    }
+    if (adLoading) return;
+
+    setAdLoading(true);
+    setAdErrorMessage(null);
+    setAdMessage(null);
+
+    try {
+      const ready = await isRewardedAdReady();
+      if (!ready) {
+        const pluginCooldown = getRewardedAdCooldown();
+        if (pluginCooldown > 0) {
+          setAdCooldown(prev => Math.max(prev, pluginCooldown));
+        }
+        throw new Error("La publicité n'est pas prête. Réessayez dans quelques instants.");
+      }
+
+      const displayed = await showRewardedAdForReward();
+      if (!displayed) {
+        throw new Error("Impossible d'afficher la publicité pour le moment.");
+      }
+
+      const res = await apiFetch<{ tokens?: number; added?: number; cooldownSeconds?: number }>(
+        `/api/games/${gameId}/tokens/ads`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Player-ID': playerId },
+          body: JSON.stringify({ type: 'pari' }),
+        }
+      );
+
+      const added = Number(res?.added ?? 0);
+      if (typeof res?.tokens === 'number') {
+        setPariTokens(res.tokens);
+      }
+      setAdMessage(added > 0 ? `+${added} tokens ajoutés ✅` : 'Tokens déjà au maximum ✅');
+
+      const serverCooldown = Number(res?.cooldownSeconds ?? 0);
+      const pluginCooldown = getRewardedAdCooldown();
+      const nextCooldown = Math.max(serverCooldown, pluginCooldown);
+      if (nextCooldown > 0) {
+        setAdCooldown(prev => Math.max(prev, nextCooldown));
+      }
+
+      await refreshPariStatus();
+    } catch (err: any) {
+      if (err instanceof ApiError) {
+        setAdErrorMessage(err.message);
+        if (err.status === 429) {
+          const match = err.message.match(/(\d+)/);
+          if (match) {
+            const minutes = Number(match[1]);
+            if (!Number.isNaN(minutes)) {
+              setAdCooldown(prev => Math.max(prev, minutes * 60));
+            }
+          }
+        }
+      } else if (err instanceof Error) {
+        setAdErrorMessage(err.message);
+      } else {
+        setAdErrorMessage('Impossible de recharger via publicité.');
+      }
+    } finally {
+      setAdLoading(false);
+      setTimeout(() => {
+        void isRewardedAdReady().then(ready => setAdReady(ready));
+      }, 500);
+    }
+  }, [gameId, playerId, adLoading, refreshPariStatus]);
 
   async function play() {
     if (!gameId || !playerId) {
@@ -310,12 +428,20 @@ export default function PariPage() {
     }
   }, [autoRoll, rolling, pariTokens, cooldown, nextTokenSec]);
 
-  // Recharge publicitaire désactivée
-
   // Stats cumulées
   const totalBets = history.reduce((acc,h)=> acc + (h.bet||0), 0);
   const totalGains = history.reduce((acc,h)=> acc + (h.gain||0), 0);
   const totalNet = history.reduce((acc,h)=> acc + (h.netResult||0), 0);
+
+  const formatCooldown = useCallback((seconds: number) => {
+    if (seconds <= 0) return '';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins > 0) {
+      return `${mins}m ${secs.toString().padStart(2, '0')}s`;
+    }
+    return `${secs}s`;
+  }, []);
 
   // Rendu simple des dés (lisible, compatible mobile)
 
@@ -338,9 +464,33 @@ export default function PariPage() {
           </div>
           {pariTokens <= 0 && (
             <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded text-sm text-center">
-              Recharge indisponible. Attendez la génération automatique des tokens.
+              Plus de tokens disponibles. Attendez la régénération automatique (+5/h) ou regardez une pub pour +20 tokens.
             </div>
           )}
+          <div className="bg-indigo-900/40 border border-indigo-500/30 rounded-lg p-4 space-y-3">
+            <div>
+              <div className="text-sm font-semibold text-indigo-100">Recharge publicitaire 🎁</div>
+              <p className="text-xs text-indigo-200/70">Regardez une pub récompensée pour regagner +20 tokens (cooldown 30 min).</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleWatchAd}
+              disabled={adLoading || adCooldown > 0 || !adReady || pariTokens >= 100}
+              className={`w-full py-2 rounded-lg font-semibold transition ${adLoading || adCooldown > 0 || !adReady || pariTokens >= 100 ? 'bg-white/10 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-400 to-green-500 text-black hover:from-emerald-300 hover:to-green-400'}`}
+            >
+              {adLoading
+                ? 'Lecture en cours…'
+                : adCooldown > 0
+                  ? `Disponible dans ${formatCooldown(adCooldown)}`
+                  : pariTokens >= 100
+                    ? 'Tokens déjà au maximum'
+                  : adReady
+                    ? '📺 Regarder une pub (+20 tokens)'
+                    : 'Pub indisponible sur cette plateforme'}
+            </button>
+            {adMessage && <div className="text-xs text-emerald-300">{adMessage}</div>}
+            {adErrorMessage && <div className="text-xs text-red-300">{adErrorMessage}</div>}
+          </div>
           <div className="space-y-2">
             <label className="text-sm font-semibold">Mise (min {MIN_BET.toLocaleString()} $){dynamicCap!=null ? ` · plafond dynamique ${dynamicCap.toLocaleString()} $` : ''}</label>
             <div className="flex items-center gap-2">
@@ -355,11 +505,6 @@ export default function PariPage() {
                 {[5000,10000,20000,50000].map(v => (
                   <button key={v} onClick={()=>adjustBet(v)} className="px-2 py-1 text-xs bg-white/10 hover:bg-white/20 rounded">{v/1000}k</button>
                 ))}
-                <button onClick={()=>{
-                  if (cash==null) return;
-                  const cap = dynamicCap != null ? Math.min(dynamicCap, cash) : cash;
-                  adjustBet(cap);
-                }} className="px-2 py-1 text-xs bg-yellow-500/80 hover:bg-yellow-500 text-black rounded" title="Plafond dynamique: 50% du cash (max 1G)">MAX</button>
               </div>
             </div>
           </div>

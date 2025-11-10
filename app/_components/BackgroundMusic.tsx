@@ -32,22 +32,47 @@ export default function BackgroundMusic() {
     } catch {}
   }, []);
 
-  // Préparer l'élément audio
+  // Préparer l'élément audio en testant plusieurs candidats (sensibilité à la casse)
   useEffect(() => {
-    const a = new Audio("/audio/theme.mp3");
-    a.loop = true;
-    a.preload = "auto";
-    a.volume = volume;
-    audioRef.current = a;
-    const onCanPlay = () => { setReady(true); };
-    const onError = () => { setMissingFile(true); };
-    a.addEventListener("canplay", onCanPlay);
-    a.addEventListener("error", onError);
+    let disposed = false;
+    const candidates = [
+      "/audio/theme.mp3",
+      "/audio/Theme.mp3",
+      "/audio/theme.MP3"
+    ];
+    const tryNext = async (idx: number) => {
+      if (disposed || idx >= candidates.length) {
+        setMissingFile(true);
+        return;
+      }
+      const src = candidates[idx];
+      // Préflight HEAD pour aider au diagnostic
+      try {
+        const res = await fetch(src, { method: 'HEAD', cache: 'no-store' });
+        if (!res.ok) throw new Error(String(res.status));
+      } catch {
+        // essaie suivant si HEAD échoue
+        return tryNext(idx + 1);
+      }
+      const a = new Audio(src);
+      a.loop = true;
+      a.preload = "auto";
+      a.volume = volume;
+      audioRef.current = a;
+      const onCanPlay = () => { if (!disposed) { setReady(true); setMissingFile(false); } };
+      const onError = () => { if (!disposed) { a.pause(); a.removeEventListener("canplay", onCanPlay); a.removeEventListener("error", onError); tryNext(idx + 1); } };
+      a.addEventListener("canplay", onCanPlay);
+      a.addEventListener("error", onError);
+    };
+    tryNext(0);
     return () => {
-      a.pause();
-      a.removeEventListener("canplay", onCanPlay);
-      a.removeEventListener("error", onError);
-      audioRef.current = null;
+      disposed = true;
+      const a = audioRef.current;
+      if (a) {
+        a.pause();
+        a.removeAttribute('src');
+        audioRef.current = null;
+      }
       stopFallbackTone();
     };
   }, []);

@@ -36,6 +36,9 @@ next.config.mjs.pwa
 # Anciennement on ignorait tous les mp3, cela empêche le déploiement sur Render/Vercel si les assets ne sont pas copiés manuellement.
 # On autorise explicitement les fichiers de base nécessaires au jeu.
 public/audio/*.wav
+!public/audio/sfx-correct.wav
+!public/audio/sfx-wrong.wav
+!public/audio/sfx-reward.wav
 !public/audio/theme.mp3
 !public/audio/sfx-correct.mp3
 !public/audio/sfx-wrong.mp3

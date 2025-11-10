@@ -5,29 +5,34 @@
 //  - sfx-reward.mp3
 // Fallback silencieux si fichier absent.
 
-const FILES: Record<string,string> = {
-  correct: '/audio/sfx-correct.mp3',
-  wrong: '/audio/sfx-wrong.mp3',
-  reward: '/audio/sfx-reward.mp3'
+const FILES: Record<string,string[]> = {
+  correct: ['/audio/sfx-correct.mp3', '/audio/sfx-correct.wav'],
+  wrong: ['/audio/sfx-wrong.mp3', '/audio/sfx-wrong.wav'],
+  reward: ['/audio/sfx-reward.mp3', '/audio/sfx-reward.wav']
 };
 
-interface LoadedSfx {
-  audio: HTMLAudioElement;
-  loaded: boolean;
-}
+interface LoadedSfx { audio: HTMLAudioElement; loaded: boolean; }
 
 const cache: Map<string, LoadedSfx> = new Map();
 let audioCtx: AudioContext | null = null;
 
 function load(name: string): LoadedSfx {
   if (cache.has(name)) return cache.get(name)!;
-  const src = FILES[name];
-  const audio = new Audio(src || '');
+  const candidates = FILES[name] || [];
+  const audio = new Audio();
   audio.preload = 'auto';
   const entry: LoadedSfx = { audio, loaded: false };
+  let idx = 0;
+  const tryNext = () => {
+    if (idx >= candidates.length) { entry.loaded = true; return; }
+    const src = candidates[idx++];
+    audio.src = src;
+    // force reload
+    try { audio.load(); } catch {}
+  };
   audio.addEventListener('canplay', () => { entry.loaded = true; });
-  // Si erreur (fichier manquant), marquer comme loaded pour éviter blocage
-  audio.addEventListener('error', () => { entry.loaded = true; });
+  audio.addEventListener('error', () => { if (!entry.loaded) tryNext(); });
+  tryNext();
   cache.set(name, entry);
   return entry;
 }

@@ -3,7 +3,10 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 const APK_FILENAME = process.env.NEXT_PUBLIC_APK_FILENAME || "heritier-millionnaire-v1.0.apk";
-const APK_URL = process.env.NEXT_PUBLIC_APK_URL || "https://cdn.jsdelivr.net/gh/nowis30/jeux-millionnaire-APK@main/heritier-millionnaire-v1.0.apk"; // CDN jsdelivr
+// Lien principal: CDN (jsDelivr) vers le fichier committé dans le repo APK
+const APK_URL = process.env.NEXT_PUBLIC_APK_URL || "https://cdn.jsdelivr.net/gh/nowis30/jeux-millionnaire-APK@main/heritier-millionnaire-v1.0.apk";
+// Miroir: RAW GitHub direct (utile si le CDN met du temps à propager)
+const APK_URL_MIRROR = "https://raw.githubusercontent.com/nowis30/jeux-millionnaire-APK/main/heritier-millionnaire-v1.0.apk";
 const TRAILER_YT = process.env.NEXT_PUBLIC_TRAILER_YT || ""; // ex: https://www.youtube.com/embed/XXXXXXXX
 const TRAILER_MP4 = process.env.NEXT_PUBLIC_TRAILER_MP4 || ""; // ex: https://cdn.exemple.com/trailer.mp4
 
@@ -52,6 +55,14 @@ export default function TelechargerPage() {
               className="inline-flex items-center gap-2 px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-black font-medium"
             >
               ⬇️ Télécharger l'APK v1.0
+            </a>
+            <a
+              href={APK_URL_MIRROR}
+              download
+              className="inline-flex items-center gap-2 px-3 py-2 rounded border border-emerald-700/60 bg-emerald-900/20 hover:bg-emerald-900/30 text-emerald-200 text-xs"
+              title="Miroir direct RAW GitHub"
+            >
+              Miroir (RAW GitHub)
             </a>
             <a
               href="https://github.com/nowis30/jeux-millionnaire-APK"

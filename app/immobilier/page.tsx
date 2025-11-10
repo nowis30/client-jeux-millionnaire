@@ -1,6 +1,6 @@
 "use client";
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ApiError, apiFetch } from "../../lib/api";
+import { ApiError, apiFetch, API_BASE } from "../../lib/api";
 import { formatMoney } from "../../lib/format";
 
 type Template = {
@@ -34,8 +34,7 @@ interface Holding {
   refinanceLogs?: { id: string; at: string; amount: number; rate: number }[];
 }
 
-// API_BASE local supprimé: utiliser chemins relatifs via proxy Next
-const API_BASE = "";
+// Utiliser l'API_BASE absolu (export statique: pas de proxy interne Next)
 
 async function revealOwnerFallback(
   gameId: string | null | undefined,
@@ -337,7 +336,7 @@ export default function ImmobilierPage() {
   const loadHoldings = useCallback(async () => {
     if (!gameId || !playerId) return;
     try {
-  const res = await fetch(`/api/games/${gameId}/properties/holdings/${playerId}`);
+  const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/holdings/${playerId}`);
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data = await res.json();
       setHoldings(data.holdings ?? []);
@@ -350,7 +349,7 @@ export default function ImmobilierPage() {
     if (!gameId || !holdingId) return;
     try {
       setLoadingBilan((m: Record<string, boolean>) => ({ ...m, [holdingId]: true }));
-  const res = await fetch(`/api/games/${gameId}/properties/bilan/${holdingId}`);
+  const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/bilan/${holdingId}`);
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data = await res.json();
       // Normaliser: stocker directement l'objet bilan pour simplifier l'accès
@@ -366,7 +365,7 @@ export default function ImmobilierPage() {
   const loadEconomy = useCallback(async () => {
     if (!gameId) return;
     try {
-  const res = await fetch(`/api/games/${gameId}/economy`);
+  const res = await fetch(`${API_BASE}/api/games/${gameId}/economy`);
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data = await res.json();
       setEconomy(data);

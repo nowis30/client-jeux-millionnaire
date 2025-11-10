@@ -1,10 +1,9 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { apiFetch } from "../../lib/api";
+import { apiFetch, API_BASE } from "../../lib/api";
 import { formatMoney } from "../../lib/format";
 
-// API_BASE local supprimé: utiliser apiFetch + chemins relatifs
-const API_BASE = "";
+// Utiliser toujours l'API_BASE absolu (export statique => pas de proxy Next)
 
 export default function PortefeuillePage() {
   const [gameId, setGameId] = useState("");
@@ -53,9 +52,8 @@ export default function PortefeuillePage() {
     if (!gameId || !target) return;
     setLoading(true);
     try {
-  const res = await fetch(`/api/games/${gameId}/players/${target}/portfolio`);
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data = await res.json();
+      // Utiliser apiFetch pour inclure credentials + csrf + X-Player-ID
+      const data = await apiFetch(`/api/games/${gameId}/players/${target}/portfolio`);
       setPortfolio(data);
       setError(null);
     } catch (err) {
@@ -69,10 +67,8 @@ export default function PortefeuillePage() {
     const target = viewPlayerId || playerId;
     if (!gameId || !target) return;
     try {
-  const res = await fetch(`/api/games/${gameId}/properties/holdings/${target}`);
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data = await res.json();
-      setHoldings(data.holdings ?? []);
+      const data = await apiFetch(`/api/games/${gameId}/properties/holdings/${target}`);
+      setHoldings((data as any).holdings ?? []);
     } catch (err) {
       // ignore
     }

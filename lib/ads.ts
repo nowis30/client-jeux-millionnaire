@@ -34,10 +34,22 @@ const MIN_REWARDED_AD_INTERVAL = 300000; // 5 minutes entre chaque pub récompen
  * Vérifier si on est sur une plateforme native
  */
 function isNativePlatform(): boolean {
-  const result = typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
+  // Capacitor v6+: isNativePlatform() peut être une fonction ou absent selon le bundle.
+  if (typeof window === 'undefined') return false;
+  const cap = (window as any).Capacitor;
+  let result = false;
+  try {
+    const fn = cap?.isNativePlatform;
+    if (typeof fn === 'function') {
+      result = !!fn();
+    } else if (cap?.platform && cap.platform !== 'web') {
+      // Fallback heuristique: platform différent de 'web'
+      result = true;
+    }
+  } catch {}
   console.log('[Ads] isNativePlatform:', result);
-  console.log('[Ads] Capacitor available:', !!(window as any).Capacitor);
-  console.log('[Ads] Capacitor.isNativePlatform:', (window as any).Capacitor?.isNativePlatform);
+  console.log('[Ads] Capacitor available:', !!cap);
+  console.log('[Ads] Capacitor.platform:', cap?.platform);
   return result;
 }
 
@@ -61,7 +73,10 @@ function getAdMobPlugin(): AdMobPlugin | null {
  * Initialiser AdMob (à appeler au démarrage de l'app)
  */
 export async function initializeAds(): Promise<void> {
-  if (isInitialized || !isNativePlatform()) {
+  if (isInitialized) return;
+  const native = isNativePlatform();
+  if (!native) {
+    console.log('[Ads] Skip initialization (web/PWA)');
     return;
   }
 

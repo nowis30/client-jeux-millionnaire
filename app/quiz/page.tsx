@@ -111,7 +111,7 @@ export default function QuizPage() {
       // Déclencher timeout côté serveur
       (async () => {
         try {
-          const headers: Record<string,string> = { 'Content-Type':'application/json', 'X-CSRF':'1' };
+          const headers: Record<string,string> = { 'Content-Type':'application/json' }; // En-tête X-CSRF obsolète (utilise apiFetch pour CSRF réel)
           if (playerId) headers['X-Player-ID'] = playerId;
           const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/timeout`, {
             method:'POST', credentials:'include', headers, body: JSON.stringify({ sessionId: session.id, questionId: question.id })
@@ -233,7 +233,7 @@ export default function QuizPage() {
       }
       console.log("[Quiz] Loading status for game:", gameId);
       
-      const headers: Record<string, string> = { "X-CSRF": "1" };
+  const headers: Record<string, string> = {}; // X-CSRF retiré
       if (playerId) {
         headers["X-Player-ID"] = playerId; // Ajout du playerId pour iOS/Safari
       }
@@ -365,7 +365,7 @@ export default function QuizPage() {
 
       if (isResume && existingSessionId) {
         // Reprendre la session: appeler l'endpoint resume pour récupérer la question courante
-        const headers: Record<string, string> = { "X-CSRF": "1" };
+  const headers: Record<string, string> = {}; // X-CSRF retiré
         if (playerId) headers["X-Player-ID"] = playerId;
 
   const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/resume`, {
@@ -396,7 +396,7 @@ export default function QuizPage() {
 
       const headers: Record<string, string> = { 
         "Content-Type": "application/json", 
-        "X-CSRF": "1" 
+  // X-CSRF retiré
       };
       if (playerId) {
         headers["X-Player-ID"] = playerId;
@@ -442,7 +442,7 @@ export default function QuizPage() {
 
       const headers: Record<string, string> = { 
         "Content-Type": "application/json", 
-        "X-CSRF": "1" 
+  // X-CSRF retiré
       };
       if (playerId) {
         headers["X-Player-ID"] = playerId;
@@ -532,7 +532,7 @@ export default function QuizPage() {
       setLoading(true);
       setFeedback(null);
 
-      const headers: Record<string, string> = { "Content-Type": "application/json", "X-CSRF": "1" };
+  const headers: Record<string, string> = { "Content-Type": "application/json" }; // X-CSRF retiré
       if (playerId) {
         headers["X-Player-ID"] = playerId;
       }
@@ -630,7 +630,7 @@ export default function QuizPage() {
 
       const headers: Record<string, string> = { 
         "Content-Type": "application/json",
-        "X-CSRF": "1"
+  // X-CSRF retiré
       };
       if (playerId) headers["X-Player-ID"] = playerId;
 

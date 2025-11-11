@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { API_BASE, apiFetch, ApiError } from "../../lib/api";
-import { initializeAds, showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown } from "../../lib/ads";
+import { initializeAds, showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown, isAdsSupported } from "../../lib/ads";
 const MIN_BET = 5000; 
 const DYN_FACTOR = 0.5; // 50% du cash comme plafond dynamique côté client (indicatif) 
 const AUTO_ROLL_MIN_DELAY_MS = 2500; // Délai minimum entre deux lancers auto
@@ -46,6 +46,7 @@ export default function PariPage() {
   const [adLoading, setAdLoading] = useState(false);
   const [adMessage, setAdMessage] = useState<string | null>(null);
   const [adErrorMessage, setAdErrorMessage] = useState<string | null>(null);
+  const [adsSupported, setAdsSupported] = useState<boolean>(false);
 
   // Charger historique depuis localStorage
   useEffect(() => {
@@ -95,6 +96,7 @@ export default function PariPage() {
 
   useEffect(() => {
     void initializeAds();
+    setAdsSupported(isAdsSupported());
   }, []);
 
   useEffect(() => {
@@ -467,30 +469,50 @@ export default function PariPage() {
               Plus de tokens. Attendez la régénération (+5/h) ou regardez une pub pour une recharge max (100 tokens).
             </div>
           )}
-          <div className="bg-indigo-900/40 border border-indigo-500/30 rounded-lg p-4 space-y-3">
-            <div>
-              <div className="text-sm font-semibold text-indigo-100">Recharge publicitaire 🎁</div>
-              <p className="text-xs text-indigo-200/70">Regardez une pub pour une recharge MAX (jusqu'à 100) · cooldown 5 min.</p>
+          {adsSupported ? (
+            <div className="bg-indigo-900/40 border border-indigo-500/30 rounded-lg p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-indigo-100">Recharge publicitaire 🎁</div>
+                  <p className="text-xs text-indigo-200/70">Regardez une pub pour une recharge MAX (jusqu'à 100) · cooldown 5 min.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { try { localStorage.removeItem('hm-ad-consent'); } catch {}; setAdMessage('Consentement réinitialisé.'); }}
+                  className="text-[11px] px-2 py-1 rounded bg-white/10 hover:bg-white/20 border border-white/20"
+                  title="Effacer le consentement pubs (UMP se réaffichera sur Android)"
+                >
+                  Réinitialiser consentement
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={handleWatchAd}
+                disabled={adLoading || adCooldown > 0 || !adReady || pariTokens >= 100}
+                className={`w-full py-2 rounded-lg font-semibold transition ${adLoading || adCooldown > 0 || !adReady || pariTokens >= 100 ? 'bg-white/10 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-400 to-green-500 text-black hover:from-emerald-300 hover:to-green-400'}`}
+              >
+                {adLoading
+                  ? 'Lecture en cours…'
+                  : adCooldown > 0
+                    ? `Disponible dans ${formatCooldown(adCooldown)}`
+                    : pariTokens >= 100
+                      ? 'Tokens déjà au maximum'
+                    : adReady
+                      ? '📺 Pub: Recharge MAX'
+                      : 'Préparation de la pub…'}
+              </button>
+              {adMessage && <div className="text-xs text-emerald-300">{adMessage}</div>}
+              {adErrorMessage && <div className="text-xs text-red-300">{adErrorMessage}</div>}
             </div>
-            <button
-              type="button"
-              onClick={handleWatchAd}
-              disabled={adLoading || adCooldown > 0 || !adReady || pariTokens >= 100}
-              className={`w-full py-2 rounded-lg font-semibold transition ${adLoading || adCooldown > 0 || !adReady || pariTokens >= 100 ? 'bg-white/10 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-400 to-green-500 text-black hover:from-emerald-300 hover:to-green-400'}`}
-            >
-              {adLoading
-                ? 'Lecture en cours…'
-                : adCooldown > 0
-                  ? `Disponible dans ${formatCooldown(adCooldown)}`
-                  : pariTokens >= 100
-                    ? 'Tokens déjà au maximum'
-                  : adReady
-                    ? '📺 Pub: Recharge MAX'
-                    : 'Pub indisponible sur cette plateforme'}
-            </button>
-            {adMessage && <div className="text-xs text-emerald-300">{adMessage}</div>}
-            {adErrorMessage && <div className="text-xs text-red-300">{adErrorMessage}</div>}
-          </div>
+          ) : (
+            <div className="bg-white/10 border border-white/20 rounded-lg p-4 space-y-2">
+              <div className="text-sm font-semibold">Recharge par publicité disponible sur Android</div>
+              <p className="text-xs text-gray-300">Installez l’application Android pour regarder une pub et recharger vos tokens jusqu’à 100.</p>
+              <a href="/telecharger" className="inline-block mt-1 px-3 py-1 text-xs rounded bg-gradient-to-r from-yellow-300 to-orange-400 text-black font-semibold hover:from-yellow-200 hover:to-orange-300">
+                Télécharger l’APK
+              </a>
+            </div>
+          )}
           <div className="space-y-2">
             <label className="text-sm font-semibold">Mise (min {MIN_BET.toLocaleString()} $){dynamicCap!=null ? ` · plafond dynamique ${dynamicCap.toLocaleString()} $` : ''}</label>
             <div className="flex items-center gap-2">

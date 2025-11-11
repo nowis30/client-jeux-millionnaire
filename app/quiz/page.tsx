@@ -7,7 +7,7 @@ import { formatMoney } from "../../lib/format";
 // API_BASE local supprimé: utiliser chemins relatifs (proxy /api/*)
 // Utiliser API_BASE défini dans lib/api (abs pour Capacitor)
 import { API_BASE, apiFetch, ApiError } from "../../lib/api";
-import { initializeAds, showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown } from "../../lib/ads";
+import { initializeAds, showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown, isAdsSupported } from "../../lib/ads";
 import { SFX } from "../../lib/sfx";
 
 const BASE_STAKE = 50000;
@@ -59,6 +59,7 @@ export default function QuizPage() {
   const [tokenAdLoading, setTokenAdLoading] = useState(false);
   const [tokenAdMessage, setTokenAdMessage] = useState<string | null>(null);
   const [tokenAdError, setTokenAdError] = useState<string | null>(null);
+  const [adsSupported, setAdsSupported] = useState<boolean>(false);
 
   // À chaque nouvelle question, réinitialiser proprement l'état d'affichage
   useEffect(() => {
@@ -75,6 +76,7 @@ export default function QuizPage() {
 
   useEffect(() => {
     void initializeAds();
+    setAdsSupported(isAdsSupported());
   }, []);
 
   useEffect(() => {
@@ -851,29 +853,49 @@ export default function QuizPage() {
               )}
             </div>
 
-              <div className="mb-6 bg-indigo-900/40 border border-indigo-500/30 rounded-lg p-4 space-y-3">
-                <div>
-                  <div className="text-sm font-semibold text-indigo-100">Recharge instantanée 🎁</div>
-                  <p className="text-xs text-indigo-200/70">Regardez une pub pour regagner +20 tokens (cooldown 30 min).</p>
+              {adsSupported ? (
+                <div className="mb-6 bg-indigo-900/40 border border-indigo-500/30 rounded-lg p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-indigo-100">Recharge instantanée 🎁</div>
+                      <p className="text-xs text-indigo-200/70">Regardez une pub pour regagner +20 tokens (cooldown 30 min).</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { try { localStorage.removeItem('hm-ad-consent'); } catch {}; setTokenAdMessage('Consentement réinitialisé.'); }}
+                      className="text-[11px] px-2 py-1 rounded bg-white/10 hover:bg-white/20 border border-white/20"
+                      title="Effacer le consentement pubs (UMP se réaffichera sur Android)"
+                    >
+                      Réinitialiser consentement
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleTokenAdRecharge}
+                    disabled={tokenAdLoading || tokenAdCooldown > 0 || !tokenAdReady || (status?.tokens ?? 0) >= 20}
+                    className={`w-full py-2 rounded-lg font-semibold transition ${tokenAdLoading || tokenAdCooldown > 0 || !tokenAdReady || (status?.tokens ?? 0) >= 20 ? 'bg-white/10 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-400 to-green-500 text-black hover:from-emerald-300 hover:to-green-400'}`}
+                  >
+                    {tokenAdLoading
+                      ? 'Lecture en cours…'
+                      : tokenAdCooldown > 0
+                        ? `Disponible dans ${formatAdCooldown(tokenAdCooldown)}`
+                        : (status?.tokens ?? 0) >= 20
+                          ? 'Tokens déjà au maximum'
+                        : tokenAdReady
+                          ? '📺 Regarder une pub (+20 tokens)'
+                          : 'Préparation de la pub…'}
+                  </button>
+                  {tokenAdMessage && <div className="text-xs text-emerald-300">{tokenAdMessage}</div>}
+                  {tokenAdError && <div className="text-xs text-red-300">{tokenAdError}</div>}
                 </div>
-                <button
-                  onClick={handleTokenAdRecharge}
-                  disabled={tokenAdLoading || tokenAdCooldown > 0 || !tokenAdReady || (status?.tokens ?? 0) >= 20}
-                  className={`w-full py-2 rounded-lg font-semibold transition ${tokenAdLoading || tokenAdCooldown > 0 || !tokenAdReady || (status?.tokens ?? 0) >= 20 ? 'bg-white/10 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-400 to-green-500 text-black hover:from-emerald-300 hover:to-green-400'}`}
-                >
-                  {tokenAdLoading
-                    ? 'Lecture en cours…'
-                    : tokenAdCooldown > 0
-                      ? `Disponible dans ${formatAdCooldown(tokenAdCooldown)}`
-                      : (status?.tokens ?? 0) >= 20
-                        ? 'Tokens déjà au maximum'
-                      : tokenAdReady
-                        ? '📺 Regarder une pub (+20 tokens)'
-                        : 'Pub indisponible sur cette plateforme'}
-                </button>
-                {tokenAdMessage && <div className="text-xs text-emerald-300">{tokenAdMessage}</div>}
-                {tokenAdError && <div className="text-xs text-red-300">{tokenAdError}</div>}
-              </div>
+              ) : (
+                <div className="mb-6 bg-white/10 border border-white/20 rounded-lg p-4 space-y-2">
+                  <div className="text-sm font-semibold">Recharge par publicité disponible sur Android</div>
+                  <p className="text-xs text-gray-300">Installez l’application Android pour regarder une pub et regagner des tokens immédiatement.</p>
+                  <a href="/telecharger" className="inline-block mt-1 px-3 py-1 text-xs rounded bg-gradient-to-r from-yellow-300 to-orange-400 text-black font-semibold hover:from-yellow-200 hover:to-orange-300">
+                    Télécharger l’APK
+                  </a>
+                </div>
+              )}
 
             {status.canPlay ? (
               <>

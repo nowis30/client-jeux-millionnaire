@@ -27,6 +27,16 @@ interface AdMobPlugin {
 let isInitialized = false;
 let lastAdShown = 0;
 let lastRewardedAdShown = 0;
+// Charger le dernier timestamp depuis localStorage pour conserver le cooldown entre relances
+try {
+  if (typeof window !== 'undefined') {
+    const raw = localStorage.getItem('hm-ads-rewarded-last');
+    const ts = raw ? Number(raw) : 0;
+    if (!Number.isNaN(ts) && ts > 0) {
+      lastRewardedAdShown = ts;
+    }
+  }
+} catch {}
 const MIN_AD_INTERVAL = 120000; // 2 minutes entre chaque pub interstitielle
 const MIN_REWARDED_AD_INTERVAL = 300000; // 5 minutes entre chaque pub récompensée
 
@@ -272,8 +282,9 @@ export async function showRewardedAdForReward(onReward?: (amount: number, type: 
     }
 
     // Afficher l'annonce et attendre la récompense
-    const reward = await AdMob.showRewardedAd();
-    lastRewardedAdShown = now;
+  const reward = await AdMob.showRewardedAd();
+  lastRewardedAdShown = now;
+  try { if (typeof window !== 'undefined') localStorage.setItem('hm-ads-rewarded-last', String(now)); } catch {}
     
     // Appeler le callback avec la récompense
     if (onReward) {
@@ -328,6 +339,13 @@ export function getRewardedAdCooldown(): number {
     return 0;
   }
   return Math.ceil((MIN_REWARDED_AD_INTERVAL - elapsed) / 1000);
+}
+
+/**
+ * Exposer si les publicités sont supportées (plateforme native)
+ */
+export function isAdsSupported(): boolean {
+  return isNativePlatform();
 }
 
 /**

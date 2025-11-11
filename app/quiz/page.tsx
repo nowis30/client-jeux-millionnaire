@@ -26,6 +26,28 @@ const PRIZE_LADDER = Array.from({ length: 10 }).map((_, i) => {
   };
 });
 
+type RevealResponse = {
+  revealed: boolean;
+  correctAnswer: 'A' | 'B' | 'C' | 'D';
+  completed?: boolean;
+  finalPrize?: number;
+  currentQuestion?: number;
+  currentEarnings?: number;
+  securedAmount?: number;
+  skipsLeft?: number;
+  nextPrize?: number;
+  question?: {
+    id: string;
+    text: string;
+    optionA: string;
+    optionB: string;
+    optionC: string;
+    optionD: string;
+    imageUrl: string | null;
+  };
+  message?: string;
+};
+
 export default function QuizPage() {
   const router = useRouter();
   const [gameId, setGameId] = useState<string | null>(null);
@@ -60,6 +82,8 @@ export default function QuizPage() {
   const [tokenAdMessage, setTokenAdMessage] = useState<string | null>(null);
   const [tokenAdError, setTokenAdError] = useState<string | null>(null);
   const [adsSupported, setAdsSupported] = useState<boolean>(false);
+  const [revealLoading, setRevealLoading] = useState(false);
+  const [revealError, setRevealError] = useState<string | null>(null);
 
   // À chaque nouvelle question, réinitialiser proprement l'état d'affichage
   useEffect(() => {
@@ -71,6 +95,7 @@ export default function QuizPage() {
       setRevealCorrect(null);
   setTimeLeft(60);
       setShowTimeoutReveal(false);
+      setRevealError(null);
     }
   }, [question?.id]);
 
@@ -346,6 +371,93 @@ export default function QuizPage() {
       setTokenAdLoading(false);
       setTimeout(() => {
         void isRewardedAdReady().then(ready => setTokenAdReady(ready));
+      }, 500);
+    }
+  }
+
+  async function revealAnswerViaAd() {
+    if (!session || !question || !gameId) return;
+    if (revealLoading || showTimeoutReveal) return;
+
+    setRevealError(null);
+
+    if (!adsSupported) {
+      setRevealError('Révélation disponible uniquement sur l’application Android.');
+      return;
+    }
+
+    setRevealLoading(true);
+
+    try {
+      const displayed = await showRewardedAdForReward({ ignoreCooldown: true });
+      if (!displayed) {
+        throw new Error("Publicité indisponible. Réessayez dans un instant.");
+      }
+
+      const data = await apiFetch<RevealResponse>(
+        `/api/games/${gameId}/quiz/reveal`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: session.id, questionId: question.id }),
+        }
+      );
+
+      const correct = data.correctAnswer as 'A' | 'B' | 'C' | 'D' | undefined;
+      if (!correct) {
+        throw new Error('Réponse invalide renvoyée.');
+      }
+
+      setRevealCorrect(correct);
+      setSelectedAnswer(correct);
+      setFeedback({ type: 'success', message: data.message ?? `Réponse ${correct} révélée ✅` });
+      SFX.correct();
+
+      if (data.completed) {
+        setTimeout(() => {
+          setRevealCorrect(null);
+          setSession(null);
+          setQuestion(null);
+          setSelectedAnswer(null);
+          loadStatus();
+          loadStats();
+        }, 2500);
+        return;
+      }
+
+      if (data.question) {
+        setTimeout(() => {
+          setRevealCorrect(null);
+          setSelectedAnswer(null);
+          setSession((prev: any) => {
+            if (!prev) return prev;
+            const nextQuestionNumber = data.currentQuestion ?? (prev.currentQuestion + 1);
+            const ladderIndex = Math.max(0, Math.min(PRIZE_LADDER.length - 1, nextQuestionNumber - 1));
+            const fallbackNextPrize = PRIZE_LADDER[ladderIndex]?.amount ?? prev.nextPrize;
+            return {
+              id: prev.id,
+              currentQuestion: nextQuestionNumber,
+              currentEarnings: data.currentEarnings ?? prev.currentEarnings,
+              securedAmount: data.securedAmount ?? (prev.securedAmount ?? 0),
+              skipsLeft: typeof data.skipsLeft === 'number' ? data.skipsLeft : (prev.skipsLeft ?? 0),
+              nextPrize: data.nextPrize ?? fallbackNextPrize,
+            };
+          });
+          setQuestion(data.question);
+          setTimeLeft(60);
+          loadStats();
+        }, 2500);
+      }
+    } catch (err: any) {
+      if (err instanceof ApiError) {
+        setRevealError(err.message);
+      } else {
+        setRevealError(err?.message ?? 'Révélation indisponible pour le moment.');
+      }
+    } finally {
+      setRevealLoading(false);
+      setTimeout(() => {
+        void isRewardedAdReady({ ignoreCooldown: true }).then((ready) => setTokenAdReady(ready));
       }, 500);
     }
   }
@@ -1044,6 +1156,24 @@ export default function QuizPage() {
               >
                 ⏭️ Passer ({session.skipsLeft ?? 0}/3)
               </button>
+              {adsSupported ? (
+                <button
+                  onClick={revealAnswerViaAd}
+                  disabled={revealLoading || !!revealCorrect || showTimeoutReveal}
+                  className="w-full md:w-auto px-4 py-4 bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed rounded-xl font-bold text-sm transition shadow-lg"
+                  title="Regarder une publicité pour obtenir automatiquement la bonne réponse"
+                >
+                  {revealLoading ? '⏳ Révélation...' : '📺 Réponse auto (pub)'}
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="w-full md:w-auto px-4 py-4 bg-gray-700 text-gray-300 rounded-xl font-bold text-sm cursor-not-allowed"
+                  title="Disponible uniquement sur l’application Android"
+                >
+                  📱 Réponse auto: Android requis
+                </button>
+              )}
               <button
                 onClick={submitAnswer}
                 disabled={!selectedAnswer || isAnswering || !!revealCorrect}
@@ -1052,6 +1182,9 @@ export default function QuizPage() {
                 {isAnswering ? "⏳ ..." : "✓ Valider ma réponse"}
               </button>
             </div>
+            {revealError && (
+              <div className="text-xs text-red-300 mt-2">{revealError}</div>
+            )}
           </div>
         )}
 

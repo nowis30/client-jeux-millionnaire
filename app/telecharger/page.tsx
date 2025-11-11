@@ -7,7 +7,6 @@ const APK_FILENAME = process.env.NEXT_PUBLIC_APK_FILENAME || "heritier-millionna
 // Défauts statiques (fallback)
 const APK_URL_DEFAULT = process.env.NEXT_PUBLIC_APK_URL || `https://raw.githubusercontent.com/nowis30/jeux-millionnaire-APK/main/${APK_FILENAME}`;
 const APK_URL_FALLBACK = process.env.NEXT_PUBLIC_APK_URL_FALLBACK || `https://raw.githubusercontent.com/nowis30/jeux-millionnaire-APK/main/${APK_FILENAME}`;
-const APK_URL_MIRROR = process.env.NEXT_PUBLIC_APK_URL_MIRROR || `https://cdn.jsdelivr.net/gh/nowis30/jeux-millionnaire-APK@main/${APK_FILENAME}`;
 const APK_VERSION_DEFAULT = process.env.NEXT_PUBLIC_APK_VERSION || (APK_FILENAME.match(/v(\d+\.\d+\.\d+)/)?.[1] ?? "1.0.2");
 const GITHUB_REPO = process.env.NEXT_PUBLIC_GITHUB_REPO || "nowis30/jeux-millionnaire-APK";
 const TRAILER_YT = process.env.NEXT_PUBLIC_TRAILER_YT || ""; // ex: https://www.youtube.com/embed/XXXXXXXX
@@ -131,23 +130,6 @@ export default function TelechargerPage() {
             >
               {opening ? 'Ouverture…' : `⬇️ Télécharger l'APK v${resolvedVersion} ${usingFallback ? '(fallback)' : ''}`}
             </button>
-            {/* Lien miroir explicite */}
-            <button
-              onClick={() => openExtern(APK_URL_MIRROR)}
-              disabled={opening}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded border border-emerald-700/60 bg-emerald-900/20 hover:bg-emerald-900/30 disabled:opacity-60 text-emerald-200 text-xs"
-              title="Miroir direct RAW GitHub"
-            >
-              Ouvrir le miroir
-            </button>
-            <a
-              href="https://github.com/nowis30/jeux-millionnaire-APK/releases"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-emerald-300 hover:text-emerald-200 underline"
-            >
-              Releases GitHub
-            </a>
             {releaseLoading && <span className="text-xs text-neutral-400">(recherche…)</span>}
             {releaseError && <span className="text-xs text-rose-300">({releaseError})</span>}
           </div>

@@ -251,7 +251,14 @@ export async function showRewardedAd(_adUnitId?: string): Promise<boolean> {
  * @param onReward Callback appelé quand l'utilisateur gagne la récompense
  * @returns true si l'annonce a été affichée, false sinon
  */
-export async function showRewardedAdForReward(onReward?: (amount: number, type: string) => void): Promise<boolean> {
+type RewardedAdOptions = {
+  onReward?: (amount: number, type: string) => void;
+  ignoreCooldown?: boolean;
+};
+
+export async function showRewardedAdForReward(
+  onRewardOrOptions?: ((amount: number, type: string) => void) | RewardedAdOptions,
+): Promise<boolean> {
   if (!isNativePlatform()) {
     console.log('[Ads] Not on native platform');
     return false;
@@ -263,12 +270,20 @@ export async function showRewardedAdForReward(onReward?: (amount: number, type: 
     return false;
   }
 
+  const options: RewardedAdOptions =
+    typeof onRewardOrOptions === 'function'
+      ? { onReward: onRewardOrOptions }
+      : (onRewardOrOptions ?? {});
+  const ignoreCooldown = options.ignoreCooldown ?? false;
+
   // Vérifier l'intervalle minimum entre les pubs récompensées
   const now = Date.now();
-  if (now - lastRewardedAdShown < MIN_REWARDED_AD_INTERVAL) {
-    const remainingTime = Math.ceil((MIN_REWARDED_AD_INTERVAL - (now - lastRewardedAdShown)) / 60000);
-    console.log(`[Ads] Too soon to show another rewarded ad. Wait ${remainingTime} more minutes`);
-    return false;
+  if (!ignoreCooldown) {
+    if (now - lastRewardedAdShown < MIN_REWARDED_AD_INTERVAL) {
+      const remainingTime = Math.ceil((MIN_REWARDED_AD_INTERVAL - (now - lastRewardedAdShown)) / 60000);
+      console.log(`[Ads] Too soon to show another rewarded ad. Wait ${remainingTime} more minutes`);
+      return false;
+    }
   }
 
   try {
@@ -283,12 +298,14 @@ export async function showRewardedAdForReward(onReward?: (amount: number, type: 
 
     // Afficher l'annonce et attendre la récompense
   const reward = await AdMob.showRewardedAd();
-  lastRewardedAdShown = now;
-  try { if (typeof window !== 'undefined') localStorage.setItem('hm-ads-rewarded-last', String(now)); } catch {}
+  if (!ignoreCooldown) {
+    lastRewardedAdShown = now;
+    try { if (typeof window !== 'undefined') localStorage.setItem('hm-ads-rewarded-last', String(now)); } catch {}
+  }
     
     // Appeler le callback avec la récompense
-    if (onReward) {
-      onReward(reward.amount, reward.type);
+    if (options.onReward) {
+      options.onReward(reward.amount, reward.type);
     }
     
     // Précharger la prochaine annonce
@@ -305,7 +322,7 @@ export async function showRewardedAdForReward(onReward?: (amount: number, type: 
 /**
  * Vérifier si une annonce récompensée est disponible
  */
-export async function isRewardedAdReady(): Promise<boolean> {
+export async function isRewardedAdReady(options?: { ignoreCooldown?: boolean }): Promise<boolean> {
   if (!isNativePlatform()) {
     return false;
   }
@@ -317,8 +334,10 @@ export async function isRewardedAdReady(): Promise<boolean> {
 
   // Vérifier aussi le cooldown
   const now = Date.now();
-  if (now - lastRewardedAdShown < MIN_REWARDED_AD_INTERVAL) {
-    return false;
+  if (!options?.ignoreCooldown) {
+    if (now - lastRewardedAdShown < MIN_REWARDED_AD_INTERVAL) {
+      return false;
+    }
   }
 
   try {

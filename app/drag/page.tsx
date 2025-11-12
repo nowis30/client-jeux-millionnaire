@@ -31,7 +31,7 @@ export default function DragPage() {
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold">Jouer maintenant</h3>
           <a
-            href="/jeu-drag.html"
+            href="https://nowis30.github.io/drag/"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-full border border-neutral-700 bg-neutral-900 px-4 py-1.5 text-xs md:text-sm hover:bg-neutral-800"
@@ -43,7 +43,7 @@ export default function DragPage() {
           <div className="aspect-video">
             <iframe
               title="Drag Shift Duel"
-              src="/jeu-drag.html"
+              src="https://nowis30.github.io/drag/"
               className="h-full w-full border-0"
               allowFullScreen
             />

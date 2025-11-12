@@ -232,6 +232,130 @@ const tuning = {
 
 const playerRaceHistory = [];
 
+const adState = {
+    raceCount: 0,
+    lastShownAt: 0,
+    initDone: false,
+};
+let adInitPromise = null;
+let adShowPromise = null;
+const AD_RACE_INTERVAL = 3;
+const AD_COOLDOWN_MS = 120000;
+
+function isNativeAdContext() {
+    if (typeof window === 'undefined') return false;
+    const cap = window.Capacitor;
+    if (!cap) return false;
+    try {
+        if (typeof cap.isNativePlatform === 'function') {
+            return !!cap.isNativePlatform();
+        }
+        return !!(cap.platform && cap.platform !== 'web');
+    } catch {
+        return false;
+    }
+}
+
+function getAdMobPluginForDrag() {
+    if (typeof window === 'undefined') return null;
+    const cap = window.Capacitor;
+    if (!cap || !cap.Plugins) return null;
+    const plugin = cap.Plugins.AdMob;
+    return plugin && typeof plugin === 'object' ? plugin : null;
+}
+
+async function ensureDragAdsInitialized() {
+    if (adState.initDone) return true;
+    if (adInitPromise) {
+        try {
+            await adInitPromise;
+        } catch {}
+        return adState.initDone;
+    }
+    if (!isNativeAdContext()) return false;
+    const plugin = getAdMobPluginForDrag();
+    if (!plugin || typeof plugin.initialize !== 'function') return false;
+    adInitPromise = (async () => {
+        try {
+            if (typeof plugin.requestConsent === 'function') {
+                try {
+                    await plugin.requestConsent();
+                } catch (err) {
+                    console.warn('[drag][ads] consent request failed', err);
+                }
+            }
+            await plugin.initialize();
+            adState.initDone = true;
+            if (typeof plugin.loadInterstitial === 'function') {
+                try {
+                    await plugin.loadInterstitial();
+                } catch (err) {
+                    console.warn('[drag][ads] preload failed', err);
+                }
+            }
+        } catch (err) {
+            adState.initDone = false;
+            console.warn('[drag][ads] init failed', err);
+        } finally {
+            adInitPromise = null;
+        }
+    })();
+    await adInitPromise;
+    return adState.initDone;
+}
+
+async function showDragInterstitialIfReady() {
+    if (adShowPromise) return adShowPromise;
+    adShowPromise = (async () => {
+        try {
+            const readyForAds = await ensureDragAdsInitialized();
+            if (!readyForAds) return;
+            const plugin = getAdMobPluginForDrag();
+            if (!plugin) return;
+            const now = Date.now();
+            if (now - adState.lastShownAt < AD_COOLDOWN_MS) return;
+            let ready = false;
+            if (typeof plugin.isAdReady === 'function') {
+                try {
+                    const status = await plugin.isAdReady();
+                    ready = !!(status && status.ready);
+                } catch {}
+            }
+            if (!ready && typeof plugin.loadInterstitial === 'function') {
+                try {
+                    await plugin.loadInterstitial();
+                } catch {}
+                if (typeof plugin.isAdReady === 'function') {
+                    try {
+                        const status = await plugin.isAdReady();
+                        ready = !!(status && status.ready);
+                    } catch {}
+                }
+            }
+            if (!ready || typeof plugin.showInterstitial !== 'function') return;
+            await plugin.showInterstitial();
+            adState.lastShownAt = Date.now();
+            if (typeof plugin.loadInterstitial === 'function') {
+                try {
+                    await plugin.loadInterstitial();
+                } catch {}
+            }
+        } catch (err) {
+            console.warn('[drag][ads] show failed', err);
+        } finally {
+            adShowPromise = null;
+        }
+    })();
+    await adShowPromise;
+}
+
+function handleRaceCompletedForAds() {
+    adState.raceCount += 1;
+    if (adState.raceCount % AD_RACE_INTERVAL !== 0) return;
+    if (!isNativeAdContext()) return;
+    void showDragInterstitialIfReady();
+}
+
 function recalculateGearProfile() {
     gearProfile = baseGearProfile.map((entry) => (entry ? { ...entry } : null));
     for (let gear = 1; gear <= MAX_GEAR; gear += 1) {
@@ -1297,6 +1421,8 @@ async function finishRace(playerWins) {
     } catch (err) {
         // En cas d'échec réseau ou 4xx/5xx, on garde l’état visuel, mais on n’altère pas le cash localement
         setBanner('Serveur indisponible. Résultat enregistré localement.', 4, '#ffe66d');
+    } finally {
+        handleRaceCompletedForAds();
     }
 }
 

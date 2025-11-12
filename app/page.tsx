@@ -897,7 +897,17 @@ export default function DashboardPage() {
         <Link href="/bourse" className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-center w-full">Bourse</Link>
         <Link href="/listings" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-center w-full">Annonces</Link>
         <Link href="/summary" className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 text-center w-full">Résumé</Link>
+        <Link href="/drag" className="px-4 py-2 rounded bg-rose-600 hover:bg-rose-500 text-center w-full">Drag</Link>
         <Link href="/quiz" className="px-4 py-2 rounded bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 font-bold text-center w-full">💰 Quiz</Link>
+      </section>
+
+      <section className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+        <Link href="/confidentialite" className="px-4 py-2 rounded bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-center w-full">Politique de confidentialité</Link>
+        <Link href="/suppression-compte" className="px-4 py-2 rounded bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-center w-full">Suppression de compte</Link>
+      </section>
+
+      <section className="mt-4 w-full">
+        <Link href="/parametres" className="block px-4 py-2 rounded bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-center w-full">Paramètres</Link>
       </section>
 
       {/* Bouton Bonus gratuit */}

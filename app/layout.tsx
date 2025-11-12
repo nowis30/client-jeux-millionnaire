@@ -63,6 +63,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <Link href="/immobilier" prefetch={false}>Immobilier</Link>
                 <Link href="/bourse" prefetch={false}>Bourse</Link>
                 <Link href="/portefeuille" prefetch={false}>Portefeuille</Link>
+                <Link href="/drag" prefetch={false}>Drag</Link>
                 <Link href="/pari" prefetch={false}>Pari</Link>
                 <Link href="/quiz" prefetch={false}>Quiz</Link>
                 <Link href="/tutoriel" prefetch={false}>Tutoriel</Link>

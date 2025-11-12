@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState, type PointerEvent as ReactPointerEvent, type TouchEvent as ReactTouchEvent } from "react";
 
 type Step = { title: string; content: string };
 
@@ -49,14 +49,79 @@ export default function OnboardingHome({ onClose, storageKey = "hm-tutorial-home
   ];
 
   const [i, setI] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const pointerStartX = useRef<number | null>(null);
+  const pointerStartY = useRef<number | null>(null);
+
   const [dontShow, setDontShow] = useState(false);
   function close() {
     try { if (dontShow) localStorage.setItem(storageKey, "1"); } catch {}
     onClose();
   }
+
+  function moveStep(delta: number) {
+    if (delta < 0 && i < steps.length - 1) {
+      setI((x) => Math.min(steps.length - 1, x + 1));
+    } else if (delta > 0 && i > 0) {
+      setI((x) => Math.max(0, x - 1));
+    }
+  }
+
+  function handleSwipe(endX: number, endY: number, startX: number | null, startY: number | null) {
+    if (startX === null || startY === null) return;
+    const deltaX = endX - startX;
+    const deltaY = endY - startY;
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 40) {
+      moveStep(deltaX);
+    }
+  }
+
+  function handleTouchStart(e: ReactTouchEvent<HTMLDivElement>) {
+    const touch = e.touches[0];
+    touchStartX.current = touch.clientX;
+    touchStartY.current = touch.clientY;
+  }
+
+  function handleTouchEnd(e: ReactTouchEvent<HTMLDivElement>) {
+    if (e.changedTouches.length === 0) {
+      touchStartX.current = null;
+      touchStartY.current = null;
+      return;
+    }
+    const touch = e.changedTouches[0];
+    handleSwipe(touch.clientX, touch.clientY, touchStartX.current, touchStartY.current);
+    touchStartX.current = null;
+    touchStartY.current = null;
+  }
+
+  function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    if (e.pointerType === "mouse") return;
+    pointerStartX.current = e.clientX;
+    pointerStartY.current = e.clientY;
+  }
+
+  function handlePointerUp(e: ReactPointerEvent<HTMLDivElement>) {
+    if (e.pointerType === "mouse") return;
+    handleSwipe(e.clientX, e.clientY, pointerStartX.current, pointerStartY.current);
+    pointerStartX.current = null;
+    pointerStartY.current = null;
+  }
+
   return (
     <div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="max-w-xl w-full bg-white rounded-2xl shadow-2xl text-gray-900">
+      <div
+        className="max-w-xl w-full bg-white rounded-2xl shadow-2xl text-gray-900"
+        onTouchStart={handleTouchStart}
+  onTouchEnd={handleTouchEnd}
+  onTouchCancel={handleTouchEnd}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={() => {
+          pointerStartX.current = null;
+          pointerStartY.current = null;
+        }}
+      >
         <div className="p-6">
           <div className="text-xl font-bold mb-2">{steps[i].title}</div>
           <div className="text-sm text-gray-700 mb-6">{steps[i].content}</div>

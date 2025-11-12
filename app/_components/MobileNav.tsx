@@ -13,6 +13,7 @@ const items = [
   { href: "/pari", label: "Pari" },
   { href: "/tutoriel", label: "Tutoriel" },
   { href: "/telecharger", label: "Télécharger" },
+  { href: "/confidentialite", label: "Confidentialité" },
   { href: "/contact", label: "Contact" },
 ];
 

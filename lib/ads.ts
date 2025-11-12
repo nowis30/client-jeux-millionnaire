@@ -94,8 +94,9 @@ export async function initializeAds(): Promise<void> {
   if (typeof window !== 'undefined') {
     try {
       let consent = localStorage.getItem('hm-ad-consent');
-      // Si pas encore décidé côté Web, tenter le consentement natif via UMP
-      if (!consent) {
+      const shouldRequestNativeConsent = !consent || consent === 'refused';
+      // Si pas encore décidé côté Web OU refus explicite, tenter le consentement natif via UMP
+      if (shouldRequestNativeConsent) {
         const AdMobMaybe = getAdMobPlugin();
         if (AdMobMaybe && typeof AdMobMaybe.requestConsent === 'function') {
           try {
@@ -113,6 +114,15 @@ export async function initializeAds(): Promise<void> {
             console.warn('[Ads] Native requestConsent failed:', e);
           }
         }
+      }
+
+      // Traiter le refus explicite comme une demande de publicités non personnalisées
+      if (consent === 'refused') {
+        consent = 'npa';
+        try {
+          localStorage.setItem('hm-ad-consent', 'npa');
+          localStorage.setItem('hm-ad-consent-date', new Date().toISOString());
+        } catch {}
       }
 
       // Autoriser l'init si consent = 'accepted' (personnalisé) OU 'npa' (non personnalisé)

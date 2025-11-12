@@ -1,6 +1,45 @@
 "use client";
+import { useCallback, useEffect, useState } from "react";
+import { initializeAds } from "../../lib/ads";
 
 export default function ConfidentialitePage() {
+  const [consent, setConsent] = useState<string | null>(null);
+  const [consentDate, setConsentDate] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    try {
+      setConsent(localStorage.getItem("hm-ad-consent"));
+      setConsentDate(localStorage.getItem("hm-ad-consent-date"));
+    } catch {}
+  }, []);
+
+  const refreshFromStorage = useCallback(() => {
+    try {
+      setConsent(localStorage.getItem("hm-ad-consent"));
+      setConsentDate(localStorage.getItem("hm-ad-consent-date"));
+    } catch {}
+  }, []);
+
+  const setAndInit = useCallback(async (value: string | null) => {
+    setBusy(true);
+    try {
+      if (value) {
+        localStorage.setItem("hm-ad-consent", value);
+        localStorage.setItem("hm-ad-consent-date", new Date().toISOString());
+      } else {
+        localStorage.removeItem("hm-ad-consent");
+        localStorage.removeItem("hm-ad-consent-date");
+      }
+      refreshFromStorage();
+      await initializeAds();
+    } catch (e) {
+      console.error("[Confidentialite] setAndInit error:", e);
+    } finally {
+      setBusy(false);
+    }
+  }, [refreshFromStorage]);
+
   return (
     <main className="space-y-6">
       <section>
@@ -23,6 +62,50 @@ export default function ConfidentialitePage() {
         </p>
         <p>
           Pour toute question concernant cette politique ou l’utilisation de vos données, contactez-nous à la même adresse.
+        </p>
+      </section>
+
+      {/* Gestion des préférences publicitaires */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Préférences publicitaires</h2>
+        <div className="text-sm text-neutral-300">
+          <p>
+            État actuel : {consent ? (
+              <span className="font-medium">{consent}</span>
+            ) : (
+              <span className="italic">non défini</span>
+            )}
+            {consentDate && (
+              <span className="ml-2 text-neutral-500">({new Date(consentDate).toLocaleString()})</span>
+            )}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setAndInit("accepted")}
+            disabled={busy}
+            className="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-sm disabled:opacity-60"
+          >
+            Accepter les pubs personnalisées
+          </button>
+          <button
+            onClick={() => setAndInit("npa")}
+            disabled={busy}
+            className="px-3 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm disabled:opacity-60"
+          >
+            Pubs non personnalisées (NPA)
+          </button>
+          <button
+            onClick={() => setAndInit(null)}
+            disabled={busy}
+            className="px-3 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-white text-sm disabled:opacity-60"
+            title="Réinitialise la préférence et relance la demande de consentement sur appareil"
+          >
+            Réinitialiser la préférence
+          </button>
+        </div>
+        <p className="text-xs text-neutral-400">
+          Remarque : si vous choisissez « Refuser » dans le bandeau, l’application affichera des publicités non personnalisées.
         </p>
       </section>
     </main>

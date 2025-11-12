@@ -5,7 +5,7 @@ const isDev = process.env.NODE_ENV !== 'production';
 export default withPWA({
   reactStrictMode: true,
   output: 'export',
-  trailingSlash: true,
+  trailingSlash: false,
   experimental: {
     appDir: true,
   },

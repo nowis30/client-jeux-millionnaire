@@ -55,8 +55,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           }) }}
         />
         <div className="min-h-screen mx-auto px-4 md:px-6 pb-20 md:pb-6 max-w-none md:max-w-6xl overflow-x-hidden">
-          <header className="mb-4 md:mb-6 flex items-center justify-between">
-            <h1 className="text-xl md:text-2xl font-bold">Héritier Millionnaire</h1>
+          <div className="mb-4 md:mb-6 flex items-center justify-end">
             <div className="flex items-center gap-3 md:gap-4">
               <nav className="hidden md:block space-x-4">
                 <Link href="/" prefetch={false}>Dashboard</Link>
@@ -72,7 +71,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               </nav>
               <UserBadge />
             </div>
-          </header>
+          </div>
           {/* Socket de présence global (toutes pages) */}
           <PresenceClient />
           {/* Initialisation AdMob pour app Android */}

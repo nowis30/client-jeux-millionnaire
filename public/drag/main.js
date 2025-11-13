@@ -85,10 +85,35 @@ async function ensureSession() {
     // Auto-join sur la partie globale
     const list = await apiFetch('/api/games');
     const g = list?.games?.[0]; if (!g) throw new Error('Aucune partie');
-    const joined = await apiFetch(`/api/games/${g.id}/join`, { method:'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({}) });
-    sess = { gameId: g.id, playerId: joined.playerId, nickname: '' };
-    setStoredSession(sess);
-    return sess;
+    // Tenter l'adhésion standard (utilisateur connecté)
+    try {
+        const joined = await apiFetch(`/api/games/${g.id}/join`, { method:'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({}) });
+        sess = { gameId: g.id, playerId: joined.playerId, nickname: '' };
+        setStoredSession(sess);
+        return sess;
+    } catch (e) {
+        // Fallback invité: créer (ou upserter) un joueur lié au cookie invité via POST /api/games
+        // Cette route ne nécessite pas d'utilisateur authentifié et fonctionne avec CSRF + cookies cross-site.
+        try {
+            const nick = `Invité-${Math.random().toString(36).slice(2, 7)}`;
+            const created = await apiFetch(`/api/games`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hostNickname: nick })
+            });
+            // La route renvoie { id: gameId, code, status, playerId }
+            const pid = created?.playerId;
+            const gid = created?.id || g.id;
+            if (!pid || !gid) throw new Error('Création invité échouée');
+            sess = { gameId: gid, playerId: pid, nickname: nick };
+            setStoredSession(sess);
+            return sess;
+        } catch (_) {
+            // Si tout échoue, relancer l'erreur initiale
+            throw e;
+        }
+    }
+    
 }
 async function loadDragSessionAndSyncHUD() {
     const sess = await ensureSession();

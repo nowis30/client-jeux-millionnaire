@@ -714,7 +714,7 @@ export default function DashboardPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">Connexion requise</h2>
           <p className="text-neutral-300">Veuillez vous connecter pour créer ou rejoindre une partie.</p>
-          <a href="/login" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 inline-block">Aller à la page de connexion</a>
+          <Link href="/login" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 inline-block">Aller à la page de connexion</Link>
         </section>
       ) : (
         <>
@@ -903,7 +903,7 @@ export default function DashboardPage() {
         <Link href="/bourse" className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-center w-full">Bourse</Link>
         <Link href="/listings" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-center w-full">Annonces</Link>
         <Link href="/summary" className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 text-center w-full">Résumé</Link>
-        <Link href="/drag" className="px-4 py-2 rounded bg-rose-600 hover:bg-rose-500 text-center w-full">Drag</Link>
+        <button onClick={() => { if (typeof window !== 'undefined' && (window as any).Capacitor?.Plugins?.App) { (window as any).Capacitor.Plugins.App.openUrl?.({ url: 'com.heritier.drag://' }); } else { window.open('https://play.google.com/store/apps/details?id=com.heritier.drag', '_blank'); } }} className="px-4 py-2 rounded bg-rose-600 hover:bg-rose-500 text-center w-full">🏁 Drag Racing</button>
         <Link href="/quiz" className="px-4 py-2 rounded bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 font-bold text-center w-full">💰 Quiz</Link>
       </section>
 

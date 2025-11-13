@@ -30,14 +30,14 @@ export default function DragPage() {
       <section className="space-y-3">
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold">Jouer maintenant</h3>
-          <a
+          <Link
             href="/drag/standalone"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-full border border-neutral-700 bg-neutral-900 px-4 py-1.5 text-xs md:text-sm hover:bg-neutral-800"
           >
             Ouvrir dans une nouvelle fenêtre
-          </a>
+          </Link>
           <Link
             href="/"
             prefetch={false}

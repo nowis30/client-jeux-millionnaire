@@ -170,16 +170,18 @@ try {
         // Vrai localhost = navigateur dev sur machine locale (PAS Capacitor)
         const isRealLocalHost = !isCapacitor && (/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(host) || host.startsWith('192.168.'));
         
-        if (isRealLocalHost) {
-            // Dev local: utiliser proxy CORS
+        if (isRealLocalHost && window.DRAG_USE_PROXY) {
+            // Dev local avec proxy activé manuellement: utiliser proxy CORS
             const devProxy = (window && window.DRAG_DEV_PROXY) ? String(window.DRAG_DEV_PROXY) : 'http://127.0.0.1:8010/proxy';
             API_BASE = devProxy;
             try { console.info('[drag] Mode dev: API via proxy', API_BASE); } catch {}
         } else {
-            // Production OU Capacitor: toujours utiliser Render
+            // Production, localhost sans proxy, OU Capacitor: toujours utiliser Render
             API_BASE = 'https://server-jeux-millionnaire.onrender.com';
             if (isCapacitor) {
                 try { console.info('[drag] App mobile: API directe', API_BASE); } catch {}
+            } else if (isRealLocalHost) {
+                try { console.info('[drag] Localhost: API directe vers Render (pas de proxy)', API_BASE); } catch {}
             }
         }
     }
@@ -219,8 +221,7 @@ async function apiFetch(path, init = {}) {
     try {
         const cap = (typeof window !== 'undefined') ? window.Capacitor : null;
         const isNative = !!(cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform());
-        const http = cap && cap.Plugins && (cap.Plugins.Http || cap.Plugins.CapacitorHttp);
-        if (isNative && http) {
+        if (isNative && cap.CapacitorHttp) {
             let data = undefined;
             if (init.body) {
                 if (typeof init.body === 'string') {
@@ -229,13 +230,16 @@ async function apiFetch(path, init = {}) {
                     data = init.body;
                 }
             }
-            const resp = await http.request({ method, url, headers, data });
+            try { console.info('[drag] Utilisation CapacitorHttp natif:', method, url); } catch {}
+            const resp = await cap.CapacitorHttp.request({ method, url, headers, data });
+            try { console.info('[drag] Réponse CapacitorHttp:', resp.status); } catch {}
             if (resp.status >= 200 && resp.status < 300) {
                 return resp.data;
             }
             throw new Error(`HTTP ${resp.status}`);
         }
-    } catch (_) {
+    } catch (err) {
+        try { console.error('[drag] Erreur CapacitorHttp:', err); } catch {}
         // Fallback fetch classique si plugin non dispo
     }
 

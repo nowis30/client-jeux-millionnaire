@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Drag Session</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #0a0e1a;
+      color: #e0e6ff;
+    }
+    h1 { color: #7cffb0; }
+    .test { margin: 20px 0; padding: 15px; background: #1a1f2e; border-radius: 8px; }
+    .test h3 { margin-top: 0; color: #9cd4ff; }
+    button {
+      background: #7cffb0;
+      color: #0a0e1a;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover { background: #6be69f; }
+    .result { margin-top: 10px; padding: 10px; background: #0f1520; border-radius: 4px; font-family: monospace; font-size: 12px; overflow-x: auto; }
+    .success { color: #7cffb0; }
+    .error { color: #ff6b6b; }
+    .info { color: #ffe66d; }
+  </style>
+</head>
+<body>
+  <h1>🏁 Test Drag Racing Session</h1>
+  <p>Ce test valide le flux complet: CSRF → Games → Invité → Drag Session → Drag Result</p>
+
+  <div class="test">
+    <h3>1️⃣ Récupérer CSRF Token</h3>
+    <button onclick="testCsrf()">Test CSRF</button>
+    <div id="csrf-result" class="result"></div>
+  </div>
+
+  <div class="test">
+    <h3>2️⃣ Lister les parties</h3>
+    <button onclick="testGames()">Test Games</button>
+    <div id="games-result" class="result"></div>
+  </div>
+
+  <div class="test">
+    <h3>3️⃣ Créer joueur invité</h3>
+    <button onclick="testCreateGuest()">Créer Invité</button>
+    <div id="guest-result" class="result"></div>
+  </div>
+
+  <div class="test">
+    <h3>4️⃣ Charger session Drag</h3>
+    <button onclick="testDragSession()">Drag Session</button>
+    <div id="session-result" class="result"></div>
+  </div>
+
+  <div class="test">
+    <h3>5️⃣ Soumettre résultat de course</h3>
+    <button onclick="testDragResult()">Drag Result</button>
+    <div id="result-result" class="result"></div>
+  </div>
+
+  <div class="test">
+    <h3>🔄 Test complet (tous les endpoints)</h3>
+    <button onclick="testFullFlow()">Exécuter flux complet</button>
+    <div id="full-result" class="result"></div>
+  </div>
+
+  <script>
+    const API_BASE = 'https://server-jeux-millionnaire.onrender.com';
+    let csrfToken = null;
+    let gameId = null;
+    let playerId = null;
+
+    function log(elementId, message, type = 'info') {
+      const el = document.getElementById(elementId);
+      const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+      el.innerHTML += `<div class="${className}">${new Date().toLocaleTimeString()} - ${message}</div>`;
+    }
+
+    async function testCsrf() {
+      const el = document.getElementById('csrf-result');
+      el.innerHTML = '';
+      try {
+        log('csrf-result', 'Fetching CSRF token...');
+        const res = await fetch(`${API_BASE}/api/auth/csrf`, { credentials: 'include' });
+        const data = await res.json();
+        csrfToken = data.csrf;
+        log('csrf-result', `✓ CSRF Token: ${csrfToken}`, 'success');
+      } catch (err) {
+        log('csrf-result', `✗ Erreur: ${err.message}`, 'error');
+      }
+    }
+
+    async function testGames() {
+      const el = document.getElementById('games-result');
+      el.innerHTML = '';
+      try {
+        log('games-result', 'Fetching games list...');
+        const res = await fetch(`${API_BASE}/api/games`, { credentials: 'include' });
+        const data = await res.json();
+        gameId = data.games?.[0]?.id;
+        log('games-result', `✓ Game ID: ${gameId}`, 'success');
+        log('games-result', JSON.stringify(data, null, 2));
+      } catch (err) {
+        log('games-result', `✗ Erreur: ${err.message}`, 'error');
+      }
+    }
+
+    async function testCreateGuest() {
+      const el = document.getElementById('guest-result');
+      el.innerHTML = '';
+      if (!csrfToken) {
+        log('guest-result', '⚠ Exécutez d\'abord le test CSRF', 'error');
+        return;
+      }
+      if (!gameId) {
+        log('guest-result', '⚠ Exécutez d\'abord le test Games', 'error');
+        return;
+      }
+      try {
+        const nick = `Invité-${Math.random().toString(36).slice(2, 7)}`;
+        log('guest-result', `Creating guest player: ${nick}...`);
+        const res = await fetch(`${API_BASE}/api/games`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-csrf-token': csrfToken
+          },
+          body: JSON.stringify({ hostNickname: nick })
+        });
+        const data = await res.json();
+        playerId = data.playerId;
+        log('guest-result', `✓ Player ID: ${playerId}`, 'success');
+        log('guest-result', JSON.stringify(data, null, 2));
+      } catch (err) {
+        log('guest-result', `✗ Erreur: ${err.message}`, 'error');
+      }
+    }
+
+    async function testDragSession() {
+      const el = document.getElementById('session-result');
+      el.innerHTML = '';
+      if (!gameId || !playerId) {
+        log('session-result', '⚠ Exécutez d\'abord les tests précédents', 'error');
+        return;
+      }
+      try {
+        log('session-result', 'Fetching drag session...');
+        const res = await fetch(`${API_BASE}/api/games/${gameId}/drag/session`, {
+          credentials: 'include',
+          headers: { 'X-Player-ID': playerId }
+        });
+        const data = await res.json();
+        log('session-result', `✓ Stage: ${data.drag?.stage}, Cash: ${data.player?.cash}$`, 'success');
+        log('session-result', JSON.stringify(data, null, 2));
+      } catch (err) {
+        log('session-result', `✗ Erreur: ${err.message}`, 'error');
+      }
+    }
+
+    async function testDragResult() {
+      const el = document.getElementById('result-result');
+      el.innerHTML = '';
+      if (!gameId || !playerId || !csrfToken) {
+        log('result-result', '⚠ Exécutez d\'abord les tests précédents', 'error');
+        return;
+      }
+      try {
+        log('result-result', 'Submitting drag result...');
+        const payload = {
+          stage: 1,
+          elapsedMs: 7500,
+          win: true,
+          perfectShifts: 4,
+          reward: 50000,
+          device: { platform: 'web-test', build: 'test' }
+        };
+        const res = await fetch(`${API_BASE}/api/games/${gameId}/drag/result`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-csrf-token': csrfToken,
+            'X-Player-ID': playerId
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        log('result-result', `✓ Reward: ${data.grantedReward}$, New Stage: ${data.drag?.stage}`, 'success');
+        log('result-result', JSON.stringify(data, null, 2));
+      } catch (err) {
+        log('result-result', `✗ Erreur: ${err.message}`, 'error');
+      }
+    }
+
+    async function testFullFlow() {
+      const el = document.getElementById('full-result');
+      el.innerHTML = '';
+      log('full-result', '🚀 Démarrage du flux complet...');
+      
+      // 1. CSRF
+      try {
+        log('full-result', '1/5 Fetching CSRF...');
+        const csrfRes = await fetch(`${API_BASE}/api/auth/csrf`, { credentials: 'include' });
+        const csrfData = await csrfRes.json();
+        csrfToken = csrfData.csrf;
+        log('full-result', `✓ CSRF: ${csrfToken}`, 'success');
+      } catch (err) {
+        log('full-result', `✗ CSRF failed: ${err.message}`, 'error');
+        return;
+      }
+
+      // 2. Games
+      try {
+        log('full-result', '2/5 Fetching games...');
+        const gamesRes = await fetch(`${API_BASE}/api/games`, { credentials: 'include' });
+        const gamesData = await gamesRes.json();
+        gameId = gamesData.games?.[0]?.id;
+        log('full-result', `✓ Game ID: ${gameId}`, 'success');
+      } catch (err) {
+        log('full-result', `✗ Games failed: ${err.message}`, 'error');
+        return;
+      }
+
+      // 3. Create guest
+      try {
+        const nick = `Test-${Math.random().toString(36).slice(2, 7)}`;
+        log('full-result', `3/5 Creating guest: ${nick}...`);
+        const guestRes = await fetch(`${API_BASE}/api/games`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-csrf-token': csrfToken
+          },
+          body: JSON.stringify({ hostNickname: nick })
+        });
+        const guestData = await guestRes.json();
+        playerId = guestData.playerId;
+        log('full-result', `✓ Player ID: ${playerId}`, 'success');
+      } catch (err) {
+        log('full-result', `✗ Guest creation failed: ${err.message}`, 'error');
+        return;
+      }
+
+      // 4. Drag session
+      try {
+        log('full-result', '4/5 Loading drag session...');
+        const sessionRes = await fetch(`${API_BASE}/api/games/${gameId}/drag/session`, {
+          credentials: 'include',
+          headers: { 'X-Player-ID': playerId }
+        });
+        const sessionData = await sessionRes.json();
+        log('full-result', `✓ Session loaded - Stage: ${sessionData.drag?.stage}, Cash: ${sessionData.player?.cash}$`, 'success');
+      } catch (err) {
+        log('full-result', `✗ Session failed: ${err.message}`, 'error');
+        return;
+      }
+
+      // 5. Drag result
+      try {
+        log('full-result', '5/5 Submitting race result...');
+        const resultRes = await fetch(`${API_BASE}/api/games/${gameId}/drag/result`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-csrf-token': csrfToken,
+            'X-Player-ID': playerId
+          },
+          body: JSON.stringify({
+            stage: 1,
+            elapsedMs: 7500,
+            win: true,
+            perfectShifts: 4,
+            reward: 50000,
+            device: { platform: 'web-test', build: 'full-flow' }
+          })
+        });
+        const resultData = await resultRes.json();
+        log('full-result', `✓ Result submitted - Reward: ${resultData.grantedReward}$, New Stage: ${resultData.drag?.stage}, Cash: ${resultData.player?.cash}$`, 'success');
+      } catch (err) {
+        log('full-result', `✗ Result failed: ${err.message}`, 'error');
+        return;
+      }
+
+      log('full-result', '✅ Flux complet réussi!', 'success');
+    }
+  </script>
+</body>
+</html>

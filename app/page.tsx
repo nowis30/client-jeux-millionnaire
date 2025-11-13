@@ -24,29 +24,35 @@ export default function DashboardPage() {
   const [authError, setAuthError] = useState<string | null>(null);
   // Vérifier la session utilisateur (auth)
   useEffect(() => {
+    let mounted = true;
     (async () => {
       try {
         console.log('[Auth] Tentative /api/auth/me ...');
         const me = await apiFetch<{ id: string; email: string; isAdmin: boolean }>("/api/auth/me");
         console.log('[Auth] Succès /api/auth/me', me);
-        setIsLoggedIn(true);
-        setIsAdmin(!!me.isAdmin);
-        setUserEmail(me.email);
-        setAuthError(null);
+        if (mounted) {
+          setIsLoggedIn(true);
+          setIsAdmin(!!me.isAdmin);
+          setUserEmail(me.email);
+          setAuthError(null);
+        }
         // Démarrer la musique de thème immédiatement sur accueil
         try {
           window.dispatchEvent(new Event('hm-music/resume'));
           window.dispatchEvent(new Event('hm-music/play-now'));
         } catch {}
       } catch {
-        setIsLoggedIn(false);
-        setIsAdmin(false);
-        setUserEmail("");
-        setAuthError('Non connecté. Redirection vers la page de connexion...');
-        setTimeout(() => { if (!isLoggedIn) router.replace('/login'); }, 1200);
+        if (mounted) {
+          setIsLoggedIn(false);
+          setIsAdmin(false);
+          setUserEmail("");
+          setAuthError('Non connecté.');
+        }
+        // Ne pas rediriger automatiquement - laisser l'utilisateur décider
       }
     })();
-  }, [router, isLoggedIn]);
+    return () => { mounted = false; };
+  }, [router]);
   const [leaderboard, setLeaderboard] = useState<Entry[]>([]);
   const [gameId, setGameId] = useState("");
   const [playerId, setPlayerId] = useState("");

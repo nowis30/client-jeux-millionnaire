@@ -31,19 +31,27 @@ export default function DragPage() {
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold">Jouer maintenant</h3>
           <a
-            href="https://drag-sandy.vercel.app/"
+            href="/drag/index.html"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-full border border-neutral-700 bg-neutral-900 px-4 py-1.5 text-xs md:text-sm hover:bg-neutral-800"
           >
             Ouvrir dans une nouvelle fenêtre
           </a>
+          <Link
+            href="/"
+            prefetch={false}
+            className="inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900/70 px-4 py-1.5 text-xs md:text-sm hover:bg-neutral-800"
+            aria-label="Quitter le mode Drag"
+          >
+            Quitter
+          </Link>
         </div>
         <div className="relative w-full max-w-5xl overflow-hidden rounded-2xl border border-neutral-800 bg-black shadow-xl">
           <div className="aspect-video">
             <iframe
               title="Drag Shift Duel"
-              src="https://drag-sandy.vercel.app/"
+              src="/drag/iframe.html"
               className="h-full w-full border-0"
               allowFullScreen
             />

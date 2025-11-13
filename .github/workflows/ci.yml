@@ -16,9 +16,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
       - name: Install deps
-        run: npm install --no-audit --no-fund
+        run: npm ci --prefer-offline --no-audit
       - name: Build
         env:
           NEXT_PUBLIC_API_BASE: https://server-jeux-millionnaire.onrender.com

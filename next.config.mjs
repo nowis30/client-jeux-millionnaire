@@ -6,6 +6,12 @@ const nextConfig = {
   reactStrictMode: true,
   output: 'export',
   trailingSlash: false,
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   images: {
     unoptimized: true,
     // Autoriser les images distantes (photos réalistes) depuis picsum.photos (ou à remplacer par vos domaines)

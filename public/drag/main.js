@@ -1,3 +1,9 @@
+// === Utilitaires ===
+const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+const lerp = (a, b, t) => a + (b - a) * clamp(t, 0, 1);
+const formatTime = (sec) => `${Math.floor(sec)}.${Math.floor((sec % 1) * 1000).toString().padStart(3, '0')}s`;
+const formatMoney = (amount) => `${Math.floor(amount).toLocaleString()}$`;
+
 // === API Configuration ===
 const API_BASE = window.DRAG_API_BASE || 'https://server-jeux-millionnaire.onrender.com';
 
@@ -175,18 +181,49 @@ function resizeCanvases() {
     } catch {}
 }
 
+// === Configuration centralisée ===
+const CONFIG = {
+    TRACK_LENGTH: 380,
+    RPM: { IDLE: 1200, MAX: 8000, SHIFT_MIN: 5200, SHIFT_MAX: 6900, REDLINE: 7500 },
+    RPM_DROP: { NORMAL: 2200, NITRO: 2500, WEAK: 1100 },
+    THROTTLE_RPM_PER_SEC: 9000,
+    DRAG_RPM_PER_SEC: 800,
+    LIMITER_PENALTY: 0.35,
+    NITRO: { SPEED_BOOST: 1.8, ACCEL_BOOST: 1.3 },
+    SHIFT_TIMING: { POOR: 0.4, GREAT: 0.8 },
+    MAX_GEAR: 8,
+    VICTORY_PAYOUT: 50000,
+    AD: { INTERVAL: 3, COOLDOWN_MS: 120000 },
+    TUNING: {
+        NITRO_POWER: 1.4,
+        NITRO_DURATION: 1.5,
+        GEAR_RATIO: { MIN: 0.75, MAX: 1.3, STEP: 0.01 }
+    },
+    OPPONENT: {
+        HANDICAP_EASY: 0.4,
+        STUMBLE_BASE: 1.1,
+        STUMBLE_RANDOM: 0.4,
+        REACTION_FACTOR: 0.08,
+        REACTION_MIN: 0.18,
+        REACTION_MAX: 0.45,
+        MIN_EFFECTIVE_TIME: 1.4
+    },
+    MOMENTUM: {
+        MIN: -0.4,
+        MAX: 0.45,
+        GAIN_GOOD: 0.18,
+        LOSS_BAD: 0.18,
+        DECAY_RATE: 0.12
+    }
+};
+
+const { MAX_GEAR } = CONFIG;
+const { IDLE: RPM_IDLE, MAX: RPM_MAX, SHIFT_MIN: RPM_SHIFT_MIN, SHIFT_MAX: RPM_SHIFT_MAX, REDLINE: RPM_REDLINE } = CONFIG.RPM;
+
 const THROTTLE_KEYS = new Set(['ArrowUp', 'KeyW']);
 const NITRO_KEYS = new Set(['KeyN', 'ShiftLeft', 'ShiftRight', 'KeyX']);
 const throttleState = { keyboard: false, pointer: false };
 const gearSliders = [];
-
-const TRACK_LENGTH_METERS = 380;
-const RPM_IDLE = 1200;
-const RPM_MAX = 8000;
-const RPM_SHIFT_MIN = 5200;
-const RPM_SHIFT_MAX = 6900;
-const RPM_REDLINE = 7500;
-const MAX_GEAR = 8;
 
 const baseGearProfile = [
     null,
@@ -200,8 +237,6 @@ const baseGearProfile = [
     { topSpeed: 540, accelFactor: 0.52 }
 ];
 
-const VICTORY_PAYOUT = 50000;
-
 let gearProfile = baseGearProfile.map((entry) => (entry ? { ...entry } : null));
 
 const tuning = {
@@ -214,128 +249,99 @@ const tuning = {
 
 const playerRaceHistory = [];
 
-const adState = {
-    raceCount: 0,
-    lastShownAt: 0,
-    initDone: false,
-};
-let adInitPromise = null;
-let adShowPromise = null;
-const AD_RACE_INTERVAL = 3;
-const AD_COOLDOWN_MS = 120000;
-
-function isNativeAdContext() {
-    if (typeof window === 'undefined') return false;
-    const cap = window.Capacitor;
-    if (!cap) return false;
-    try {
-        if (typeof cap.isNativePlatform === 'function') {
-            return !!cap.isNativePlatform();
+// === Ads Module ===
+const Ads = {
+    state: { count: 0, lastShown: 0, ready: false },
+    initPromise: null,
+    showPromise: null,
+    
+    isNative() {
+        const cap = window?.Capacitor;
+        if (!cap) return false;
+        try {
+            return cap.isNativePlatform?.() || (cap.platform && cap.platform !== 'web');
+        } catch { return false; }
+    },
+    
+    getPlugin() {
+        return window?.Capacitor?.Plugins?.AdMob || null;
+    },
+    
+    incrementCount() {
+        this.state.count++;
+        if (this.state.count % CONFIG.AD.INTERVAL === 0 && this.isNative()) {
+            this.show().catch(() => {});
         }
-        return !!(cap.platform && cap.platform !== 'web');
-    } catch {
-        return false;
     }
-}
-
-function getAdMobPluginForDrag() {
-    if (typeof window === 'undefined') return null;
-    const cap = window.Capacitor;
-    if (!cap || !cap.Plugins) return null;
-    const plugin = cap.Plugins.AdMob;
-    return plugin && typeof plugin === 'object' ? plugin : null;
-}
+};
 
 async function ensureDragAdsInitialized() {
-    if (adState.initDone) return true;
-    if (adInitPromise) {
-        try {
-            await adInitPromise;
-        } catch {}
-        return adState.initDone;
+    if (Ads.state.ready) return true;
+    if (Ads.initPromise) {
+        await Ads.initPromise.catch(() => {});
+        return Ads.state.ready;
     }
-    if (!isNativeAdContext()) return false;
-    const plugin = getAdMobPluginForDrag();
-    if (!plugin || typeof plugin.initialize !== 'function') return false;
-    adInitPromise = (async () => {
+    if (!Ads.isNative()) return false;
+    
+    const plugin = Ads.getPlugin();
+    if (!plugin?.initialize) return false;
+    
+    Ads.initPromise = (async () => {
         try {
-            if (typeof plugin.requestConsent === 'function') {
-                try {
-                    await plugin.requestConsent();
-                } catch (err) {
-                    console.warn('[drag][ads] consent request failed', err);
-                }
-            }
+            await plugin.requestConsent?.().catch(() => {});
             await plugin.initialize();
-            adState.initDone = true;
-            if (typeof plugin.loadInterstitial === 'function') {
-                try {
-                    await plugin.loadInterstitial();
-                } catch (err) {
-                    console.warn('[drag][ads] preload failed', err);
-                }
-            }
-        } catch (err) {
-            adState.initDone = false;
-            console.warn('[drag][ads] init failed', err);
+            Ads.state.ready = true;
+            await plugin.loadInterstitial?.().catch(() => {});
+        } catch {
+            Ads.state.ready = false;
         } finally {
-            adInitPromise = null;
+            Ads.initPromise = null;
         }
     })();
-    await adInitPromise;
-    return adState.initDone;
+    
+    await Ads.initPromise;
+    return Ads.state.ready;
 }
 
-async function showDragInterstitialIfReady() {
-    if (adShowPromise) return adShowPromise;
-    adShowPromise = (async () => {
+Ads.show = async function() {
+    if (this.showPromise) return this.showPromise;
+    
+    this.showPromise = (async () => {
         try {
-            const readyForAds = await ensureDragAdsInitialized();
-            if (!readyForAds) return;
-            const plugin = getAdMobPluginForDrag();
-            if (!plugin) return;
-            const now = Date.now();
-            if (now - adState.lastShownAt < AD_COOLDOWN_MS) return;
-            let ready = false;
-            if (typeof plugin.isAdReady === 'function') {
-                try {
-                    const status = await plugin.isAdReady();
-                    ready = !!(status && status.ready);
-                } catch {}
+            if (!await ensureDragAdsInitialized()) return;
+            const plugin = this.getPlugin();
+            if (!plugin || Date.now() - this.state.lastShown < CONFIG.AD.COOLDOWN_MS) return;
+            
+            const checkReady = async () => {
+                const status = await plugin.isAdReady?.().catch(() => ({ ready: false }));
+                return status?.ready;
+            };
+            
+            let ready = await checkReady();
+            if (!ready) {
+                await plugin.loadInterstitial?.().catch(() => {});
+                ready = await checkReady();
             }
-            if (!ready && typeof plugin.loadInterstitial === 'function') {
-                try {
-                    await plugin.loadInterstitial();
-                } catch {}
-                if (typeof plugin.isAdReady === 'function') {
-                    try {
-                        const status = await plugin.isAdReady();
-                        ready = !!(status && status.ready);
-                    } catch {}
-                }
+            
+            if (ready && plugin.showInterstitial) {
+                await plugin.showInterstitial();
+                this.state.lastShown = Date.now();
+                await plugin.loadInterstitial?.().catch(() => {});
             }
-            if (!ready || typeof plugin.showInterstitial !== 'function') return;
-            await plugin.showInterstitial();
-            adState.lastShownAt = Date.now();
-            if (typeof plugin.loadInterstitial === 'function') {
-                try {
-                    await plugin.loadInterstitial();
-                } catch {}
-            }
-        } catch (err) {
-            console.warn('[drag][ads] show failed', err);
         } finally {
-            adShowPromise = null;
+            this.showPromise = null;
         }
     })();
-    await adShowPromise;
+    
+    return this.showPromise;
+};
+
+async function showDragInterstitialIfReady() {
+    return Ads.show();
 }
 
 function handleRaceCompletedForAds() {
-    adState.raceCount += 1;
-    if (adState.raceCount % AD_RACE_INTERVAL !== 0) return;
-    if (!isNativeAdContext()) return;
-    void showDragInterstitialIfReady();
+    Ads.incrementCount();
 }
 
 function recalculateGearProfile() {
@@ -722,16 +728,20 @@ function setupOpponent() {
         opponent.reactionDelay = 0.9;
         opponent.accel = 22 + game.stage * 2.8;
         opponent.maxSpeed = 150 + game.stage * 6;
-        opponent.handicap = 0.4;
-        opponent.stumbleInterval = 1.1 + Math.random() * 0.4;
+        opponent.handicap = CONFIG.OPPONENT.HANDICAP_EASY;
+        opponent.stumbleInterval = CONFIG.OPPONENT.STUMBLE_BASE + Math.random() * CONFIG.OPPONENT.STUMBLE_RANDOM;
         return;
     }
 
     const referenceTime = playerRaceHistory[1];
     const ghostTime = Math.max(referenceTime, 7);
     opponent.targetTime = ghostTime;
-    opponent.reactionDelay = clamp(ghostTime * 0.08, 0.18, 0.45);
-    const effectiveTime = Math.max(ghostTime - opponent.reactionDelay, 1.4);
+    opponent.reactionDelay = clamp(
+        ghostTime * CONFIG.OPPONENT.REACTION_FACTOR,
+        CONFIG.OPPONENT.REACTION_MIN,
+        CONFIG.OPPONENT.REACTION_MAX
+    );
+    const effectiveTime = Math.max(ghostTime - opponent.reactionDelay, CONFIG.OPPONENT.MIN_EFFECTIVE_TIME);
     const targetKmH = clamp((TRACK_LENGTH_METERS / effectiveTime) * 3.6, 140, 360);
     opponent.maxSpeed = targetKmH * 1.04;
     opponent.accel = clamp(targetKmH * 0.9, 48, 155);
@@ -777,7 +787,7 @@ function applyRaceLaunch() {
         feedback = 'Départ parfait !';
         tint = '#7cffb0';
         launchSpeed = 26;
-        momentumDelta = 0.18;
+        momentumDelta = CONFIG.MOMENTUM.GAIN_GOOD;
     } else if (rpmAtLaunch <= RPM_REDLINE + 300) {
         feedback = 'Patinage';
         tint = '#ffad60';
@@ -792,7 +802,7 @@ function applyRaceLaunch() {
 
     player.speed = launchSpeed;
     player.position = 0;
-    player.shiftMomentum = clamp(player.shiftMomentum + momentumDelta, -0.4, 0.45);
+    player.shiftMomentum = clamp(player.shiftMomentum + momentumDelta, CONFIG.MOMENTUM.MIN, CONFIG.MOMENTUM.MAX);
     setShiftFeedback(feedback, tint, false);
 
     player.rpm = clamp(rpmAtLaunch - 900, RPM_IDLE + 200, RPM_MAX - 400);
@@ -827,12 +837,12 @@ function handleShift() {
         tint = '#ff6b6b';
     } else {
         feedback = 'Trop tôt';
-        momentumDelta = -0.18;
+        momentumDelta = -CONFIG.MOMENTUM.LOSS_BAD;
         tint = '#ffe66d';
     }
 
     const isPerfectShift = feedback === 'Parfait !';
-    player.shiftMomentum = clamp(player.shiftMomentum + momentumDelta, -0.4, 0.45);
+    player.shiftMomentum = clamp(player.shiftMomentum + momentumDelta, CONFIG.MOMENTUM.MIN, CONFIG.MOMENTUM.MAX);
     player.shiftsTaken = Math.min(player.shiftsTaken + 1, MAX_GEAR - 1);
     if (isPerfectShift) {
         player.perfectShifts = Math.min(player.perfectShifts + 1, MAX_GEAR);
@@ -907,118 +917,87 @@ function setShiftFeedback(text, tint, includeCount = false) {
     hudShift.style.color = tint;
 }
 
-// Bascule le gros bouton en mode SHIFTER pendant la course
-function setShiftButtonMode(enabled) {
-    if (!gasButton) return;
-    if (enabled) {
-        gasButton.textContent = 'SHIFT';
-        gasButton.setAttribute('aria-label', 'Changer de vitesse');
-        gasButton.classList.add('shift-mode');
-    } else {
-        gasButton.textContent = 'Accélérer';
-        gasButton.setAttribute('aria-label', "Pédale d'accélérateur");
-        gasButton.classList.remove('shift-mode');
+// === UI Module ===
+const UI = {
+    toggle(el, visible, display = '') {
+        if (!el) return;
+        el.style.display = visible ? display : 'none';
+    },
+    
+    setOverlayActionsVisible(v) { this.toggle(overlayActions, v, 'flex'); },
+    setAuthBarVisible(v) { this.toggle(authBar, v, 'flex'); },
+    setStatusBannerVisible(v) { this.toggle(statusBanner, v, 'block'); },
+    setHudVisible(v) { this.toggle(hudSection, v, 'grid'); },
+    setPlayfieldVisible(v) { this.toggle(playfield, v); },
+    setFooterVisible(v) { this.toggle(footerEl, v, 'block'); },
+    setGaugeVisible(v) { this.toggle(gaugePanel, v); },
+    setTrackVisible(v) { this.toggle(trackCanvas, v); },
+    
+    setRaceControlsVisible(v) {
+        this.toggle(gasButton, v);
+        this.toggle(nitroButton, v);
+    },
+    
+    setBanner(text, duration = 2, tint = 'rgba(220,230,255,0.8)') {
+        if (!statusBanner) return;
+        statusBanner.textContent = text;
+        statusBanner.style.color = tint;
+        game.bannerTimer = duration;
+        game.bannerColor = tint;
+    },
+    
+    setShiftButtonMode(enabled) {
+        if (!gasButton) return;
+        gasButton.textContent = enabled ? 'SHIFT' : 'Accélérer';
+        gasButton.setAttribute('aria-label', enabled ? 'Changer de vitesse' : "Pédale d'accélérateur");
+        gasButton.classList.toggle('shift-mode', enabled);
     }
-}
+};
 
-function setBanner(text, duration = 2, tint = '') {
-    statusBanner.textContent = text;
-    statusBanner.style.color = tint || 'rgba(220,230,255,0.8)';
-    game.bannerTimer = duration;
-    game.bannerColor = tint;
-}
-
-// Affiche/masque les actions (Start/Garage) dans l'overlay pendant la course
-function setOverlayActionsVisible(visible) {
-    if (!overlayActions) return;
-    overlayActions.style.display = visible ? 'flex' : 'none';
-}
-
-// Affiche/masque la barre d'authentification pendant la course
-function setAuthBarVisible(visible) {
-    if (!authBar) return;
-    authBar.style.display = visible ? 'flex' : 'none';
-}
-
-function setStatusBannerVisible(visible) {
-    if (!statusBanner) return;
-    statusBanner.style.display = visible ? 'block' : 'none';
-}
-
-function setHudVisible(visible) {
-    if (!hudSection) return;
-    hudSection.style.display = visible ? 'grid' : 'none';
-}
-
-function setPlayfieldVisible(visible) {
-    if (!playfield) return;
-    playfield.style.display = visible ? '' : 'none';
-}
-
-function setFooterVisible(visible) {
-    if (!footerEl) return;
-    footerEl.style.display = visible ? 'block' : 'none';
-}
-
-function setGaugeVisible(visible) {
-    if (!gaugePanel) return;
-    gaugePanel.style.display = visible ? '' : 'none';
-}
-
-function setRaceControlsVisible(visible) {
-    if (gasButton) gasButton.style.display = visible ? '' : 'none';
-    if (nitroButton) nitroButton.style.display = visible ? '' : 'none';
-}
-
-function setTrackVisible(visible) {
-    if (!trackCanvas) return;
-    trackCanvas.style.display = visible ? '' : 'none';
-}
+const setOverlayActionsVisible = (v) => UI.setOverlayActionsVisible(v);
+const setAuthBarVisible = (v) => UI.setAuthBarVisible(v);
+const setStatusBannerVisible = (v) => UI.setStatusBannerVisible(v);
+const setHudVisible = (v) => UI.setHudVisible(v);
+const setPlayfieldVisible = (v) => UI.setPlayfieldVisible(v);
+const setFooterVisible = (v) => UI.setFooterVisible(v);
+const setGaugeVisible = (v) => UI.setGaugeVisible(v);
+const setRaceControlsVisible = (v) => UI.setRaceControlsVisible(v);
+const setTrackVisible = (v) => UI.setTrackVisible(v);
+const setBanner = (t, d, c) => UI.setBanner(t, d, c);
+const setShiftButtonMode = (e) => UI.setShiftButtonMode(e);
 
 function openGarage() {
-    if (!garageOverlay) {
-        return;
-    }
+    if (!garageOverlay) return;
     updateGarageUI();
     garageOverlay.hidden = false;
     garageOverlay.style.display = 'flex';
 }
 
 function closeGarage() {
-    if (!garageOverlay) {
-        return;
-    }
+    if (!garageOverlay) return;
     garageOverlay.hidden = true;
     garageOverlay.style.display = 'none';
-    if (startButton) {
-        startButton.focus({ preventScroll: true });
-    }
+    startButton?.focus({ preventScroll: true });
 }
 
 function resetTuningToDefaults() {
-    for (let gear = 1; gear <= MAX_GEAR; gear += 1) {
-        tuning.gearMultipliers[gear] = 1;
-    }
-    tuning.enginePower = 1;
-    tuning.nitroPower = 1.4;
-    tuning.nitroDuration = 1.5;
-    tuning.nitroCharges = 1;
-    if (game.state !== 'running') {
-        player.nitroCharges = tuning.nitroCharges;
-    }
+    tuning.gearMultipliers = Array(CONFIG.MAX_GEAR + 1).fill(1);
+    Object.assign(tuning, {
+        enginePower: 1,
+        nitroPower: CONFIG.TUNING.NITRO_POWER,
+        nitroDuration: CONFIG.TUNING.NITRO_DURATION,
+        nitroCharges: 1
+    });
+    if (game.state !== 'running') player.nitroCharges = tuning.nitroCharges;
     updateNitroButton();
     recalculateGearProfile();
 }
 
 function recordPlayerTime(timeSeconds) {
-    if (!Number.isFinite(timeSeconds) || timeSeconds <= 0) {
-        return;
-    }
+    if (!Number.isFinite(timeSeconds) || timeSeconds <= 0) return;
     playerRaceHistory.push(timeSeconds);
     playerRaceHistory.sort((a, b) => a - b);
-    if (playerRaceHistory.length > 10) {
-        playerRaceHistory.splice(10);
-    }
+    if (playerRaceHistory.length > 10) playerRaceHistory.length = 10;
 }
 
 function updateGarageUI() {
@@ -1071,9 +1050,9 @@ function initializeGarageUI() {
         const slider = document.createElement('input');
         slider.type = 'range';
         slider.id = sliderId;
-        slider.min = '0.75';
-        slider.max = '1.3';
-        slider.step = '0.01';
+        slider.min = String(CONFIG.TUNING.GEAR_RATIO.MIN);
+        slider.max = String(CONFIG.TUNING.GEAR_RATIO.MAX);
+        slider.step = String(CONFIG.TUNING.GEAR_RATIO.STEP);
         slider.value = tuning.gearMultipliers[gear].toFixed(2);
 
         const valueDisplay = document.createElement('span');
@@ -1082,7 +1061,7 @@ function initializeGarageUI() {
 
         slider.addEventListener('input', () => {
             const rawValue = Number(slider.value);
-            const clamped = clamp(rawValue, 0.75, 1.3);
+            const clamped = clamp(rawValue, CONFIG.TUNING.GEAR_RATIO.MIN, CONFIG.TUNING.GEAR_RATIO.MAX);
             tuning.gearMultipliers[gear] = Number(clamped.toFixed(2));
             valueDisplay.textContent = `${tuning.gearMultipliers[gear].toFixed(2)}×`;
             recalculateGearProfile();
@@ -1231,7 +1210,7 @@ function updatePlayer(dt) {
     } else {
         const coastDrag = 24 + player.speed * 0.2;
         player.speed = Math.max(0, player.speed - coastDrag * dt);
-        player.shiftMomentum = clamp(player.shiftMomentum - dt * 0.12, -0.4, 0.45);
+        player.shiftMomentum = clamp(player.shiftMomentum - dt * CONFIG.MOMENTUM.DECAY_RATE, CONFIG.MOMENTUM.MIN, CONFIG.MOMENTUM.MAX);
     }
 
     const topSpeedBonus = player.nitroActive ? 1.08 : 1;

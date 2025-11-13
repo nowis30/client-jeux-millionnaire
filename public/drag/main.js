@@ -1,4 +1,5 @@
 // === Réseau / API (intégration Millionnaire) ===
+// Version: 2024-11-13-v2 (Cache bust)
 // Priorité:
 // 1) window.DRAG_API_BASE (forçage manuel)
 // 2) En dev local, utiliser un proxy CORS si présent (ex: local-cors-proxy sur 8010)

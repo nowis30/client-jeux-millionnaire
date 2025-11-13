@@ -422,12 +422,21 @@ let lastFrame = performance.now();
 let activeThrottlePointer = null;
 let activeNitroPointer = null;
 
-startButton.addEventListener('click', () => {
+startButton.addEventListener('click', async () => {
     if (game.state === 'countdown') {
         return;
     }
 
     closeGarage();
+    // Tenter un verrouillage d'orientation paysage (si supporté et autorisé par le navigateur)
+    try {
+        if (screen && screen.orientation && typeof screen.orientation.lock === 'function') {
+            await screen.orientation.lock('landscape').catch(() => {});
+        } else if (window.screen && (window.screen.lockOrientation || window.screen.mozLockOrientation || window.screen.msLockOrientation)) {
+            const lock = window.screen.lockOrientation || window.screen.mozLockOrientation || window.screen.msLockOrientation;
+            try { lock.call(window.screen, 'landscape'); } catch (_) {}
+        }
+    } catch (_) { /* ignore orientation lock errors */ }
     startRace();
 });
 

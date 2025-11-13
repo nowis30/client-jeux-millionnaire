@@ -601,3 +601,43 @@ input[type='range'] {
 @media (max-width: 768px) {
     .gauge-panel { left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.9); }
 }
+
+/* --- Overlay d'orientation (forcer paysage sur mobile) --- */
+#rotateOverlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(6, 7, 11, 0.82);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    text-align: center;
+    padding: 24px;
+}
+
+#rotateOverlay .rotate-box {
+    background: rgba(12, 14, 22, 0.9);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 22px 18px;
+    color: #e9ecff;
+    width: min(520px, 92vw);
+    box-shadow: 0 24px 48px rgba(0,0,0,0.45);
+}
+
+#rotateOverlay .rotate-icon {
+    font-size: 64px;
+    line-height: 1;
+    margin-bottom: 12px;
+    opacity: 0.9;
+}
+
+#rotateOverlay p {
+    font-size: 18px;
+    letter-spacing: 0.06em;
+}
+
+@media screen and (orientation: portrait) {
+    #rotateOverlay { display: flex; }
+}

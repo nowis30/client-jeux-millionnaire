@@ -64,6 +64,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <Link href="/portefeuille" prefetch={false}>Portefeuille</Link>
                 <Link href="/pari" prefetch={false}>Pari</Link>
                 <Link href="/quiz" prefetch={false}>Quiz</Link>
+                <Link href="/drag" prefetch={false}>Drag</Link>
                 <Link href="/tutoriel" prefetch={false}>Tutoriel</Link>
                 <Link href="/telecharger" prefetch={false}>Télécharger</Link>
                 <Link href="/contact" prefetch={false} className="text-rose-300 hover:text-rose-200" title="Des difficultés ou suggestions ? Contactez le support">Contact</Link>

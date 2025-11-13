@@ -11,8 +11,13 @@ export default function SettingsPage() {
         await anyWin.Capacitor.Plugins.Browser.open({ url });
         return;
       }
+      // Fallback: tenter App.openUrl (ouvre via Intent Android)
+      if (anyWin?.Capacitor?.isNativePlatform && anyWin.Capacitor.Plugins?.App?.openUrl) {
+        await anyWin.Capacitor.Plugins.App.openUrl({ url });
+        return;
+      }
     } catch {}
-    // Fallback web
+    // Fallback web: ouvre dans nouvel onglet navigateur
     try { window.open(url, "_blank"); } catch {}
   }, []);
 
@@ -40,6 +45,22 @@ export default function SettingsPage() {
             onClick={() => openExternal("https://app.nowis.store/privacy.html")}
             className="px-4 py-2 rounded bg-neutral-800 border border-neutral-700 hover:bg-neutral-700"
           >Version web</button>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-neutral-800 bg-neutral-900 p-4 space-y-2">
+        <h2 className="text-lg font-semibold">Mini‑jeu: Drag Shift Duel</h2>
+        <p className="text-sm text-neutral-300">Joue au mini‑jeu de drag en version web. Tes gains seront crédités sur ta session Millionnaire.</p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            onClick={() => openExternal("https://nowis30.github.io/drag/")}
+            className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-black font-semibold"
+          >Jouer (ouvre dans le navigateur)</button>
+          <Link
+            href="/drag"
+            prefetch={false}
+            className="px-4 py-2 rounded bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-center"
+          >Version intégrée</Link>
         </div>
       </section>
 

@@ -1,132 +1,85 @@
-// === Réseau / API (intégration Millionnaire) ===
-// Version: 2024-11-13-v2 (Cache bust)
-// Priorité:
-// 1) window.DRAG_API_BASE (forçage manuel)
-// 2) En dev local, utiliser un proxy CORS si présent (ex: local-cors-proxy sur 8010)
-// 3) Sinon, prod Render
-let API_BASE = (window && window.DRAG_API_BASE) ? String(window.DRAG_API_BASE) : '';
-try {
-    if (!API_BASE) {
-        const host = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : '';
-        const isLocalHost = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(host) || host.startsWith('192.168.');
-        if (isLocalHost) {
-            // Permet d'éviter les erreurs CORS pendant le dev local en utilisant un proxy
-            // Lancez un proxy: npx local-cors-proxy --proxyUrl https://server-jeux-millionnaire.onrender.com --port 8010
-            const devProxy = (window && window.DRAG_DEV_PROXY) ? String(window.DRAG_DEV_PROXY) : 'http://127.0.0.1:8010/proxy';
-            API_BASE = devProxy;
-            try { console.info('[drag] Mode dev: API via proxy', API_BASE); } catch {}
-        } else {
-            API_BASE = 'https://server-jeux-millionnaire.onrender.com';
-        }
-    }
-} catch (_) { API_BASE = 'https://server-jeux-millionnaire.onrender.com'; }
+// === API Configuration ===
+const API_BASE = window.DRAG_API_BASE || 'https://server-jeux-millionnaire.onrender.com';
 
 let CSRF_TOKEN = null;
-function getStoredSession() {
-    try { const raw = localStorage.getItem('hm-session'); return raw ? JSON.parse(raw) : null; } catch { return null; }
-}
-function setStoredSession(s) { try { localStorage.setItem('hm-session', JSON.stringify(s)); } catch {} }
-function clearStoredSession() { try { localStorage.removeItem('hm-session'); } catch {} }
-function getAuthToken() { try { return localStorage.getItem('hm-token') || null; } catch { return null; } }
-function setAuthToken(t) { try { if (t) localStorage.setItem('hm-token', t); } catch {} }
-function clearAuthToken() { try { localStorage.removeItem('hm-token'); } catch {} }
+
+const storage = {
+    getSession: () => { try { return JSON.parse(localStorage.getItem('hm-session')); } catch { return null; } },
+    setSession: (s) => { try { localStorage.setItem('hm-session', JSON.stringify(s)); } catch {} },
+    clearSession: () => { try { localStorage.removeItem('hm-session'); } catch {} },
+    getToken: () => { try { return localStorage.getItem('hm-token'); } catch { return null; } },
+    setToken: (t) => { try { if (t) localStorage.setItem('hm-token', t); } catch {} },
+    clearToken: () => { try { localStorage.removeItem('hm-token'); } catch {} }
+};
 async function ensureCsrf() {
+    if (CSRF_TOKEN) return CSRF_TOKEN;
     try {
-        if (CSRF_TOKEN) return CSRF_TOKEN;
         const res = await fetch(`${API_BASE}/api/auth/csrf`, { credentials: 'include' });
-        const data = await res.json().catch(() => ({}));
-        CSRF_TOKEN = data?.csrf || null; return CSRF_TOKEN;
+        const data = await res.json();
+        CSRF_TOKEN = data?.csrf;
+        return CSRF_TOKEN;
     } catch { return null; }
 }
 async function apiFetch(path, init = {}) {
     const method = (init.method || 'GET').toUpperCase();
-    const headers = Object.assign({}, init.headers || {});
-    if ([ 'POST','PUT','PATCH','DELETE' ].includes(method)) {
-        const csrf = await ensureCsrf(); if (csrf) headers['x-csrf-token'] = csrf;
-    }
-    const token = getAuthToken();
-    if (token && !headers['Authorization']) headers['Authorization'] = `Bearer ${token}`;
-    const sess = getStoredSession();
-    if (sess?.playerId) headers['X-Player-ID'] = sess.playerId;
-
-    const url = `${API_BASE}${path}`;
-
-    // Utiliser le plugin Capacitor HTTP en natif (Android/iOS) pour éviter CORS
-    try {
-        const cap = (typeof window !== 'undefined') ? window.Capacitor : null;
-        const isNative = !!(cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform());
-        const http = cap && cap.Plugins && (cap.Plugins.Http || cap.Plugins.CapacitorHttp);
-        if (isNative && http) {
-            let data = undefined;
-            if (init.body) {
-                if (typeof init.body === 'string') {
-                    try { data = JSON.parse(init.body); } catch { data = init.body; }
-                } else {
-                    data = init.body;
-                }
-            }
-            const resp = await http.request({ method, url, headers, data });
-            if (resp.status >= 200 && resp.status < 300) {
-                return resp.data;
-            }
-            throw new Error(`HTTP ${resp.status}`);
-        }
-    } catch (_) {
-        // Fallback fetch classique si plugin non dispo
-    }
-
-    const res = await fetch(url, { credentials: 'include', ...init, headers });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    if (res.status === 204) return undefined;
-    return await res.json();
-}
-async function ensureSession() {
-    let sess = getStoredSession();
-    if (sess?.gameId && sess?.playerId) return sess;
-    // Auto-join sur la partie globale
-    const list = await apiFetch('/api/games');
-    const g = list?.games?.[0]; if (!g) throw new Error('Aucune partie');
-    // Tenter l'adhésion standard (utilisateur connecté)
-    try {
-        const joined = await apiFetch(`/api/games/${g.id}/join`, { method:'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({}) });
-        sess = { gameId: g.id, playerId: joined.playerId, nickname: '' };
-        setStoredSession(sess);
-        return sess;
-    } catch (e) {
-        // Fallback invité: créer (ou upserter) un joueur lié au cookie invité via POST /api/games
-        // Cette route ne nécessite pas d'utilisateur authentifié et fonctionne avec CSRF + cookies cross-site.
-        console.log('[drag] Join échoué, tentative création invité...', e);
-        try {
-            const nick = `Invité-${Math.random().toString(36).slice(2, 7)}`;
-            const created = await apiFetch(`/api/games`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ hostNickname: nick })
-            });
-            // La route renvoie { id: gameId, code, status, playerId }
-            const pid = created?.playerId;
-            const gid = created?.id || g.id;
-            if (!pid || !gid) throw new Error('Création invité échouée');
-            sess = { gameId: gid, playerId: pid, nickname: nick };
-            setStoredSession(sess);
-            console.log('[drag] Session invité créée:', sess);
-            return sess;
-        } catch (fallbackError) {
-            console.error('[drag] Échec création invité:', fallbackError);
-            // Si tout échoue, relancer l'erreur initiale
-            throw e;
-        }
+    const headers = { ...init.headers };
+    
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+        const csrf = await ensureCsrf();
+        if (csrf) headers['x-csrf-token'] = csrf;
     }
     
+    const token = storage.getToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    
+    const sess = storage.getSession();
+    if (sess?.playerId) headers['X-Player-ID'] = sess.playerId;
+
+    const res = await fetch(`${API_BASE}${path}`, { credentials: 'include', ...init, headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (res.status === 204) return;
+    return res.json();
+}
+async function ensureSession() {
+    let sess = storage.getSession();
+    if (sess?.gameId && sess?.playerId) return sess;
+    
+    const { games } = await apiFetch('/api/games');
+    const game = games?.[0];
+    if (!game) throw new Error('Aucune partie disponible');
+    
+    try {
+        const joined = await apiFetch(`/api/games/${game.id}/join`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        sess = { gameId: game.id, playerId: joined.playerId, nickname: '' };
+        storage.setSession(sess);
+        return sess;
+    } catch {
+        const nickname = `Invité-${Math.random().toString(36).slice(2, 7)}`;
+        const created = await apiFetch('/api/games', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hostNickname: nickname })
+        });
+        
+        if (!created?.playerId) throw new Error('Impossible de créer une session');
+        
+        sess = { gameId: created.id || game.id, playerId: created.playerId, nickname };
+        storage.setSession(sess);
+        return sess;
+    }
 }
 async function loadDragSessionAndSyncHUD() {
     const sess = await ensureSession();
     const data = await apiFetch(`/api/games/${sess.gameId}/drag/session`);
-    try {
-        game.cash = Number(data?.player?.cash ?? 0);
-        game.stage = Number(data?.drag?.stage ?? 1);
-        updateHud();
-    } catch {}
+    
+    game.cash = Number(data?.player?.cash ?? 0);
+    game.stage = Number(data?.drag?.stage ?? 1);
+    updateHud();
+    
     return { sess, data };
 }
 

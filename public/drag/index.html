@@ -68,17 +68,24 @@
                     <div class="status-banner" id="statusBanner">
                         Maintiens la pédale (flèche haut ou bouton), utilise Nitro (N/X ou bouton) et change de vitesse dans la zone verte.
                     </div>
-                    <div class="game-actions" id="overlayActions">
-                        <button id="startButton" class="primary-button" type="button">Lancer la course</button>
-                        <button id="garageButton" class="secondary-button" type="button">Garage &amp; Réglages</button>
+                </div>
+            </div>
+            
+            <div class="game-actions" id="overlayActions">
+                <button id="startButton" class="primary-button" type="button">Lancer la course</button>
+                <button id="garageButton" class="secondary-button" type="button">Garage &amp; Réglages</button>
+            </div>
+            
+            <div class="race-controls-wrapper">
+                <div class="gauge-panel">
+                    <canvas id="rpmCanvas" width="280" height="280"></canvas>
+                    <div class="gear-display">
+                        <span class="gear-label">Rapport</span>
+                        <span class="gear-value" id="gearValue">N</span>
                     </div>
-                    <div class="gauge-panel">
-                        <canvas id="rpmCanvas" width="280" height="280"></canvas>
-                        <div class="gear-display">
-                            <span class="gear-label">Rapport</span>
-                            <span class="gear-value" id="gearValue">N</span>
-                        </div>
-                    </div>
+                </div>
+                
+                <div class="pedal-controls">
                     <button id="gasButton" class="pedal-button" type="button" aria-label="Pédale d'accélérateur">Accélérer</button>
                     <button id="nitroButton" class="nitro-button" type="button" aria-label="Activer le nitro">Nitro</button>
                 </div>

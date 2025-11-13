@@ -94,6 +94,7 @@ async function ensureSession() {
     } catch (e) {
         // Fallback invité: créer (ou upserter) un joueur lié au cookie invité via POST /api/games
         // Cette route ne nécessite pas d'utilisateur authentifié et fonctionne avec CSRF + cookies cross-site.
+        console.log('[drag] Join échoué, tentative création invité...', e);
         try {
             const nick = `Invité-${Math.random().toString(36).slice(2, 7)}`;
             const created = await apiFetch(`/api/games`, {
@@ -107,8 +108,10 @@ async function ensureSession() {
             if (!pid || !gid) throw new Error('Création invité échouée');
             sess = { gameId: gid, playerId: pid, nickname: nick };
             setStoredSession(sess);
+            console.log('[drag] Session invité créée:', sess);
             return sess;
-        } catch (_) {
+        } catch (fallbackError) {
+            console.error('[drag] Échec création invité:', fallbackError);
             // Si tout échoue, relancer l'erreur initiale
             throw e;
         }

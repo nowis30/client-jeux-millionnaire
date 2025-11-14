@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+const DRAG_LOCAL_URL = "/drag/standalone";
+
 export const metadata: Metadata = {
   title: "Drag Shift Duel | Héritier Millionnaire",
   description: "Affrontez l'IA en ligne droite, synchronisez vos shifts et cumulez des gains partagés avec le jeu principal.",
@@ -30,14 +32,14 @@ export default function DragPage() {
       <section className="space-y-3">
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold">Jouer maintenant</h3>
-          <Link
-            href="/drag/index.html"
+          <a
+            href={DRAG_LOCAL_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-full border border-neutral-700 bg-neutral-900 px-4 py-1.5 text-xs md:text-sm hover:bg-neutral-800"
           >
             Ouvrir dans une nouvelle fenêtre
-          </Link>
+          </a>
           <Link
             href="/"
             prefetch={false}
@@ -51,7 +53,7 @@ export default function DragPage() {
           <div className="aspect-video">
             <iframe
               title="Drag Shift Duel"
-              src="/drag/iframe.html"
+              src={DRAG_LOCAL_URL}
               className="h-full w-full border-0"
               allowFullScreen
             />

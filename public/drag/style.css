@@ -96,7 +96,6 @@ body {
     gap: 18px;
     width: 100%;
     max-width: 100vw;
-    overflow: visible;
 }
 
 .race-controls {
@@ -400,7 +399,7 @@ body.view-hide-gauge .gauge-panel { display: none !important; }
 }
 
 .garage-panel {
-    width: min(680px, 100%);
+    width: min(780px, 100%);
     max-height: calc(100vh - 48px);
     background: linear-gradient(145deg, rgba(20, 23, 36, 0.96), rgba(9, 10, 18, 0.98));
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -426,36 +425,46 @@ body.view-hide-gauge .gauge-panel { display: none !important; }
 
 .garage-tabs {
     display: flex;
-    gap: 0;
-    background: rgba(15, 17, 28, 0.5);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    align-items: center;
+    width: 100%;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .garage-tab {
     flex: 1;
-    padding: 14px 20px;
-    background: transparent;
-    color: rgba(220, 230, 255, 0.6);
     border: none;
-    cursor: pointer;
-    font-family: 'Rajdhani', sans-serif;
-    font-weight: 600;
+    background: transparent;
+    color: rgba(227, 232, 255, 0.7);
     font-size: 16px;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    transition: all 0.2s ease;
-    border-bottom: 3px solid transparent;
-}
-
-.garage-tab:hover {
-    background: rgba(255, 255, 255, 0.03);
-    color: rgba(220, 230, 255, 0.85);
+    padding: 12px 18px;
+    cursor: pointer;
+    transition: color 0.16s ease, background 0.16s ease;
 }
 
 .garage-tab.active {
-    color: #7cffb0;
-    border-bottom-color: #7cffb0;
-    background: rgba(124, 255, 176, 0.05);
+    color: #ffffff;
+    background: rgba(255,255,255,0.05);
+}
+
+.garage-content {
+    padding: 20px 24px 24px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.garage-section h3 {
+    font-size: 20px;
+    margin-bottom: 8px;
+}
+
+.section-hint {
+    font-size: 14px;
+    color: rgba(214, 219, 240, 0.65);
+    margin-bottom: 12px;
 }
 
 .tab-panel {
@@ -467,79 +476,33 @@ body.view-hide-gauge .gauge-panel { display: none !important; }
 }
 
 .upgrade-card {
-    background: linear-gradient(145deg, rgba(35, 38, 54, 0.8), rgba(18, 20, 30, 0.8));
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 16px;
+    border-radius: 16px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: rgba(255,255,255,0.02);
 }
 
 .upgrade-card h3 {
-    font-size: 22px;
-    font-weight: 700;
-    color: #7ecbff;
-    margin-bottom: 10px;
+    font-size: 18px;
+    margin: 0;
 }
 
 .upgrade-description {
-    font-size: 15px;
-    line-height: 1.5;
     color: rgba(214, 219, 240, 0.8);
-    margin-bottom: 14px;
-}
-
-.upgrade-description span {
-    font-weight: 600;
-    color: #d6ddff;
+    line-height: 1.4;
 }
 
 .upgrade-actions {
     display: flex;
-    gap: 10px;
     align-items: center;
+    gap: 12px;
 }
 
 .reward-icon {
     font-size: 18px;
-}
-
-.garage-content {
-    padding: 12px 24px 24px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
-}
-
-.opponents-list {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 10px;
-}
-.opponent-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 12px 14px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 10px;
-}
-.opponent-meta { display: flex; flex-direction: column; gap: 4px; }
-.opponent-name { font-weight: 700; color: #d6ddff; }
-.opponent-stats { font-size: 13px; color: rgba(214,219,240,0.75); }
-.opponent-select { white-space: nowrap; }
-
-.garage-section h3 {
-    font-size: 20px;
-    margin-bottom: 8px;
-}
-
-.section-hint {
-    font-size: 14px;
-    color: rgba(214, 219, 240, 0.65);
-    margin-bottom: 12px;
 }
 
 .slider-list {
@@ -592,6 +555,49 @@ input[type='range'] {
 }
 
 .footer {
+    text-align: center;
+    opacity: 0.65;
+    font-size: 15px;
+}
+
+/* PvP overlay */
+.opponents-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.opponent-item {
+    padding: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.opponent-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.opponent-name {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.opponent-stats {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.opponent-select {
+    flex-shrink: 0;
+}
+
+.footer {
     font-size: 14px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -600,12 +606,11 @@ input[type='range'] {
 
 @media (max-width: 768px) {
     body {
-        padding: 12px 8px 20px;
+        padding: 12px 8px 60px;
     }
 
     .game-shell {
-        padding: 12px;
-        gap: 12px;
+        padding: 12px 12px 210px;
     }
 
     .primary-button {
@@ -617,22 +622,34 @@ input[type='range'] {
         font-size: 36px;
     }
 
+    .pedal-button {
+        position: fixed;
+        bottom: 32px;
+        right: 28px;
+        width: 150px;
+        height: 150px;
+        font-size: 16px;
+        z-index: 30;
+    }
+
+    .nitro-button {
+        position: fixed;
+        bottom: 32px;
+        left: 28px;
+        width: 150px;
+        height: 150px;
+        font-size: 18px;
+        z-index: 30;
+    }
+
     .garage-overlay {
         padding: 16px;
-    }
-    
-    .race-controls-wrapper {
-        gap: 12px;
-    }
-    
-    .pedal-controls {
-        gap: 16px;
     }
 }
 
 @media (max-width: 768px) {
     .gauge-panel {
-        position: relative;
+        position: static;
         width: 100%;
         max-width: 420px;
         margin: 0 auto;
@@ -641,18 +658,18 @@ input[type='range'] {
 
 @media (max-width: 520px) {
     .pedal-button {
-        width: 130px;
-        height: 130px;
+        width: 160px;
+        height: 160px;
+        right: 20px;
+        bottom: 24px;
         font-size: 15px;
-    }
-    
-    .pedal-button.shift-mode {
-        font-size: 20px;
     }
 
     .nitro-button {
-        width: 130px;
-        height: 130px;
+        width: 160px;
+        height: 160px;
+        left: 20px;
+        bottom: 24px;
         font-size: 15px;
     }
 
@@ -671,56 +688,31 @@ input[type='range'] {
     }
 }
 
-/* Overlay de la zone de jeu - maintenant seulement pour le status banner */
-.playfield { 
-    position: relative; 
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-.overlay { 
-    position: absolute; 
-    top: 0;
-    left: 0;
-    right: 0;
-    pointer-events: none; 
-    z-index: 10;
-}
-.overlay .status-banner { 
-    position: absolute; 
-    top: 8px; 
-    left: 50%; 
-    transform: translateX(-50%); 
-    pointer-events: auto; 
+/* --- Overlay layout pour mettre RPM + boutons DANS l'écran de jeu --- */
+.playfield { position: relative; width: 100%; }
+.overlay { position: absolute; inset: 0; }
+
+.overlay .status-banner {
+    position: absolute;
+    top: 8px; left: 50%; transform: translateX(-50%);
 }
 
-/* Contrôles de course - maintenant en dehors de l'overlay */
-.race-controls-wrapper {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    align-items: center;
+.overlay .game-actions {
+    position: absolute;
+    top: 64px; left: 50%; transform: translateX(-50%);
 }
 
+/* La jauge RPM en haut-droite dans l'overlay */
 .gauge-panel {
-    background: rgba(12, 14, 22, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 20px;
-    padding: 16px 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.45);
-    position: relative;
+    position: absolute;
+    left: 50%; top: 50%; transform: translate(-50%, -50%);
+    pointer-events: none;
 }
 
-.pedal-controls {
-    display: flex;
-    gap: 24px;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
+/* Boutons de contrôle en bas, à l'intérieur de l'overlay */
+.pedal-button { bottom: 16px; right: 16px; pointer-events: auto; }
+.nitro-button { bottom: 16px; left: 16px; pointer-events: auto; }
+
+@media (max-width: 768px) {
+    .gauge-panel { left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.9); }
 }

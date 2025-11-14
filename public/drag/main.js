@@ -352,21 +352,23 @@ async function loadDragSessionAndSyncHUD() {
 }
 
 async function refreshAuthUi() {
-    const applyGuestUi = (guestIdSuffix = '') => {
-        const label = guestIdSuffix ? `Invité ${guestIdSuffix}` : 'Invité';
-        if (authStatus) authStatus.textContent = label;
-        if (authLogoutBtn) authLogoutBtn.hidden = true;
-        if (authLeft) authLeft.style.display = 'flex';
+    const setStatus = (text) => { if (authStatus) authStatus.textContent = text; };
+    const setHint = (text) => { if (authHint) authHint.textContent = text; };
+    const showGuestMessage = (suffix = '') => {
+        const suffixLabel = suffix ? ` (${suffix})` : '';
+        setStatus(`Connexion requise${suffixLabel}`);
+        setHint('Ouvre Drag depuis l\'accueil du Millionnaire pour utiliser ton profil.');
     };
+
     try {
         const me = await apiFetch('/api/auth/me');
         if (me && me.guest) {
-            applyGuestUi(String(me.guestId || '').slice(-4));
-            return;
+            showGuestMessage(String(me.guestId || '').slice(-4));
+            return { me, authenticated: false };
         }
-        if (authStatus) authStatus.textContent = me?.email || 'Connecté';
-        if (authLogoutBtn) authLogoutBtn.hidden = false;
-        if (authLeft) authLeft.style.display = 'none';
+        setStatus(me?.email || me?.nickname || 'Profil connecté');
+        setHint('Déconnexion via l\'accueil du Millionnaire.');
+        return { me, authenticated: true };
     } catch {
         const source = getTokenSource();
         if (source && source !== 'guest') {
@@ -375,12 +377,16 @@ async function refreshAuthUi() {
                 await ensureGuestToken(true);
                 const fallback = await apiFetch('/api/auth/me');
                 if (fallback?.guest) {
-                    applyGuestUi(String(fallback.guestId || '').slice(-4));
-                    return;
+                    showGuestMessage(String(fallback.guestId || '').slice(-4));
+                    return { me: fallback, authenticated: false };
                 }
+                setStatus(fallback?.email || fallback?.nickname || 'Profil connecté');
+                setHint('Déconnexion via l\'accueil du Millionnaire.');
+                return { me: fallback, authenticated: true };
             } catch {}
         }
-        applyGuestUi();
+        showGuestMessage();
+        return { me: null, authenticated: false };
     }
 }
 
@@ -399,14 +405,8 @@ const statusBanner = document.getElementById('statusBanner');
 // Accueil
 const homeScreen = document.getElementById('homeScreen');
 // Auth UI elements
-const authEmail = document.getElementById('authEmail');
-const authPassword = document.getElementById('authPassword');
-const authLoginBtn = document.getElementById('authLogin');
-const authRegisterBtn = document.getElementById('authRegister');
-const authLogoutBtn = document.getElementById('authLogout');
-const authForgotBtn = document.getElementById('authForgot');
 const authStatus = document.getElementById('authStatus');
-const authLeft = document.querySelector('.auth-left');
+const authHint = document.getElementById('authHint');
 const authBar = document.querySelector('.auth-bar');
 const gearValue = document.getElementById('gearValue');
 const gasButton = document.getElementById('gasButton');
@@ -510,14 +510,6 @@ function updateTypingGuardActive(target) {
             }
         }
         if (authBar && authBar.contains(el)) {
-            typingGuardActive = true;
-            return;
-        }
-        if (authEmail && el === authEmail) {
-            typingGuardActive = true;
-            return;
-        }
-        if (authPassword && el === authPassword) {
             typingGuardActive = true;
             return;
         }
@@ -1051,7 +1043,6 @@ function isTypingIntoField(event) {
         if (Array.isArray(path)) {
             for (const node of path) {
                 if (!node || node === window || node === document) continue;
-                if (node === authEmail || node === authPassword) return true;
                 if (typeof node.matches === 'function' && node.matches(TYPING_FIELD_SELECTOR)) {
                     return true;
                 }
@@ -1081,9 +1072,6 @@ function isTypingIntoField(event) {
             const wrapper = el.closest(TYPING_FIELD_SELECTOR);
             if (wrapper) return true;
         }
-        // Cas spécifiques: champs d'auth de la barre latérale
-        if (authEmail && document.activeElement === authEmail) return true;
-        if (authPassword && document.activeElement === authPassword) return true;
         return false;
     } catch {
         return typingGuardActive;
@@ -1352,92 +1340,7 @@ if (resetGarageButton) {
     });
 }
 
-// Auth events
-if (authLoginBtn) {
-    authLoginBtn.addEventListener('click', async () => {
-        const email = (authEmail && authEmail.value) ? String(authEmail.value).trim() : '';
-        const password = (authPassword && authPassword.value) ? String(authPassword.value) : '';
-        if (!email || !password) {
-            setBanner('Email et mot de passe requis.', 3, '#ffe66d');
-            return;
-        }
-        try {
-            await ensureCsrf();
-            const loginRes = await apiFetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
-            if (loginRes && loginRes.token) setAuthToken(loginRes.token, 'user');
-            clearStoredSession();
-            await refreshAuthUi();
-            await loadDragSessionAndSyncHUD();
-            setBanner('Connecté.', 2, '#7cffb0');
-        } catch (e) {
-            setBanner('Connexion échouée. Vérifiez vos identifiants.', 3, '#ff6b6b');
-        }
-    });
-}
-if (authRegisterBtn) {
-    authRegisterBtn.addEventListener('click', async () => {
-        const email = (authEmail && authEmail.value) ? String(authEmail.value).trim() : '';
-        const password = (authPassword && authPassword.value) ? String(authPassword.value) : '';
-        if (!email || !password) {
-            setBanner('Email et mot de passe requis.', 3, '#ffe66d');
-            return;
-        }
-        try {
-            await ensureCsrf();
-            const regRes = await apiFetch('/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
-            if (regRes && regRes.token) setAuthToken(regRes.token, 'user');
-            clearStoredSession();
-            await refreshAuthUi();
-            await loadDragSessionAndSyncHUD();
-            setBanner('Compte créé et connecté.', 2, '#7cffb0');
-        } catch (e) {
-            setBanner("Création de compte échouée (email déjà pris ?).", 3, '#ff6b6b');
-        }
-    });
-}
-if (authLogoutBtn) {
-    authLogoutBtn.addEventListener('click', async () => {
-        try {
-            await ensureCsrf();
-            await apiFetch('/api/auth/logout', { method: 'POST' });
-        } catch {}
-        clearStoredSession();
-        clearAuthToken();
-        await ensureGuestToken(true).catch(() => {});
-        await refreshAuthUi();
-        await loadDragSessionAndSyncHUD().catch(() => {});
-        setBanner('Déconnecté.', 2, '#d6ddff');
-    });
-}
-
-if (authForgotBtn) {
-    authForgotBtn.addEventListener('click', async () => {
-        const email = (authEmail && authEmail.value) ? String(authEmail.value).trim() : '';
-        if (!email) {
-            setBanner('Entrez votre email pour recevoir le lien de réinitialisation.', 3, '#ffe66d');
-            return;
-        }
-        try {
-            await ensureCsrf();
-            await apiFetch('/api/auth/request-reset', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
-            });
-            setBanner('Email de réinitialisation envoyé. Vérifiez votre boîte de réception.', 4, '#7cffb0');
-        } catch (e) {
-            setBanner("Impossible d'envoyer l'email pour le moment.", 3, '#ff6b6b');
-        }
-    });
-}
+// Auth events supprimés : la session se gère depuis l'accueil principal
 
 if (garageOverlay) {
     garageOverlay.addEventListener('click', (event) => {

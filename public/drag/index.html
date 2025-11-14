@@ -32,16 +32,12 @@
 </head>
 <body>
     <div class="auth-bar">
-        <div class="auth-left">
-            <input id="authEmail" type="email" placeholder="Email" aria-label="Email" />
-            <input id="authPassword" type="password" placeholder="Mot de passe" aria-label="Mot de passe" />
-            <button id="authLogin" class="secondary-button" type="button">Connexion</button>
-            <button id="authRegister" class="secondary-button" type="button">Créer un compte</button>
-            <button id="authForgot" class="secondary-button" type="button">Mot de passe oublié</button>
+        <div class="auth-left auth-profile">
+            <span class="auth-label">Profil</span>
+            <span id="authStatus" class="auth-status">Connexion en cours…</span>
         </div>
         <div class="auth-right">
-            <span id="authStatus" class="auth-status">Invité</span>
-            <button id="authLogout" class="secondary-button" type="button" hidden>Déconnexion</button>
+            <span id="authHint" class="auth-hint">Déconnexion via l'accueil du Millionnaire.</span>
         </div>
     </div>
     <main class="wrapper">

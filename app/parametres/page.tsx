@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useCallback } from "react";
+import { DRAG_WEB_URL } from "../../lib/drag";
 
 export default function SettingsPage() {
   const openExternal = useCallback(async (url: string) => {
@@ -53,14 +54,13 @@ export default function SettingsPage() {
         <p className="text-sm text-neutral-300">Joue au mini‑jeu de drag en version web. Tes gains seront crédités sur ta session Millionnaire.</p>
         <div className="flex flex-col sm:flex-row gap-2">
           <button
-            onClick={() => openExternal("https://nowis30.github.io/drag/")}
+            onClick={() => openExternal(DRAG_WEB_URL)}
             className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-black font-semibold"
-          >Jouer (ouvre dans le navigateur)</button>
-          <Link
-            href="/drag"
-            prefetch={false}
+          >Jouer (ouvre le navigateur)</button>
+          <button
+            onClick={() => { if (typeof window !== "undefined") window.location.href = DRAG_WEB_URL; }}
             className="px-4 py-2 rounded bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-center"
-          >Version intégrée</Link>
+          >Ouvrir dans cet onglet</button>
         </div>
       </section>
 

@@ -398,6 +398,7 @@ const rpmCtx = rpmCanvas.getContext('2d');
 const hudStage = document.getElementById('hudStage');
 const hudCash = document.getElementById('hudCash');
 const hudTime = document.getElementById('hudTime');
+const hudBestTime = document.getElementById('hudBestTime');
 const hudShift = document.getElementById('hudShift');
 const hudTopSpeed = document.getElementById('hudTopSpeed');
 const hudTopRpm = document.getElementById('hudTopRpm');
@@ -994,7 +995,9 @@ const game = {
     bannerColor: '',
     result: null,
     reward: 0,
-    perfectWin: false
+    perfectWin: false,
+    lastTime: null,
+    bestTime: null
 };
 
 const player = {
@@ -2127,6 +2130,16 @@ async function finishRace(playerWins) {
     const finalWin = playerWins || forcedWin;
     game.perfectWin = forcedWin;
 
+    const finishSeconds = (typeof player.finishTime === 'number' && Number.isFinite(player.finishTime))
+        ? player.finishTime
+        : null;
+    if (finishSeconds !== null) {
+        game.lastTime = finishSeconds;
+        if (game.bestTime === null || finishSeconds < game.bestTime) {
+            game.bestTime = finishSeconds;
+        }
+    }
+
     // Affichage immédiat côté client (serveur reste autorité pour cash/stage/récompense)
     if (finalWin) {
         const tentativePayout = getVictoryPayout();
@@ -2134,8 +2147,8 @@ async function finishRace(playerWins) {
         game.reward = tentativePayout; // valeur provisoire, sera remplacée par la réponse serveur
         const bannerText = forcedWin ? `Victoire parfaite ! +${payoutText} $` : `Victoire ! +${payoutText} $`;
         setBanner(bannerText, 4, '#7cffb0');
-        if (player.finishTime !== null) {
-            recordPlayerTime(player.finishTime);
+        if (finishSeconds !== null) {
+            recordPlayerTime(finishSeconds);
         }
         game.result = 'win';
     } else {
@@ -2187,14 +2200,27 @@ async function finishRace(playerWins) {
     }
 }
 
+function formatTimeValue(value) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return '—';
+    }
+    return `${value.toFixed(2)} s`;
+}
+
 function updateHud() {
     hudStage.textContent = game.state === 'finished' && game.result === 'win' ? game.stage - 1 : game.stage;
     hudCash.textContent = `${game.cash.toLocaleString('fr-CA')} $`;
 
-    if (game.state === 'running') {
-        hudTime.textContent = `${game.timer.toFixed(2)} s`;
-    } else {
-        hudTime.textContent = '0.00 s';
+    if (hudTime) {
+        if (game.state === 'running') {
+            hudTime.textContent = `${game.timer.toFixed(2)} s`;
+        } else {
+            hudTime.textContent = formatTimeValue(game.lastTime);
+        }
+    }
+
+    if (hudBestTime) {
+        hudBestTime.textContent = formatTimeValue(game.bestTime);
     }
 
     if (hudTopSpeed) {

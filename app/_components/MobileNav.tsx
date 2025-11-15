@@ -2,30 +2,56 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
+import { DRAG_WEB_URL } from "../../lib/drag";
+
+type NavItem = { href: string; label: string; external?: boolean };
 
 // Navigation mobile compacte avec bouton flottant et tiroir de liens
-const items = [
+const items: NavItem[] = [
   { href: "/", label: "Accueil" },
   { href: "/immobilier", label: "Immobilier" },
   { href: "/bourse", label: "Bourse" },
   { href: "/portefeuille", label: "Portefeuille" },
-  { href: "/drag", label: "Drag" },
+  { href: DRAG_WEB_URL, label: "Drag", external: true },
   { href: "/quiz", label: "Quiz" },
   { href: "/pari", label: "Pari" },
-  { href: "/tutoriel", label: "Tutoriel" },
-  { href: "/telecharger", label: "Télécharger" },
-  { href: "/confidentialite", label: "Confidentialité" },
-  { href: "/contact", label: "Contact" },
 ];
 
 export default function MobileNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const handleNavigate = useCallback((href: string) => {
+  const openExternal = useCallback(async (url: string) => {
+    if (typeof window === "undefined") return;
+    const anyWin = window as any;
+    try {
+      const browser = anyWin?.Capacitor?.Plugins?.Browser;
+      if (browser?.open) {
+        await browser.open({ url });
+        return;
+      }
+    } catch {}
+    try {
+      const app = anyWin?.Capacitor?.Plugins?.App;
+      if (app?.openUrl) {
+        await app.openUrl({ url });
+        return;
+      }
+    } catch {}
+    try {
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      window.location.href = url;
+    }
+  }, []);
+  const handleNavigate = useCallback((item: NavItem) => {
     setOpen(false);
-    router.push(href);
-  }, [router]);
+    if (item.external) {
+      void openExternal(item.href);
+      return;
+    }
+    router.push(item.href);
+  }, [router, openExternal]);
   // Masqué sur desktop
   return (
     <div className="md:hidden">
@@ -94,12 +120,12 @@ export default function MobileNav() {
             <ul className="grid grid-cols-2 gap-2 text-[15px]">
               {items.map((item) => {
                 const normalized = item.href === "/" ? "/" : item.href.replace(/\/$/, "");
-                const active = pathname === normalized || pathname?.startsWith(`${normalized}/`);
+                const active = !item.external && (pathname === normalized || pathname?.startsWith(`${normalized}/`));
                 return (
                   <li key={item.href}>
                     <button
                       type="button"
-                      onClick={() => handleNavigate(item.href)}
+                      onClick={() => handleNavigate(item)}
                       className={[
                         "block w-full rounded-lg px-4 py-3 border font-medium",
                         active
@@ -118,7 +144,7 @@ export default function MobileNav() {
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => handleNavigate("/quiz")}
+                onClick={() => handleNavigate({ href: "/quiz", label: "Quiz" })}
                 className={[
                   "block w-full text-center rounded-lg px-4 py-3 font-semibold shadow",
                   pathname?.startsWith("/quiz")
@@ -130,7 +156,7 @@ export default function MobileNav() {
               </button>
               <button
                 type="button"
-                onClick={() => handleNavigate("/pari")}
+                onClick={() => handleNavigate({ href: "/pari", label: "Pari" })}
                 className={[
                   "block w-full text-center rounded-lg px-4 py-3 font-semibold shadow",
                   pathname?.startsWith("/pari")

@@ -8,6 +8,7 @@ import OnboardingHome from "../components/OnboardingHome";
 import { apiFetch, API_BASE } from "../lib/api";
 import { formatMoney } from "../lib/format";
 import { showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown } from "../lib/ads";
+import { DRAG_WEB_URL } from "../lib/drag";
 
 type Entry = { playerId: string; nickname: string; netWorth: number };
 type GamePlayer = { id: string; nickname: string; cash: number; netWorth: number };
@@ -94,6 +95,29 @@ export default function DashboardPage() {
   const [bonusError, setBonusError] = useState<string | null>(null);
   const [adReady, setAdReady] = useState(false);
   const [isNativeEnv, setIsNativeEnv] = useState(false);
+  const openDragExperience = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    const anyWin = window as any;
+    try {
+      const browser = anyWin?.Capacitor?.Plugins?.Browser;
+      if (browser?.open) {
+        await browser.open({ url: DRAG_WEB_URL });
+        return;
+      }
+    } catch {}
+    try {
+      const app = anyWin?.Capacitor?.Plugins?.App;
+      if (app?.openUrl) {
+        await app.openUrl({ url: DRAG_WEB_URL });
+        return;
+      }
+    } catch {}
+    try {
+      window.open(DRAG_WEB_URL, "_blank", "noopener,noreferrer");
+    } catch {
+      window.location.href = DRAG_WEB_URL;
+    }
+  }, []);
   
     // Affichage debug auth si erreur
     const AuthDebugBanner = () => {
@@ -904,15 +928,7 @@ export default function DashboardPage() {
         <Link href="/listings" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-center w-full">Annonces</Link>
         <Link href="/summary" className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 text-center w-full">Résumé</Link>
         <button
-          onClick={() => {
-            if (typeof window !== 'undefined' && (window as any).Capacitor?.Plugins?.App) {
-              // App mobile native: ouvrir l'app Drag si installée
-              (window as any).Capacitor.Plugins.App.openUrl?.({ url: 'com.heritier.drag://' });
-            } else if (typeof window !== 'undefined') {
-              // Web/PC: ouvrir la version web intégrée du jeu
-              window.location.href = '/drag';
-            }
-          }}
+          onClick={openDragExperience}
           className="px-4 py-2 rounded bg-rose-600 hover:bg-rose-500 text-center w-full"
         >
           🏁 Drag Racing

@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import "./globals.css";
 import dynamic from "next/dynamic";
+import { DRAG_WEB_URL } from "../lib/drag";
 const UserBadge = dynamic(() => import("./_components/UserBadge"), { ssr: false });
 const MobileNav = dynamic(() => import("./_components/MobileNav"), { ssr: false });
 const PresenceClient = dynamic(() => import("./_components/PresenceClient"), { ssr: false });
@@ -55,7 +56,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           }) }}
         />
         <div className="min-h-screen mx-auto px-4 md:px-6 pb-20 md:pb-6 max-w-none md:max-w-6xl overflow-x-hidden">
-          <div className="mb-4 md:mb-6 flex items-center justify-end">
+          <div className="flex items-center justify-end">
             <div className="flex items-center gap-3 md:gap-4">
               <nav className="hidden md:block space-x-4">
                 <Link href="/" prefetch={false}>Dashboard</Link>
@@ -64,11 +65,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <Link href="/portefeuille" prefetch={false}>Portefeuille</Link>
                 <Link href="/pari" prefetch={false}>Pari</Link>
                 <Link href="/quiz" prefetch={false}>Quiz</Link>
-                <Link href="/drag" prefetch={false}>Drag</Link>
-                <Link href="/tutoriel" prefetch={false}>Tutoriel</Link>
-                <Link href="/telecharger" prefetch={false}>Télécharger</Link>
-                <Link href="/contact" prefetch={false} className="text-rose-300 hover:text-rose-200" title="Des difficultés ou suggestions ? Contactez le support">Contact</Link>
-                <Link href="/confidentialite" prefetch={false} className="text-neutral-300 hover:text-neutral-100">Confidentialité</Link>
+                <Link href={DRAG_WEB_URL} prefetch={false} target="_blank" rel="noreferrer">Drag</Link>
               </nav>
               <UserBadge />
             </div>

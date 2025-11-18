@@ -55,20 +55,25 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             ]
           }) }}
         />
-        <div className="min-h-screen mx-auto px-4 md:px-6 pb-20 md:pb-6 max-w-none md:max-w-6xl overflow-x-hidden">
-          <div className="flex items-center justify-end">
+        <div className="min-h-screen mx-auto px-4 md:px-6 pt-0 pb-20 md:pt-0 md:pb-6 max-w-none md:max-w-6xl overflow-x-hidden">
+          {/* Barre de navigation desktop uniquement en haut */}
+          <div className="hidden md:flex items-center justify-end py-4">
             <div className="flex items-center gap-3 md:gap-4">
-              <nav className="hidden md:block space-x-4">
+              <nav className="space-x-4">
                 <Link href="/" prefetch={false}>Dashboard</Link>
                 <Link href="/immobilier" prefetch={false}>Immobilier</Link>
                 <Link href="/bourse" prefetch={false}>Bourse</Link>
                 <Link href="/portefeuille" prefetch={false}>Portefeuille</Link>
                 <Link href="/pari" prefetch={false}>Pari</Link>
                 <Link href="/quiz" prefetch={false}>Quiz</Link>
-                <Link href={DRAG_WEB_URL} prefetch={false} target="_blank" rel="noreferrer">Drag</Link>
+                <Link href={DRAG_WEB_URL} prefetch={false}>Drag</Link>
               </nav>
               <UserBadge />
             </div>
+          </div>
+          {/* Badge utilisateur mobile en haut à droite */}
+          <div className="md:hidden flex justify-end py-2">
+            <UserBadge />
           </div>
           {/* Socket de présence global (toutes pages) */}
           <PresenceClient />
@@ -80,7 +85,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <ConsentBanner />
           {children}
         </div>
-        {/* Barre de navigation mobile fixe */}
+        {/* Barre de navigation mobile fixe en bas */}
         <MobileNav />
       </body>
     </html>

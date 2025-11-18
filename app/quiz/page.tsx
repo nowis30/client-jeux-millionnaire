@@ -2,7 +2,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Onboarding from "../../components/Onboarding";
+import CategorySelector from "../../components/CategorySelector";
 import { formatMoney } from "../../lib/format";
+import { QuizCategory } from "../../../shared/quizCategories";
 
 // API_BASE local supprimé: utiliser chemins relatifs (proxy /api/*)
 // Utiliser API_BASE défini dans lib/api (abs pour Capacitor)
@@ -84,6 +86,10 @@ export default function QuizPage() {
   const [adsSupported, setAdsSupported] = useState<boolean>(false);
   const [revealLoading, setRevealLoading] = useState(false);
   const [revealError, setRevealError] = useState<string | null>(null);
+  
+  // État pour le sélecteur de catégories
+  const [showCategorySelector, setShowCategorySelector] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<QuizCategory[]>([]);
 
   // À chaque nouvelle question, réinitialiser proprement l'état d'affichage
   useEffect(() => {
@@ -472,7 +478,7 @@ export default function QuizPage() {
     return `${secs}s`;
   }, []);
 
-  async function startSession(existingSessionId?: string, isResume = false) {
+  async function startSession(existingSessionId?: string, isResume = false, categories?: QuizCategory[]) {
     try {
       setLoading(true);
       setFeedback(null);
@@ -520,7 +526,9 @@ export default function QuizPage() {
         method: "POST",
         credentials: "include",
         headers,
-        body: JSON.stringify({}),
+        body: JSON.stringify({ 
+          selectedCategories: categories && categories.length > 0 ? categories : undefined 
+        }),
       });
 
       if (!res.ok) {
@@ -539,12 +547,29 @@ export default function QuizPage() {
       });
       setQuestion(data.question);
       setSelectedAnswer(null);
+      setSelectedCategories(categories || []);
     } catch (err: any) {
       console.error(err);
       setFeedback({ type: 'error', message: err.message });
     } finally {
       setLoading(false);
     }
+  }
+  
+  // Fonction pour ouvrir le sélecteur de catégories avant de démarrer
+  function handleStartQuizClick() {
+    setShowCategorySelector(true);
+  }
+  
+  // Callback quand l'utilisateur valide sa sélection de catégories
+  function handleCategoriesSelected(categories: QuizCategory[]) {
+    setShowCategorySelector(false);
+    startSession(undefined, false, categories);
+  }
+  
+  // Callback quand l'utilisateur annule la sélection
+  function handleCategoriesCancelled() {
+    setShowCategorySelector(false);
   }
 
   async function submitAnswer() {
@@ -1031,7 +1056,7 @@ export default function QuizPage() {
                   </ul>
                 </div>
                 <button
-                  onClick={() => startSession()}
+                  onClick={handleStartQuizClick}
                   className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 rounded-xl font-bold text-xl transition shadow-lg"
                 >
                   🎮 Démarrer le Quiz (Coûte 1 token)
@@ -1210,6 +1235,14 @@ export default function QuizPage() {
       </div>
       {showTutorial && (
         <Onboarding onClose={() => setShowTutorial(false)} />
+      )}
+
+      {/* Modal: Sélection des catégories */}
+      {showCategorySelector && (
+        <CategorySelector
+          onStart={handleCategoriesSelected}
+          onCancel={handleCategoriesCancelled}
+        />
       )}
       
       {/* Modal: Utiliser une passe après une mauvaise réponse */}

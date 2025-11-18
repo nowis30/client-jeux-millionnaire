@@ -12,7 +12,7 @@ const items: NavItem[] = [
   { href: "/immobilier", label: "Immobilier" },
   { href: "/bourse", label: "Bourse" },
   { href: "/portefeuille", label: "Portefeuille" },
-  { href: DRAG_WEB_URL, label: "Drag", external: true },
+  { href: DRAG_WEB_URL, label: "Drag" },
   { href: "/quiz", label: "Quiz" },
   { href: "/pari", label: "Pari" },
 ];

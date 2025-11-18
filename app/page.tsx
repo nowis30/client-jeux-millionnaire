@@ -5,10 +5,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearSession, loadSession, saveSession } from "../lib/session";
 import OnboardingHome from "../components/OnboardingHome";
+import CollapsibleSection from "../components/CollapsibleSection";
 import { apiFetch, API_BASE } from "../lib/api";
 import { formatMoney } from "../lib/format";
 import { showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown } from "../lib/ads";
-import { DRAG_WEB_URL } from "../lib/drag";
+
 
 type Entry = { playerId: string; nickname: string; netWorth: number };
 type GamePlayer = { id: string; nickname: string; cash: number; netWorth: number };
@@ -95,29 +96,8 @@ export default function DashboardPage() {
   const [bonusError, setBonusError] = useState<string | null>(null);
   const [adReady, setAdReady] = useState(false);
   const [isNativeEnv, setIsNativeEnv] = useState(false);
-  const openDragExperience = useCallback(async () => {
-    if (typeof window === "undefined") return;
-    const anyWin = window as any;
-    try {
-      const browser = anyWin?.Capacitor?.Plugins?.Browser;
-      if (browser?.open) {
-        await browser.open({ url: DRAG_WEB_URL });
-        return;
-      }
-    } catch {}
-    try {
-      const app = anyWin?.Capacitor?.Plugins?.App;
-      if (app?.openUrl) {
-        await app.openUrl({ url: DRAG_WEB_URL });
-        return;
-      }
-    } catch {}
-    try {
-      window.open(DRAG_WEB_URL, "_blank", "noopener,noreferrer");
-    } catch {
-      window.location.href = DRAG_WEB_URL;
-    }
-  }, []);
+  // Ouverture interne simple: /drag est maintenant une page intégrée.
+  // Ancienne logique Capacitor supprimée (redirections externes). 
   
     // Affichage debug auth si erreur
     const AuthDebugBanner = () => {
@@ -828,82 +808,94 @@ export default function DashboardPage() {
         </>
       )}
 
-      <section>
-        <h2 className="text-xl font-semibold">Tableau de bord</h2>
-        <p className="text-sm text-neutral-300">Classement (rafraîchissement manuel) — statut: {gameStatus}</p>
-        <div className="mt-2 flex gap-2">
-          <button onClick={updateState} className="px-3 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm">Actualiser</button>
-        </div>
-        <div className="mt-4 bg-neutral-900 rounded border border-neutral-800 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left">
-                <th className="p-2">#</th>
-                <th className="p-2">Joueur</th>
-                <th className="p-2">Valeur nette</th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayedLeaderboard.map((e, i) => (
-                <tr key={e.playerId} className="border-t border-neutral-800">
-                  <td className="p-2">{i + 1}</td>
-                  <td className="p-2 flex items-center gap-2">
-                    {onlineEmails.includes(e.nickname) && <span className="inline-block w-2 h-2 rounded-full bg-green-500" title="En ligne" />}
-                    {e.nickname}
-                  </td>
-                  <td className="p-2">{formatMoney(e.netWorth)}</td>
+      <CollapsibleSection 
+        title="Tableau de bord" 
+        defaultOpen={true} 
+        maxHeight="500px"
+        itemCount={displayedLeaderboard.length}
+      >
+        <div className="p-4">
+          <p className="text-sm text-neutral-300 mb-2">Classement (rafraîchissement manuel) — statut: {gameStatus}</p>
+          <div className="flex gap-2 mb-4">
+            <button onClick={updateState} className="px-3 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm">Actualiser</button>
+          </div>
+          <div className="bg-neutral-900 rounded border border-neutral-800 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left">
+                  <th className="p-2">#</th>
+                  <th className="p-2">Joueur</th>
+                  <th className="p-2">Valeur nette</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {displayedLeaderboard.map((e, i) => (
+                  <tr key={e.playerId} className="border-t border-neutral-800">
+                    <td className="p-2">{i + 1}</td>
+                    <td className="p-2 flex items-center gap-2">
+                      {onlineEmails.includes(e.nickname) && <span className="inline-block w-2 h-2 rounded-full bg-green-500" title="En ligne" />}
+                      {e.nickname}
+                    </td>
+                    <td className="p-2">{formatMoney(e.netWorth)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </section>
+      </CollapsibleSection>
 
       {players.length > 0 && (
-        <section>
-          <h3 className="text-lg font-semibold">Joueurs</h3>
-          <ul className="mt-2 space-y-2 text-sm text-neutral-300">
-            {players.map((p) => (
-              <li key={p.id} className="border border-neutral-800 rounded px-3 py-2 bg-neutral-900">
-                <div className="text-base font-medium mb-2 flex items-center gap-2">
-                  {onlineEmails.includes(p.nickname) && <span className="inline-block w-2 h-2 rounded-full bg-green-500" title="En ligne" />}
-                  {p.nickname}
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span>Cash: {formatMoney(p.cash)} | Net: {formatMoney(p.netWorth)}</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      title="Voir le portefeuille"
-                      onClick={() => openPortfolio(p)}
-                      className="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-xs"
-                    >
-                      Voir portefeuille
-                    </button>
-                    {isAdmin && (
-                      <button
-                        title="Supprimer ce joueur"
-                        onClick={async () => {
-                          if (!gameId) return;
-                          if (!window.confirm(`Supprimer ${p.nickname} ? Tous ses biens, annonces et positions seront effacés.`)) return;
-                          try {
-                            await apiFetch(`/api/games/${gameId}/players/${p.id}`, { method: 'DELETE' });
-                            setMessage(`Joueur supprimé: ${p.nickname}`);
-                            updateState();
-                          } catch (err) {
-                            setError(err instanceof Error ? err.message : 'Échec de suppression');
-                          }
-                        }}
-                        className="px-2 py-1 rounded bg-red-700 hover:bg-red-600 text-xs"
-                      >
-                        Poubelle
-                      </button>
-                    )}
+        <CollapsibleSection 
+          title="Joueurs" 
+          defaultOpen={false} 
+          maxHeight="600px"
+          itemCount={players.length}
+        >
+          <div className="p-4">
+            <ul className="space-y-2 text-sm text-neutral-300">
+              {players.map((p) => (
+                <li key={p.id} className="border border-neutral-800 rounded px-3 py-2 bg-neutral-900">
+                  <div className="text-base font-medium mb-2 flex items-center gap-2">
+                    {onlineEmails.includes(p.nickname) && <span className="inline-block w-2 h-2 rounded-full bg-green-500" title="En ligne" />}
+                    {p.nickname}
                   </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span>Cash: {formatMoney(p.cash)} | Net: {formatMoney(p.netWorth)}</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        title="Voir le portefeuille"
+                        onClick={() => openPortfolio(p)}
+                        className="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-xs"
+                      >
+                        Voir portefeuille
+                      </button>
+                      {isAdmin && (
+                        <button
+                          title="Supprimer ce joueur"
+                          onClick={async () => {
+                            if (!gameId) return;
+                            if (!window.confirm(`Supprimer ${p.nickname} ? Tous ses biens, annonces et positions seront effacés.`)) return;
+                            try {
+                              await apiFetch(`/api/games/${gameId}/players/${p.id}`, { method: 'DELETE' });
+                              setMessage(`Joueur supprimé: ${p.nickname}`);
+                              updateState();
+                            } catch (err) {
+                              setError(err instanceof Error ? err.message : 'Échec de suppression');
+                            }
+                          }}
+                          className="px-2 py-1 rounded bg-red-700 hover:bg-red-600 text-xs"
+                        >
+                          Poubelle
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </CollapsibleSection>
       )}
 
       {isAdmin && (
@@ -927,12 +919,12 @@ export default function DashboardPage() {
         <Link href="/bourse" className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-center w-full">Bourse</Link>
         <Link href="/listings" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-center w-full">Annonces</Link>
         <Link href="/summary" className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 text-center w-full">Résumé</Link>
-        <button
-          onClick={openDragExperience}
+        <Link
+          href="/drag"
           className="px-4 py-2 rounded bg-rose-600 hover:bg-rose-500 text-center w-full"
         >
           🏁 Drag Racing
-        </button>
+        </Link>
         <Link href="/quiz" className="px-4 py-2 rounded bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 font-bold text-center w-full">💰 Quiz</Link>
       </section>
 

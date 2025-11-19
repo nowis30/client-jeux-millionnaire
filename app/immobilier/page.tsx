@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { formatMoney } from "../../lib/format";
 import { API_BASE, apiFetch } from "../../lib/api";
@@ -39,25 +39,46 @@ export default function ImmobilierPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Récupérer la session
-    const sessionStr = localStorage.getItem("hm-session");
-    if (sessionStr) {
-      try {
-        const session = JSON.parse(sessionStr);
-        if (session.gameId && session.playerId) {
-          setGameId(session.gameId);
-          setPlayerId(session.playerId);
-        } else {
-          router.push("/");
+  const ensureSession = useCallback(async () => {
+    try {
+      const raw = localStorage.getItem("hm-session");
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s?.gameId && s?.playerId) {
+          setGameId(s.gameId);
+          setPlayerId(s.playerId);
+          return true;
         }
-      } catch (e) {
+      }
+      // Auto-join si aucune session
+      const resList = await fetch(`${API_BASE}/api/games`, { credentials: 'include' });
+      if (!resList.ok) throw new Error('Liste parties indisponible');
+      const dataList = await resList.json();
+      const g = dataList.games?.[0];
+      if (!g) throw new Error('Aucune partie disponible');
+      const resJoin = await fetch(`${API_BASE}/api/games/${g.id}/join`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+      });
+      if (!resJoin.ok) throw new Error('Join échoué');
+      const dataJoin = await resJoin.json();
+      const sess = { gameId: g.id, playerId: dataJoin.playerId, nickname: '' };
+      try { localStorage.setItem('hm-session', JSON.stringify(sess)); } catch {}
+      setGameId(g.id);
+      setPlayerId(dataJoin.playerId);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const ok = await ensureSession();
+      if (!ok) {
         router.push("/");
       }
-    } else {
-      router.push("/");
-    }
-  }, [router]);
+    })();
+  }, [ensureSession, router]);
 
   useEffect(() => {
     if (!gameId) return;

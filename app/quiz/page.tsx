@@ -1123,8 +1123,19 @@ export default function QuizPage() {
 
             {/* Question */}
             <div key={question.id} className="ui-card p-8">
-              {/* Affichage d'image désactivé temporairement pour les tests */}
-              
+              {/* Illustration de la question (réactivée, plus claire) */}
+              {question.imageUrl && (
+                <div className="mb-6 relative rounded-card overflow-hidden border border-surface-divider">
+                  <img
+                    src={question.imageUrl}
+                    alt="Illustration de la question"
+                    className="w-full max-h-72 object-cover brightness-110"
+                  />
+                  {/* Overlay léger pour garder les couleurs douces sans trop assombrir */}
+                  <div className="absolute inset-0 pointer-events-none bg-black/10" />
+                </div>
+              )}
+
               <h2 className="text-2xl font-bold mb-6 text-center">{question.text}</h2>
               {showTimeoutReveal && (
                 <div className="mb-4 text-center text-rose-300 text-sm">Temps écoulé — réponse correcte: <span className="font-bold">{revealCorrect}</span></div>

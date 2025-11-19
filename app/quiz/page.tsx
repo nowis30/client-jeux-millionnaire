@@ -1033,11 +1033,8 @@ export default function QuizPage() {
                 </div>
               ) : (
                 <div className="mb-6 ui-card p-4 space-y-2">
-                  <div className="text-sm font-semibold">Recharge par publicité disponible sur Android</div>
-                  <p className="text-xs text-surface-muted">Installez l’application Android pour regarder une pub et regagner des tokens immédiatement.</p>
-                  <a href="/telecharger" className="inline-block mt-1 ui-btn ui-btn--warning text-xs font-semibold">
-                    Télécharger l’APK
-                  </a>
+                  <div className="text-sm font-semibold">Recharge par publicité disponible sur mobile</div>
+                  <p className="text-xs text-surface-muted">Cette option est accessible depuis l'application mobile.</p>
                 </div>
               )}
 

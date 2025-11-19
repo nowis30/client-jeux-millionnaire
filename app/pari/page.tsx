@@ -506,11 +506,8 @@ export default function PariPage() {
             </div>
           ) : (
             <div className="bg-white/10 border border-white/20 rounded-lg p-4 space-y-2">
-              <div className="text-sm font-semibold">Recharge par publicité disponible sur Android</div>
-              <p className="text-xs text-gray-300">Installez l’application Android pour regarder une pub et recharger vos tokens jusqu’à 100.</p>
-              <a href="/telecharger" className="inline-block mt-1 px-3 py-1 text-xs rounded bg-gradient-to-r from-yellow-300 to-orange-400 text-black font-semibold hover:from-yellow-200 hover:to-orange-300">
-                Télécharger l’APK
-              </a>
+              <div className="text-sm font-semibold">Recharge par publicité disponible sur mobile</div>
+              <p className="text-xs text-gray-300">Cette option est accessible depuis l'application mobile.</p>
             </div>
           )}
           <div className="space-y-2">

@@ -709,7 +709,6 @@ export default function DashboardPage() {
         <div className="text-xs flex items-center gap-3">
           <Link href="/tutoriel" className="px-3 py-1 rounded bg-indigo-500 hover:bg-indigo-400 text-black font-medium text-xs">Voir le tutoriel</Link>
           <Link href="/quiz" className="px-3 py-1 rounded bg-purple-500 hover:bg-purple-400 text-black font-medium text-xs">Jouer au Quiz</Link>
-          <Link href="/telecharger" className="px-3 py-1 rounded bg-emerald-500 hover:bg-emerald-400 text-black font-medium text-xs">Télécharger l'app</Link>
         </div>
       </div>
       {/* Bandeau prix Amazon 20$ fin d'année */}
@@ -738,7 +737,7 @@ export default function DashboardPage() {
               </div>
             </div>
             {!isNativeEnv && (
-              <p className="text-xs text-emerald-100/70 text-center md:text-right">Disponible dans l'application mobile. Téléchargez-la via l'onglet Télécharger.</p>
+              <p className="text-xs text-emerald-100/70 text-center md:text-right">Fonctionnalité disponible uniquement dans l'application mobile.</p>
             )}
             {bonusMessage && (
               <div className="rounded-lg border border-emerald-500/60 bg-emerald-500/15 px-3 py-2 text-sm text-emerald-100 text-center">

@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import DragIframeWrapper from "./_components/DragIframeWrapper";
 import NativeDragLauncher from "./_components/NativeDragLauncher";
 import { useState } from "react";
+export const dynamic = "force-static";
 
 // Page interne: intègre le mini‑jeu via iframe pour éviter redirections.
 // Les assets sont servis depuis /drag/iframe.html (public/drag/iframe.html)

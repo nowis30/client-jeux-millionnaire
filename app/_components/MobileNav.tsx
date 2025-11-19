@@ -3,7 +3,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { DRAG_WEB_URL } from "../../lib/drag";
-import { isCapacitor, openImmobilier } from "../../lib/mobile";
 
 type NavItem = { href: string; label: string; external?: boolean };
 
@@ -47,12 +46,10 @@ export default function MobileNav() {
   }, []);
   const handleNavigate = useCallback(async (item: NavItem) => {
     setOpen(false);
-    // Ouvrir natif pour Immobilier si Capacitor dispo
-    if (item.href === "/immobilier" && isCapacitor()) {
-      // Aligner avec l'accueil: ouvrir la page "/immobilier" (pas le hub "/immobilier/menu")
-      const opened = await openImmobilier("https://client-jeux-millionnaire.vercel.app/immobilier");
-      if (opened) return;
-      // fallback navigation web si le plugin n'est pas disponible
+    // Forcer la navigation web vers l'Agence Immobilière
+    if (item.href === "/immobilier") {
+      router.push("/immobilier");
+      return;
     }
     if (item.external) {
       void openExternal(item.href);

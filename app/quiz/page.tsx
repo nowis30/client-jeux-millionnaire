@@ -52,6 +52,13 @@ type RevealResponse = {
 
 export default function QuizPage() {
   const router = useRouter();
+  const [isClassic, setIsClassic] = useState(false);
+  useEffect(() => {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      setIsClassic((sp.get("classic") ?? "") === "1");
+    } catch {}
+  }, []);
   const [gameId, setGameId] = useState<string | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [online, setOnline] = useState<number | null>(null);
@@ -1124,7 +1131,7 @@ export default function QuizPage() {
             {/* Question */}
             <div key={question.id} className="ui-card p-8">
               {/* Illustration de la question (réactivée, plus claire) */}
-              {question.imageUrl && (
+              {question.imageUrl && !isClassic && (
                 <div className="mb-6 relative rounded-card overflow-hidden border border-surface-divider">
                   <img
                     src={question.imageUrl}

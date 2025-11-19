@@ -821,7 +821,7 @@ export default function QuizPage() {
 
   if (loading && !question) {
     return (
-      <div className="min-h-screen bg-surface-0 text-surface-on flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900 text-white flex items-center justify-center">
         <div className="text-surface-on text-center">
           <div className="text-xl mb-4">Chargement...</div>
           {feedback && (
@@ -854,7 +854,7 @@ export default function QuizPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-0 text-surface-on p-4 overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900 text-white p-4 overflow-x-hidden">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -931,7 +931,7 @@ export default function QuizPage() {
               )}
             </div>
             {showCategoryDetails && stats.categories && stats.categories.length > 0 && (
-              <div className="mt-4 ui-card p-4">
+              <div className="mt-4 ui-card bg-white/10 backdrop-blur rounded-xl border border-white/10 p-4">
                 <h4 className="text-center font-bold mb-3">📂 Banque par catégorie</h4>
                 <div className="space-y-2">
                   {stats.categories
@@ -971,15 +971,15 @@ export default function QuizPage() {
         )}
 
         {/* Feedback */}
-        {feedback && (
-          <div className={`mb-6 p-4 rounded-card border ${feedback.type === 'success' ? 'border-emerald-600 bg-emerald-900/20' : 'border-rose-700 bg-rose-900/20'}`}>
+          {feedback && (
+          <div className={`mb-6 p-4 rounded-xl border backdrop-blur ${feedback.type === 'success' ? 'border-emerald-400/50 bg-emerald-500/10' : 'border-rose-400/60 bg-rose-500/10'}`}>
             {feedback.message}
           </div>
         )}
 
         {/* Status - Pas de session active */}
         {!session && status && !status.hasActiveSession && (
-          <div className="ui-section p-8 text-center">
+          <div className="p-8 text-center bg-white/10 backdrop-blur rounded-xl border border-white/10">
             {/* Affichage des tokens */}
             <div className="mb-8 p-6 rounded-card border-2 border-amber-500/60 bg-gradient-to-r from-amber-500/15 to-orange-500/15">
               <h3 className="text-2xl font-bold mb-2">🎟️ Vos Tokens Quiz</h3>
@@ -998,7 +998,7 @@ export default function QuizPage() {
             </div>
 
               {adsSupported ? (
-                <div className="mb-6 ui-card p-4 space-y-3">
+                <div className="mb-6 ui-card bg-white/10 backdrop-blur rounded-xl border border-white/10 p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold">Recharge instantanée 🎁</div>
@@ -1032,7 +1032,7 @@ export default function QuizPage() {
                   {tokenAdError && <div className="text-xs text-rose-300">{tokenAdError}</div>}
                 </div>
               ) : (
-                <div className="mb-6 ui-card p-4 space-y-2">
+                <div className="mb-6 ui-card bg-white/10 backdrop-blur rounded-xl border border-white/10 p-4 space-y-2">
                   <div className="text-sm font-semibold">Recharge par publicité disponible sur mobile</div>
                   <p className="text-xs text-surface-muted">Cette option est accessible depuis l'application mobile.</p>
                 </div>
@@ -1045,7 +1045,7 @@ export default function QuizPage() {
                   Répondez aux questions et accumulez des gains !<br />
                   Vous pouvez encaisser à tout moment ou continuer pour doubler vos gains.
                 </p>
-                <div className="mb-6 text-left max-w-md mx-auto ui-card p-4">
+                <div className="mb-6 text-left max-w-md mx-auto ui-card bg-white/10 backdrop-blur rounded-xl border border-white/10 p-4">
                   <h3 className="font-bold mb-2">📜 Règles :</h3>
                   <ul className="list-disc list-inside space-y-1 text-sm">
                     <li>1 token = 1 session de quiz</li>
@@ -1087,7 +1087,7 @@ export default function QuizPage() {
         {session && question && (
           <div className="space-y-6">
             {/* Progression */}
-            <div className="ui-card p-6">
+            <div className="ui-card bg-white/10 backdrop-blur rounded-xl border border-white/10 p-6">
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <div className="text-sm text-surface-muted">Question</div>
@@ -1126,7 +1126,7 @@ export default function QuizPage() {
             </div>
 
             {/* Question */}
-            <div key={question.id} className="ui-card p-8">
+            <div key={question.id} className="ui-card bg-white/10 backdrop-blur rounded-xl border border-white/10 p-8">
               {/* Illustration de la question (réactivée, plus claire) */}
               {question.imageUrl && !isClassic && (
                 <div className="mb-6 relative rounded-card overflow-hidden border border-surface-divider">
@@ -1152,8 +1152,8 @@ export default function QuizPage() {
                   const disabled = !!revealCorrect; // Ne bloquer que si la réponse est révélée
                   const base = 'p-4 rounded-card text-left transition transform hover:scale-105';
                   const stateClass = revealCorrect
-                    ? (isCorrect ? 'bg-green-600 text-black font-bold' : (isWrongSelected ? 'bg-red-600 text-white font-bold' : 'bg-white/5'))
-                    : (selectedAnswer === letter ? 'bg-amber-500 text-black font-bold shadow-elev-1' : 'bg-surface-1 hover:bg-surface-2');
+                    ? (isCorrect ? 'bg-green-400 text-black font-bold' : (isWrongSelected ? 'bg-red-600 text-white font-bold' : 'bg-white/5'))
+                    : (selectedAnswer === letter ? 'bg-amber-400 text-black font-bold shadow-elev-1' : 'bg-white/5 hover:bg-white/10 text-white');
                   return (
                   <button
                     key={letter}
@@ -1226,7 +1226,7 @@ export default function QuizPage() {
         )}
 
         {/* Échelle des gains */}
-        <div className="mt-8 ui-card p-6">
+        <div className="mt-8 ui-card bg-white/10 backdrop-blur rounded-xl border border-white/10 p-6">
           <h3 className="text-lg font-bold mb-4 text-center">📊 Échelle des gains</h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
             {PRIZE_LADDER.map((prize) => (
@@ -1234,8 +1234,8 @@ export default function QuizPage() {
                 key={prize.question}
                 className={`p-2 rounded-card text-center ${
                   session && session.currentQuestion === prize.question
-                    ? 'bg-amber-500 text-black font-bold'
-                    : 'bg-surface-1'
+                    ? 'bg-amber-400 text-black font-bold'
+                    : 'bg-white/5'
                 }`}
               >
                 <div className="text-xs">Q{prize.question}</div>
@@ -1264,7 +1264,7 @@ export default function QuizPage() {
       {/* Modal: Utiliser une passe après une mauvaise réponse */}
       {showPassOffer && lifePasses > 0 && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="ui-card p-8 max-w-md w-full border-2 border-purple-600/60">
+          <div className="ui-card bg-white/10 backdrop-blur rounded-xl border border-purple-400/60 p-8 max-w-md w-full">
             <div className="text-center">
               <div className="text-6xl mb-4">✨</div>
               <h3 className="text-2xl font-bold mb-4">Mauvaise réponse !</h3>

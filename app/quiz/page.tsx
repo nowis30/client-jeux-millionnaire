@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Onboarding from "../../components/Onboarding";
 import CategorySelector from "../../components/CategorySelector";
 import { formatMoney } from "../../lib/format";
-import { QuizCategory } from "../../../shared/quizCategories";
+import { QuizCategory } from "../../lib/quizCategories";
 
 // API_BASE local supprimé: utiliser chemins relatifs (proxy /api/*)
 // Utiliser API_BASE défini dans lib/api (abs pour Capacitor)

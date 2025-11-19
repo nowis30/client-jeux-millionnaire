@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { QuizCategory, QUIZ_CATEGORIES, CATEGORY_GROUPS, CATEGORY_GROUP_LABELS, getCategoryInfo } from '../../shared/quizCategories';
+import { QuizCategory, QUIZ_CATEGORIES, CATEGORY_GROUPS, CATEGORY_GROUP_LABELS, getCategoryInfo } from '../lib/quizCategories';
 
 interface CategorySelectorProps {
   onStart: (selectedCategories: QuizCategory[]) => void;

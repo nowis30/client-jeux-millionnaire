@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Tour à condos">
+  <defs>
+    <linearGradient id="g" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+  </defs>
+  <rect x="36" y="10" width="56" height="108" rx="4" fill="url(#g)" stroke="#1f2937" stroke-width="2"/>
+  <rect x="20" y="84" width="88" height="24" rx="4" fill="#334155" stroke="#1f2937" stroke-width="2"/>
+  <!-- fenêtres -->
+  <g fill="#e2e8f0">
+    <!-- colonnes de fenêtres -->
+    <g transform="translate(44,18)">
+      <rect x="0" y="0" width="8" height="8" rx="1"/>
+      <rect x="0" y="14" width="8" height="8" rx="1"/>
+      <rect x="0" y="28" width="8" height="8" rx="1"/>
+      <rect x="0" y="42" width="8" height="8" rx="1"/>
+      <rect x="0" y="56" width="8" height="8" rx="1"/>
+      <rect x="0" y="70" width="8" height="8" rx="1"/>
+    </g>
+    <g transform="translate(60,18)">
+      <rect x="0" y="0" width="8" height="8" rx="1"/>
+      <rect x="0" y="14" width="8" height="8" rx="1"/>
+      <rect x="0" y="28" width="8" height="8" rx="1"/>
+      <rect x="0" y="42" width="8" height="8" rx="1"/>
+      <rect x="0" y="56" width="8" height="8" rx="1"/>
+      <rect x="0" y="70" width="8" height="8" rx="1"/>
+    </g>
+    <g transform="translate(76,18)">
+      <rect x="0" y="0" width="8" height="8" rx="1"/>
+      <rect x="0" y="14" width="8" height="8" rx="1"/>
+      <rect x="0" y="28" width="8" height="8" rx="1"/>
+      <rect x="0" y="42" width="8" height="8" rx="1"/>
+      <rect x="0" y="56" width="8" height="8" rx="1"/>
+      <rect x="0" y="70" width="8" height="8" rx="1"/>
+    </g>
+  </g>
+  <!-- porte -->
+  <rect x="58" y="98" width="12" height="20" rx="1" fill="#0f172a"/>
+</svg>

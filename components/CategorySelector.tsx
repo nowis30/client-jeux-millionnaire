@@ -8,6 +8,7 @@ interface CategorySelectorProps {
   onCancel: () => void;
   availableCategories?: QuizCategory[];
   defaultSelected?: QuizCategory[];
+  categoryCounts?: Record<string, number>; // Total questions per category
 }
 
 /**
@@ -19,6 +20,7 @@ export default function CategorySelector({
   onCancel,
   availableCategories,
   defaultSelected = [],
+  categoryCounts = {},
 }: CategorySelectorProps) {
   const [selectedCategories, setSelectedCategories] = useState<Set<QuizCategory>>(
     new Set(defaultSelected)
@@ -43,6 +45,9 @@ export default function CategorySelector({
   }, [filteredCategories]);
 
   const toggleCategory = (categoryId: QuizCategory) => {
+    const count = categoryCounts[categoryId] || 0;
+    if (count < 20) return; // Prevent selection if not enough questions
+
     const newSelected = new Set(selectedCategories);
     if (newSelected.has(categoryId)) {
       newSelected.delete(categoryId);
@@ -53,7 +58,11 @@ export default function CategorySelector({
   };
 
   const selectAll = () => {
-    setSelectedCategories(new Set(filteredCategories.map(cat => cat.id)));
+    // Only select categories with enough questions
+    const validCategories = filteredCategories
+      .filter(cat => (categoryCounts[cat.id] || 0) >= 20)
+      .map(cat => cat.id);
+    setSelectedCategories(new Set(validCategories));
   };
 
   const clearAll = () => {
@@ -73,7 +82,11 @@ export default function CategorySelector({
   const selectGroupCategories = (groupKey: string) => {
     const groupCategories = categoriesByGroup[groupKey] || [];
     const newSelected = new Set(selectedCategories);
-    groupCategories.forEach(cat => newSelected.add(cat.id));
+    groupCategories.forEach(cat => {
+      if ((categoryCounts[cat.id] || 0) >= 20) {
+        newSelected.add(cat.id);
+      }
+    });
     setSelectedCategories(newSelected);
   };
 
@@ -162,15 +175,21 @@ export default function CategorySelector({
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4 bg-neutral-950/30">
                     {categories.map((category) => {
                       const isSelected = selectedCategories.has(category.id);
+                      const count = categoryCounts[category.id] || 0;
+                      const isDisabled = count < 20;
+                      
                       return (
                         <button
                           key={category.id}
                           onClick={() => toggleCategory(category.id)}
+                          disabled={isDisabled}
                           className={`
                             relative p-4 rounded-lg border-2 transition-all text-left
-                            ${isSelected
-                              ? `bg-gradient-to-br ${category.color} border-white/50 shadow-lg scale-105`
-                              : 'bg-neutral-900/50 border-neutral-700 hover:border-neutral-600 hover:bg-neutral-800/50'
+                            ${isDisabled 
+                              ? 'bg-neutral-900/30 border-neutral-800 opacity-60 cursor-not-allowed grayscale' 
+                              : isSelected
+                                ? `bg-gradient-to-br ${category.color} border-white/50 shadow-lg scale-105`
+                                : 'bg-neutral-900/50 border-neutral-700 hover:border-neutral-600 hover:bg-neutral-800/50'
                             }
                           `}
                         >
@@ -183,6 +202,9 @@ export default function CategorySelector({
                               <p className={`text-xs ${isSelected ? 'text-white/80' : 'text-neutral-400'}`}>
                                 {category.description}
                               </p>
+                              <div className={`mt-2 text-[10px] font-mono ${isDisabled ? 'text-red-400' : 'text-neutral-500'}`}>
+                                {isDisabled ? 'Bientôt disponible' : `${count} questions`}
+                              </div>
                             </div>
                           </div>
                           {isSelected && (

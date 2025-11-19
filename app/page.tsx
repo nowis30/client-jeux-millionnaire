@@ -702,7 +702,7 @@ export default function DashboardPage() {
       <div className="text-xs opacity-60">DEBUG API_BASE: {API_BASE}</div>
   <AuthDebugBanner />
       {/* Bannière Nouveautés (nov 2025) */}
-      <div className="rounded-lg border border-indigo-600 bg-gradient-to-r from-indigo-700/60 to-purple-700/50 p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 shadow">
+      <div className="rounded-card border border-indigo-600 bg-gradient-to-r from-indigo-700/60 to-purple-700/50 p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 shadow-elev-1">
         <div className="text-sm md:text-base font-semibold text-indigo-100 flex items-center gap-2">
           <span>✨ Nouveautés: Difficulté Quiz rééquilibrée, catégorie Anatomy (biologie), tutoriel complet.</span>
         </div>
@@ -718,11 +718,11 @@ export default function DashboardPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">Connexion requise</h2>
           <p className="text-neutral-300">Veuillez vous connecter pour créer ou rejoindre une partie.</p>
-          <Link href="/login" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 inline-block">Aller à la page de connexion</Link>
+          <Link href="/login" className="ui-btn ui-btn--info inline-block">Aller à la page de connexion</Link>
         </section>
       ) : (
         <>
-          <section className="rounded-xl border border-emerald-600/60 bg-gradient-to-r from-emerald-900/70 to-green-800/60 p-4 shadow-lg space-y-3">
+          <section className="rounded-card border border-emerald-600/60 bg-gradient-to-r from-emerald-900/70 to-green-800/60 p-4 shadow-elev-2 space-y-3">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="space-y-1 text-sm text-emerald-100">
                 <p className="text-lg md:text-xl font-semibold text-white">Bonus pub : {formatMoney(bonusRewardAmount)}</p>
@@ -732,7 +732,7 @@ export default function DashboardPage() {
                 <button
                   onClick={handleWatchBonusAd}
                   disabled={bonusButtonDisabled}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all w-full sm:w-auto ${bonusButtonDisabled ? "bg-emerald-700/40 text-emerald-200/70 cursor-not-allowed" : "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-black shadow-lg shadow-emerald-900/40"}`}
+                  className={`ui-btn w-full sm:w-auto ${bonusButtonDisabled ? "bg-emerald-700/40 text-emerald-200/70 cursor-not-allowed" : "ui-btn--primary"}`}
                 >{bonusButtonLabel}</button>
                 <Link href="/bonus" className="text-xs text-emerald-100/80 underline text-center">En savoir plus</Link>
               </div>
@@ -768,7 +768,7 @@ export default function DashboardPage() {
               </div>
             </div>
             {gameId && playerId && (
-              <div className="bg-emerald-900/30 border border-emerald-700/50 rounded-lg p-3">
+              <div className="ui-card p-3 border-emerald-700/50 bg-emerald-900/30">
                 <p className="text-emerald-300 text-sm">✅ Vous êtes automatiquement inscrit à la partie mondiale !</p>
                 <p className="text-neutral-400 text-xs mt-1">Pseudo: {knownNickname || userEmail}</p>
               </div>
@@ -791,11 +791,11 @@ export default function DashboardPage() {
                   clearSession(); setIsLoggedIn(false); setIsAdmin(false); setUserEmail('');
                   router.replace("/login");
                 }}
-                className="px-4 py-2 rounded bg-rose-700 hover:bg-rose-600 w-full sm:w-auto"
+                className="ui-btn ui-btn--danger w-full sm:w-auto"
               >Se déconnecter</button>
-              <button onClick={createInvite} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 w-full sm:w-auto">Inviter un ami (gagne 1M$)</button>
-              <button onClick={handleShare} className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 w-full sm:w-auto">Partager le jeu</button>
-              <a href={`mailto:?subject=${encodeURIComponent("Rejoins le jeu du Millionnaire")}&body=${encodeURIComponent("Rejoins-moi: " + shareUrl)}`} className="px-4 py-2 rounded bg-indigo-700 hover:bg-indigo-600 text-center w-full sm:w-auto">Inviter par email</a>
+              <button onClick={createInvite} className="ui-btn ui-btn--primary w-full sm:w-auto">Inviter un ami (gagne 1M$)</button>
+              <button onClick={handleShare} className="ui-btn ui-btn--info w-full sm:w-auto">Partager le jeu</button>
+              <a href={`mailto:?subject=${encodeURIComponent("Rejoins le jeu du Millionnaire")}&body=${encodeURIComponent("Rejoins-moi: " + shareUrl)}`} className="ui-btn ui-btn--info text-center w-full sm:w-auto">Inviter par email</a>
             </div>
             {inviteLink && (
               <div className="text-xs text-neutral-300">Lien d'invitation: <a href={inviteLink} className="underline break-all">{inviteLink}</a></div>
@@ -814,12 +814,12 @@ export default function DashboardPage() {
         maxHeight="500px"
         itemCount={displayedLeaderboard.length}
       >
-        <div className="p-4">
+          <div className="p-4">
           <p className="text-sm text-neutral-300 mb-2">Classement (rafraîchissement manuel) — statut: {gameStatus}</p>
           <div className="flex gap-2 mb-4">
-            <button onClick={updateState} className="px-3 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm">Actualiser</button>
+            <button onClick={updateState} className="ui-btn ui-btn--neutral text-sm">Actualiser</button>
           </div>
-          <div className="bg-neutral-900 rounded border border-neutral-800 overflow-x-auto">
+            <div className="ui-card overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left">
@@ -830,7 +830,7 @@ export default function DashboardPage() {
               </thead>
               <tbody>
                 {displayedLeaderboard.map((e, i) => (
-                  <tr key={e.playerId} className="border-t border-neutral-800">
+                    <tr key={e.playerId} className="border-t border-surface-divider">
                     <td className="p-2">{i + 1}</td>
                     <td className="p-2 flex items-center gap-2">
                       {onlineEmails.includes(e.nickname) && <span className="inline-block w-2 h-2 rounded-full bg-green-500" title="En ligne" />}
@@ -855,7 +855,7 @@ export default function DashboardPage() {
           <div className="p-4">
             <ul className="space-y-2 text-sm text-neutral-300">
               {players.map((p) => (
-                <li key={p.id} className="border border-neutral-800 rounded px-3 py-2 bg-neutral-900">
+                <li key={p.id} className="ui-card px-3 py-2">
                   <div className="text-base font-medium mb-2 flex items-center gap-2">
                     {onlineEmails.includes(p.nickname) && <span className="inline-block w-2 h-2 rounded-full bg-green-500" title="En ligne" />}
                     {p.nickname}
@@ -866,7 +866,7 @@ export default function DashboardPage() {
                       <button
                         title="Voir le portefeuille"
                         onClick={() => openPortfolio(p)}
-                        className="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-xs"
+                        className="ui-btn ui-btn--info text-xs"
                       >
                         Voir portefeuille
                       </button>
@@ -884,7 +884,7 @@ export default function DashboardPage() {
                               setError(err instanceof Error ? err.message : 'Échec de suppression');
                             }
                           }}
-                          className="px-2 py-1 rounded bg-red-700 hover:bg-red-600 text-xs"
+                          className="ui-btn ui-btn--danger text-xs"
                         >
                           Poubelle
                         </button>
@@ -899,12 +899,12 @@ export default function DashboardPage() {
       )}
 
       {isAdmin && (
-        <section className="space-y-2 border border-red-900/40 bg-red-950/20 rounded p-3">
+        <section className="space-y-2 border border-red-900/40 bg-red-950/20 rounded-card p-3">
           <h3 className="text-lg font-semibold text-red-300">Admin</h3>
           <p className="text-sm text-red-200/80">Contrôles réservés à l'administrateur. Le redémarrage efface toutes les données de la partie.</p>
           <div className="flex gap-2">
-            <button onClick={adminStart} className="px-3 py-2 rounded bg-orange-600 hover:bg-orange-500 text-sm">Démarrer</button>
-            <button onClick={adminRestart} className="px-3 py-2 rounded bg-red-700 hover:bg-red-600 text-sm">Redémarrer (destructif)</button>
+            <button onClick={adminStart} className="ui-btn ui-btn--warning text-sm">Démarrer</button>
+            <button onClick={adminRestart} className="ui-btn ui-btn--danger text-sm">Redémarrer (destructif)</button>
           </div>
           <AdminAdvanceTime gameId={gameId} onAdvanced={() => { updateState(); }} />
         </section>
@@ -915,33 +915,28 @@ export default function DashboardPage() {
       {/* Activité temps réel retirée (pas de suivi client) */}
 
       <section className="grid grid-cols-2 sm:grid-cols-5 gap-3 w-full">
-        <Link href="/immobilier" className="px-4 py-2 rounded bg-sky-600 hover:bg-sky-500 text-center w-full">Immobilier</Link>
-        <Link href="/bourse" className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-center w-full">Bourse</Link>
-        <Link href="/listings" className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-center w-full">Annonces</Link>
-        <Link href="/summary" className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 text-center w-full">Résumé</Link>
-        <Link
-          href="/drag"
-          className="px-4 py-2 rounded bg-rose-600 hover:bg-rose-500 text-center w-full"
-        >
-          🏁 Drag Racing
-        </Link>
-        <Link href="/quiz" className="px-4 py-2 rounded bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 font-bold text-center w-full">💰 Quiz</Link>
+        <Link href="/immobilier" className="ui-btn ui-btn--info text-center w-full">Immobilier</Link>
+        <Link href="/bourse" className="ui-btn ui-btn--primary text-center w-full">Bourse</Link>
+        <Link href="/listings" className="ui-btn ui-btn--info text-center w-full">Annonces</Link>
+        <Link href="/summary" className="ui-btn ui-btn--warning text-center w-full">Résumé</Link>
+        <Link href="/drag" className="ui-btn ui-btn--danger text-center w-full">🏁 Drag Racing</Link>
+        <Link href="/quiz" className="ui-btn bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 font-bold text-center w-full">💰 Quiz</Link>
       </section>
 
       <section className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-        <Link href="/confidentialite" className="px-4 py-2 rounded bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-center w-full">Politique de confidentialité</Link>
-        <Link href="/suppression-compte" className="px-4 py-2 rounded bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-center w-full">Suppression de compte</Link>
+        <Link href="/confidentialite" className="ui-btn ui-btn--neutral text-center w-full">Politique de confidentialité</Link>
+        <Link href="/suppression-compte" className="ui-btn ui-btn--neutral text-center w-full">Suppression de compte</Link>
       </section>
 
       <section className="mt-4 w-full">
-        <Link href="/parametres" className="block px-4 py-2 rounded bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-center w-full">Paramètres</Link>
+        <Link href="/parametres" className="ui-btn ui-btn--neutral block text-center w-full">Paramètres</Link>
       </section>
 
       {/* Bouton Bonus gratuit */}
       <section className="w-full">
         <Link 
           href="/bonus" 
-          className="block px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 font-bold text-center w-full text-lg shadow-lg transition-all hover:scale-105"
+          className="ui-btn ui-btn--primary block font-bold text-center w-full text-lg shadow-elev-2 transition-all hover:scale-105"
         >
           📺 Bonus Gratuit - Gagnez $1,000,000 !
         </Link>
@@ -949,7 +944,7 @@ export default function DashboardPage() {
 
       {portfolioPlayer && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center p-4" onClick={() => setPortfolioPlayer(null)}>
-          <div className="w-full max-w-4xl bg-neutral-900 border border-neutral-800 rounded-lg flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-4xl ui-card flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800">
               <h4 className="font-semibold">Portefeuille — {portfolioPlayer.nickname}</h4>
               <div className="flex items-center gap-2">
@@ -988,7 +983,7 @@ export default function DashboardPage() {
                 {portfolioProps.length === 0 ? (
                   <p className="text-sm text-neutral-400">Aucun bien.</p>
                 ) : (
-                  <table className="w-full text-sm bg-neutral-950 border border-neutral-800 rounded">
+                  <table className="w-full text-sm bg-surface-0 border border-surface-divider rounded-card">
                     <thead>
                       <tr className="text-left">
                         <th className="p-2">Bien</th>
@@ -998,7 +993,7 @@ export default function DashboardPage() {
                     </thead>
                     <tbody>
                       {portfolioProps.map((h: any) => (
-                        <tr key={h.id} className="border-t border-neutral-800">
+                        <tr key={h.id} className="border-t border-surface-divider">
                           <td className="p-2">{h.template?.name ?? 'Bien'}<div className="text-xs text-neutral-500">{h.template?.city ?? ''}</div></td>
                           <td className="p-2">{formatMoney(Number(h.currentValue ?? 0))}</td>
                           <td className="p-2">{formatMoney(Number(h.mortgageDebt ?? 0))}</td>
@@ -1013,7 +1008,7 @@ export default function DashboardPage() {
                 {portfolioMkts.length === 0 ? (
                   <p className="text-sm text-neutral-400">Aucune position.</p>
                 ) : (
-                  <table className="w-full text-sm bg-neutral-950 border border-neutral-800 rounded">
+                  <table className="w-full text-sm bg-surface-0 border border-surface-divider rounded-card">
                     <thead>
                       <tr className="text-left">
                         <th className="p-2">Actif</th>
@@ -1030,7 +1025,7 @@ export default function DashboardPage() {
                         const avg = Number(m.avgPrice ?? 0) || 0;
                         const gainPct = avg > 0 ? ((Number(last ?? 0) - avg) / avg) * 100 : 0;
                         return (
-                          <tr key={m.id} className="border-t border-neutral-800">
+                          <tr key={m.id} className="border-t border-surface-divider">
                             <td className="p-2">{m.symbol}</td>
                             <td className="p-2">{Number(m.quantity ?? 0).toFixed(2)}</td>
                             <td className="p-2">${Number(m.avgPrice ?? 0).toFixed(2)}</td>
@@ -1051,7 +1046,7 @@ export default function DashboardPage() {
               <div className="px-4 pb-4">
                 <div className="mt-2 space-y-2">
                   <button
-                    className="px-3 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm"
+                    className="ui-btn ui-btn--neutral text-sm"
                     onClick={() => setProjRequested(true)}
                     disabled={projRequested && projLoading}
                   >
@@ -1069,8 +1064,8 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-            <div className="px-4 py-3 border-t border-neutral-800 flex justify-center">
-              <button onClick={() => setPortfolioPlayer(null)} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-sm">Fermer</button>
+            <div className="px-4 py-3 border-t border-surface-divider flex justify-center">
+              <button onClick={() => setPortfolioPlayer(null)} className="ui-btn ui-btn--neutral text-sm">Fermer</button>
             </div>
           </div>
         </div>

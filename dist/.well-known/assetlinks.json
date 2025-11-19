@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls",
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "store.nowis.millionnaire",
+      "sha256_cert_fingerprints": [
+        "63:68:3C:7B:58:99:90:17:79:50:A9:17:87:C9:A2:D0:8F:29:E8:B2:14:FE:36:35:70:A7:F8:C2:37:E2:EA:E9"
+      ]
+    }
+  }
+]

@@ -33,15 +33,21 @@ function HypothequeContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [gameId, setGameId] = useState("");
-  const [quantity, setQuantity] = useState(1);
+  const [playerId, setPlayerId] = useState("");
   const [downPaymentPercent, setDownPaymentPercent] = useState(20);
   const [interestRate, setInterestRate] = useState(5.5);
   const [amortizationYears, setAmortizationYears] = useState(25);
   const [purchasing, setPurchasing] = useState(false);
 
   useEffect(() => {
-    const id = localStorage.getItem("hm-session");
-    if (id) setGameId(id);
+    const sessionStr = localStorage.getItem("hm-session");
+    if (sessionStr) {
+      try {
+        const session = JSON.parse(sessionStr);
+        if (session.gameId) setGameId(session.gameId);
+        if (session.playerId) setPlayerId(session.playerId);
+      } catch {}
+    }
   }, []);
 
   const loadTemplates = useCallback(async () => {
@@ -52,11 +58,17 @@ function HypothequeContent() {
       setTemplates(data.templates ?? []);
       
       // Si un immeuble est sélectionné dans l'URL, le charger
-      const selectId = searchParams.get("select");
+      const selectId = searchParams.get("id") || searchParams.get("select");
       if (selectId) {
         const found = data.templates.find(t => t.id === selectId);
         if (found) {
           setSelectedTemplate(found);
+        } else {
+          // Fallback: fetch single template if not in list (e.g. direct link)
+          try {
+            const single = await apiFetch<{ template: Template }>(`/api/properties/templates/${selectId}`);
+            if (single.template) setSelectedTemplate(single.template);
+          } catch {}
         }
       }
       
@@ -75,7 +87,7 @@ function HypothequeContent() {
   const calculateMortgage = () => {
     if (!selectedTemplate) return { downPayment: 0, loanAmount: 0, monthlyPayment: 0, totalCost: 0 };
     
-    const totalPrice = selectedTemplate.price * quantity;
+    const totalPrice = selectedTemplate.price;
     const downPayment = totalPrice * (downPaymentPercent / 100);
     const loanAmount = totalPrice - downPayment;
     
@@ -89,22 +101,21 @@ function HypothequeContent() {
   };
 
   const handlePurchase = async () => {
-    if (!selectedTemplate || !gameId) return;
+    if (!selectedTemplate || !gameId || !playerId) return;
     
     try {
       setPurchasing(true);
       const mortgage = calculateMortgage();
       
-      await apiFetch(`/api/properties/buy`, {
+      await apiFetch(`/api/games/${gameId}/properties/purchase`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          gameId,
+          playerId,
           templateId: selectedTemplate.id,
-          quantity,
-          downPaymentPercent,
-          interestRate,
-          amortizationYears,
+          mortgageRate: interestRate / 100,
+          downPaymentPercent: downPaymentPercent,
+          mortgageYears: amortizationYears,
         }),
       });
       
@@ -117,8 +128,8 @@ function HypothequeContent() {
   };
 
   const mortgage = calculateMortgage();
-  const monthlyRent = selectedTemplate ? selectedTemplate.baseRent * (selectedTemplate.units || 1) * quantity : 0;
-  const annualExpenses = selectedTemplate ? (selectedTemplate.taxes + selectedTemplate.insurance + selectedTemplate.maintenance) * quantity : 0;
+  const monthlyRent = selectedTemplate ? selectedTemplate.baseRent * (selectedTemplate.units || 1) : 0;
+  const annualExpenses = selectedTemplate ? (selectedTemplate.taxes + selectedTemplate.insurance + selectedTemplate.maintenance) : 0;
   const monthlyCashflow = monthlyRent - (mortgage.monthlyPayment + annualExpenses / 12);
 
   return (
@@ -126,9 +137,9 @@ function HypothequeContent() {
       <div className="max-w-6xl mx-auto space-y-6">
         {/* En-tête */}
         <div className="flex items-center justify-between">
-          <Link href="/immobilier/menu" className="flex items-center gap-2 text-neutral-400 hover:text-neutral-200 transition-colors">
+          <Link href="/immobilier" className="flex items-center gap-2 text-neutral-400 hover:text-neutral-200 transition-colors">
             <ArrowLeft className="w-5 h-5" />
-            <span>Retour au menu</span>
+            <span>Retour aux opportunités</span>
           </Link>
           <h1 className="text-3xl font-bold text-neutral-100">🏦 Hypothèques et Financement</h1>
         </div>
@@ -150,7 +161,7 @@ function HypothequeContent() {
 
         {!loading && !selectedTemplate && (
           <div className="bg-amber-900/20 border border-amber-500/50 rounded-lg p-4 text-amber-300">
-            Aucun immeuble sélectionné. <Link href="/immobilier/recherche" className="underline">Recherchez un immeuble</Link> pour commencer.
+            Aucun immeuble sélectionné. <Link href="/immobilier" className="underline">Recherchez un immeuble</Link> pour commencer.
           </div>
         )}
 
@@ -178,7 +189,7 @@ function HypothequeContent() {
 
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="bg-neutral-800/50 rounded p-3">
-                    <p className="text-neutral-400">Prix unitaire</p>
+                    <p className="text-neutral-400">Prix</p>
                     <p className="font-semibold text-neutral-100">{formatMoney(selectedTemplate.price)}</p>
                   </div>
                   <div className="bg-neutral-800/50 rounded p-3">
@@ -203,20 +214,8 @@ function HypothequeContent() {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-neutral-800">
-                  <label className="block text-sm font-medium text-neutral-300 mb-2">Quantité d'immeubles</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={quantity}
-                    onChange={(e) => setQuantity(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-                    className="w-full px-4 py-2 rounded bg-neutral-800 border border-neutral-700 text-neutral-100"
-                  />
-                </div>
-
                 <Link
-                  href="/immobilier/recherche"
+                  href="/immobilier"
                   className="block w-full text-center px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600 text-white transition-colors"
                 >
                   Choisir un autre immeuble
@@ -290,8 +289,8 @@ function HypothequeContent() {
 
                 <div className="border-t border-emerald-800/50 pt-4 space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-neutral-300">Prix total ({quantity}×)</span>
-                    <span className="font-semibold text-white">{formatMoney(selectedTemplate.price * quantity)}</span>
+                    <span className="text-neutral-300">Prix total</span>
+                    <span className="font-semibold text-white">{formatMoney(selectedTemplate.price)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-neutral-300">Mise de fonds</span>
@@ -331,7 +330,7 @@ function HypothequeContent() {
 
                 <button
                   onClick={handlePurchase}
-                  disabled={purchasing || mortgage.downPayment > 0 && !gameId}
+                  disabled={purchasing || mortgage.downPayment > 0 && (!gameId || !playerId)}
                   className="w-full px-6 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-neutral-700 disabled:cursor-not-allowed font-bold text-lg transition-colors"
                 >
                   {purchasing ? "Achat en cours..." : `Acheter avec hypothèque (${formatMoney(mortgage.downPayment)} requis)`}

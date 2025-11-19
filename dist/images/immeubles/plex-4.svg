@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#0b1220"/>
+  <g transform="translate(90,50)">
+    <rect x="0" y="60" width="460" height="220" rx="8" fill="#6366f1"/>
+    <rect x="210" y="20" width="60" height="40" fill="#312e81"/>
+    <rect x="230" y="200" width="40" height="80" fill="#1e1b4b"/>
+    <rect x="30" y="100" width="80" height="60" fill="#c7d2fe"/>
+    <rect x="150" y="100" width="80" height="60" fill="#c7d2fe"/>
+    <rect x="270" y="100" width="80" height="60" fill="#c7d2fe"/>
+    <rect x="390" y="100" width="80" height="60" fill="#c7d2fe"/>
+  </g>
+  <text x="320" y="330" text-anchor="middle" fill="#9ca3af" font-family="Arial" font-size="18">Quadruplex (4)</text>
+</svg>

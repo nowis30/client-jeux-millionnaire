@@ -6,7 +6,8 @@
   --bg: 16 16 20;
 }
 
-body { @apply bg-neutral-950 text-neutral-100; }
+/* Fond et texte globaux alignés sur le thème Android */
+body { @apply bg-surface-0 text-surface-on; }
 
 a { @apply text-sky-400 hover:underline; }
 
@@ -31,3 +32,20 @@ a { @apply text-sky-400 hover:underline; }
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
 }
+
+/* Composants utilitaires basés sur les tokens Tailwind */
+.ui-card { @apply bg-surface-2 border border-surface-divider rounded-card shadow-elev-1; }
+.ui-section { @apply bg-surface-1 border border-surface-divider rounded-card shadow-elev-2; }
+.ui-divider { @apply border-t border-surface-divider; }
+.ui-badge { @apply text-xs px-2 py-1 rounded-card bg-surface-3 border border-surface-divider text-surface-on/90; }
+
+.ui-btn { @apply inline-flex items-center justify-center px-4 py-2 rounded-button font-semibold transition-colors; }
+.ui-btn--primary { @apply bg-brand-green text-black hover:brightness-110 shadow-elev-1; }
+.ui-btn--info { @apply bg-brand-sky text-black hover:brightness-110 shadow-elev-1; }
+.ui-btn--warning { @apply bg-brand-amber text-black hover:brightness-110 shadow-elev-1; }
+.ui-btn--danger { @apply bg-rose-600 text-white hover:bg-rose-500 shadow-elev-1; }
+.ui-btn--neutral { @apply bg-surface-3 text-surface-on hover:bg-surface-2 border border-surface-divider; }
+
+.ui-chip { @apply text-[11px] px-2 py-1 rounded-full bg-surface-2 border border-surface-divider text-surface-on/80; }
+
+.ui-touch { @apply min-h-11 min-w-11 rounded-touch; }

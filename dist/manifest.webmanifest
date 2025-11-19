@@ -1,0 +1,14 @@
+{
+  "name": "Héritier Millionnaire",
+  "short_name": "Millionnaire",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#0f172a",
+  "description": "Jeu de simulation économique multijoueur.",
+  "icons": [
+    { "src": "/icons/icon-192.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "/icons/icon-512.svg", "type": "image/svg+xml", "sizes": "any" }
+  ]
+}

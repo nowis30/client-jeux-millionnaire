@@ -814,16 +814,16 @@ export default function QuizPage() {
 
   if (loading && !question) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-white text-center">
+      <div className="min-h-screen bg-surface-0 text-surface-on flex items-center justify-center">
+        <div className="text-surface-on text-center">
           <div className="text-xl mb-4">Chargement...</div>
           {feedback && (
-            <div className="mt-4 p-4 bg-red-600 rounded-lg max-w-md mx-auto">
+            <div className="mt-4 p-4 border border-rose-700/60 bg-rose-900/30 rounded-card max-w-md mx-auto">
               <div className="font-bold mb-2">❌ Erreur</div>
               <div className="text-sm">{feedback.message}</div>
               <button 
                 onClick={() => router.push("/")}
-                className="mt-4 px-4 py-2 bg-white/20 hover:bg-white/30 rounded"
+                className="mt-4 ui-btn ui-btn--neutral"
               >
                 ← Retour à l'accueil
               </button>
@@ -832,10 +832,10 @@ export default function QuizPage() {
           {/* Fallback si session existe mais question pas encore chargée (reprise) */}
           {session && !question && (
             <div className="mt-6">
-              <div className="text-sm text-gray-300 mb-2">Reprise de la session en cours...</div>
+              <div className="text-sm text-surface-muted mb-2">Reprise de la session en cours...</div>
               <button
                 onClick={() => startSession(session.id, true)}
-                className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded"
+                className="ui-btn ui-btn--warning font-bold"
               >
                 🔄 Reprendre maintenant
               </button>
@@ -847,22 +847,22 @@ export default function QuizPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white p-4 overflow-x-hidden">
+    <div className="min-h-screen bg-surface-0 text-surface-on p-4 overflow-x-hidden">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <button
             onClick={() => router.push("/")}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+            className="ui-btn ui-btn--neutral"
           >
             ← Retour
           </button>
           <h1 className="text-3xl font-bold text-center">💰 Quitte ou Double</h1>
-          <div className="text-sm text-gray-300 min-w-[120px] text-right">
+          <div className="text-sm text-surface-muted min-w-[120px] text-right">
             <div className="flex items-center justify-end gap-2">
               <button
                 onClick={() => setShowTutorial(true)}
-                className="px-2 py-1 bg-white/10 hover:bg-white/20 rounded"
+                className="ui-btn ui-btn--neutral px-2 py-1"
                 title="Voir le tutoriel"
               >
                 ❓ Tutoriel
@@ -870,7 +870,7 @@ export default function QuizPage() {
               {online != null ? (
                 <span title="Joueurs connectés à la partie">👥 {online} en ligne</span>
               ) : (
-                <span className="text-gray-500"> </span>
+                <span className="text-surface-muted"> </span>
               )}
             </div>
           </div>
@@ -881,12 +881,12 @@ export default function QuizPage() {
           <div className="mb-6 text-xs">
             <div className="flex flex-wrap items-center gap-2">
               {typeof stats.remaining === 'number' && (
-                <span className="px-2 py-1 rounded bg-emerald-800/40 border border-emerald-700 text-emerald-200">
+                <span className="ui-badge border-emerald-700 text-emerald-300 bg-emerald-900/30">
                   Questions totales: {stats.remaining}
                 </span>
               )}
               {status?.tokens === 20 && (
-                <span className="px-2 py-1 rounded bg-yellow-600/30 border border-yellow-500 text-yellow-300 font-semibold" title="Vous avez atteint le maximum de tokens">
+                <span className="ui-badge border-amber-500 text-amber-300 bg-amber-900/20 font-semibold" title="Vous avez atteint le maximum de tokens">
                   ✅ Max tokens (20)
                 </span>
               )}
@@ -896,36 +896,36 @@ export default function QuizPage() {
                     {stats.categories.slice(0, 5).map((c) => (
                       <span
                         key={c.category}
-                        className="px-2 py-1 rounded bg-white/10 border border-white/20 text-gray-200"
+                        className="ui-badge"
                         title={`Restantes: ${c.remaining} / Total: ${c.total ?? '?'} (Utilisées: ${c.used ?? '?'})`}
                       >
                         {c.category} {c.remaining}
                       </span>
                     ))}
                     {stats.categories.length > 5 && (
-                      <span className="px-2 py-1 rounded bg-white/10 border border-white/20 text-gray-200">
+                      <span className="ui-badge">
                         +{stats.categories.length - 5} autres
                       </span>
                     )}
                   </div>
                   <button
                     onClick={() => setShowCategoryDetails(v => !v)}
-                    className="ml-2 px-2 py-1 rounded bg-blue-600/40 hover:bg-blue-600/60 border border-blue-500 text-blue-100"
+                    className="ml-2 ui-btn ui-btn--info px-2 py-1"
                   >
                     {showCategoryDetails ? 'Fermer détails' : 'Détails catégories'}
                   </button>
                 </>
               ) : (
                 stats.remainingByCategory && (
-                  <span className="px-2 py-1 rounded bg-white/10 border border-white/20 text-gray-200">
+                  <span className="ui-badge">
                     Finance {stats.remainingByCategory.finance} · Économie {stats.remainingByCategory.economy} · Immo {stats.remainingByCategory.realEstate}
                   </span>
                 )
               )}
             </div>
             {showCategoryDetails && stats.categories && stats.categories.length > 0 && (
-              <div className="mt-4 bg-white/5 rounded-lg p-4">
-                <h4 className="text-center font-bold mb-3 text-white/90">📂 Banque par catégorie</h4>
+              <div className="mt-4 ui-card p-4">
+                <h4 className="text-center font-bold mb-3">📂 Banque par catégorie</h4>
                 <div className="space-y-2">
                   {stats.categories
                     .slice()
@@ -937,14 +937,14 @@ export default function QuizPage() {
                       const isTargetedMedium = ['definitions','quebec','religions'].includes(cat.category.toLowerCase());
                       const isKids = ['enfant','kids','enfants'].includes(cat.category.toLowerCase());
                       return (
-                        <div key={cat.category} className={`p-2 rounded border ${isKids ? 'border-green-500/60 bg-green-500/10' : isTargetedMedium ? 'border-indigo-400/60 bg-indigo-400/10' : 'border-white/10 bg-white/5'}`}>
+                        <div key={cat.category} className={`p-2 rounded border ${isKids ? 'border-emerald-500/60 bg-emerald-900/20' : isTargetedMedium ? 'border-purple-400/60 bg-purple-900/20' : 'border-surface-divider bg-surface-1'}`}>
                           <div className="flex justify-between items-center mb-1">
                             <div className="font-semibold flex items-center gap-2">
                               <span>{cat.category}</span>
-                              {isKids && <span className="text-xs px-1 py-0.5 rounded bg-green-600/40 border border-green-500">Enfants (Q1-2)</span>}
-                              {isTargetedMedium && <span className="text-xs px-1 py-0.5 rounded bg-indigo-600/40 border border-indigo-500">Ciblée (Q3-5)</span>}
+                              {isKids && <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-800/40 border border-emerald-600">Enfants (Q1-2)</span>}
+                              {isTargetedMedium && <span className="text-[10px] px-2 py-0.5 rounded bg-purple-800/40 border border-purple-600">Ciblée (Q3-5)</span>}
                             </div>
-                            <div className="text-xs text-gray-300">Restantes {cat.remaining} / Total {total} · Utilisées {used}</div>
+                            <div className="text-xs text-surface-muted">Restantes {cat.remaining} / Total {total} · Utilisées {used}</div>
                           </div>
                           <div className="h-2 rounded overflow-hidden bg-black/30">
                             <div
@@ -952,12 +952,12 @@ export default function QuizPage() {
                               style={{ width: `${percent}%` }}
                             />
                           </div>
-                          <div className="mt-1 text-[10px] text-gray-400">{percent}% restantes</div>
+                          <div className="mt-1 text-[10px] text-surface-muted">{percent}% restantes</div>
                         </div>
                       );
                     })}
                 </div>
-                <p className="mt-3 text-[10px] text-gray-400 text-center">Les catégories ciblées (Définitions, Québec, Religions) sont prioritaires pour les questions 3 à 5.</p>
+                <p className="mt-3 text-[10px] text-surface-muted text-center">Les catégories ciblées (Définitions, Québec, Religions) sont prioritaires pour les questions 3 à 5.</p>
               </div>
             )}
           </div>
@@ -965,42 +965,42 @@ export default function QuizPage() {
 
         {/* Feedback */}
         {feedback && (
-          <div className={`mb-6 p-4 rounded-lg ${feedback.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+          <div className={`mb-6 p-4 rounded-card border ${feedback.type === 'success' ? 'border-emerald-600 bg-emerald-900/20' : 'border-rose-700 bg-rose-900/20'}`}>
             {feedback.message}
           </div>
         )}
 
         {/* Status - Pas de session active */}
         {!session && status && !status.hasActiveSession && (
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 text-center">
+          <div className="ui-section p-8 text-center">
             {/* Affichage des tokens */}
-            <div className="mb-8 p-6 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl border-2 border-yellow-500/50">
+            <div className="mb-8 p-6 rounded-card border-2 border-amber-500/60 bg-gradient-to-r from-amber-500/15 to-orange-500/15">
               <h3 className="text-2xl font-bold mb-2">🎟️ Vos Tokens Quiz</h3>
-              <div className="text-6xl font-bold text-yellow-400 mb-2">{status.tokens || 0}</div>
-              <p className="text-sm text-gray-300">
+              <div className="text-6xl font-bold text-amber-300 mb-2">{status.tokens || 0}</div>
+              <p className="text-sm text-surface-muted">
                 {status.tokens > 0 ? 
                   `Vous avez ${status.tokens} token${status.tokens > 1 ? 's' : ''} disponible${status.tokens > 1 ? 's' : ''}` :
                   "Aucun token disponible"
                 }
               </p>
               {status.secondsUntilNextToken && (
-                <p className="text-xs text-gray-400 mt-2">
+                <p className="text-xs text-surface-muted mt-2">
                   ⏱️ Prochain token dans {Math.floor(status.secondsUntilNextToken / 60)} min {status.secondsUntilNextToken % 60} sec
                 </p>
               )}
             </div>
 
               {adsSupported ? (
-                <div className="mb-6 bg-indigo-900/40 border border-indigo-500/30 rounded-lg p-4 space-y-3">
+                <div className="mb-6 ui-card p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-indigo-100">Recharge instantanée 🎁</div>
-                      <p className="text-xs text-indigo-200/70">Regardez une pub pour regagner +20 tokens (cooldown 30 min).</p>
+                      <div className="text-sm font-semibold">Recharge instantanée 🎁</div>
+                      <p className="text-xs text-surface-muted">Regardez une pub pour regagner +20 tokens (cooldown 30 min).</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => { try { localStorage.removeItem('hm-ad-consent'); } catch {}; setTokenAdMessage('Consentement réinitialisé.'); }}
-                      className="text-[11px] px-2 py-1 rounded bg-white/10 hover:bg-white/20 border border-white/20"
+                      className="text-[11px] ui-btn ui-btn--neutral px-2 py-1"
                       title="Effacer le consentement pubs (UMP se réaffichera sur Android)"
                     >
                       Réinitialiser consentement
@@ -1009,7 +1009,7 @@ export default function QuizPage() {
                   <button
                     onClick={handleTokenAdRecharge}
                     disabled={tokenAdLoading || tokenAdCooldown > 0 || !tokenAdReady || (status?.tokens ?? 0) >= 20}
-                    className={`w-full py-2 rounded-lg font-semibold transition ${tokenAdLoading || tokenAdCooldown > 0 || !tokenAdReady || (status?.tokens ?? 0) >= 20 ? 'bg-white/10 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-400 to-green-500 text-black hover:from-emerald-300 hover:to-green-400'}`}
+                    className={`ui-btn ui-btn--primary w-full ${tokenAdLoading || tokenAdCooldown > 0 || !tokenAdReady || (status?.tokens ?? 0) >= 20 ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     {tokenAdLoading
                       ? 'Lecture en cours…'
@@ -1022,13 +1022,13 @@ export default function QuizPage() {
                           : 'Préparation de la pub…'}
                   </button>
                   {tokenAdMessage && <div className="text-xs text-emerald-300">{tokenAdMessage}</div>}
-                  {tokenAdError && <div className="text-xs text-red-300">{tokenAdError}</div>}
+                  {tokenAdError && <div className="text-xs text-rose-300">{tokenAdError}</div>}
                 </div>
               ) : (
-                <div className="mb-6 bg-white/10 border border-white/20 rounded-lg p-4 space-y-2">
+                <div className="mb-6 ui-card p-4 space-y-2">
                   <div className="text-sm font-semibold">Recharge par publicité disponible sur Android</div>
-                  <p className="text-xs text-gray-300">Installez l’application Android pour regarder une pub et regagner des tokens immédiatement.</p>
-                  <a href="/telecharger" className="inline-block mt-1 px-3 py-1 text-xs rounded bg-gradient-to-r from-yellow-300 to-orange-400 text-black font-semibold hover:from-yellow-200 hover:to-orange-300">
+                  <p className="text-xs text-surface-muted">Installez l’application Android pour regarder une pub et regagner des tokens immédiatement.</p>
+                  <a href="/telecharger" className="inline-block mt-1 ui-btn ui-btn--warning text-xs font-semibold">
                     Télécharger l’APK
                   </a>
                 </div>
@@ -1041,7 +1041,7 @@ export default function QuizPage() {
                   Répondez aux questions et accumulez des gains !<br />
                   Vous pouvez encaisser à tout moment ou continuer pour doubler vos gains.
                 </p>
-                <div className="mb-6 text-left max-w-md mx-auto bg-white/5 p-4 rounded-lg">
+                <div className="mb-6 text-left max-w-md mx-auto ui-card p-4">
                   <h3 className="font-bold mb-2">📜 Règles :</h3>
                   <ul className="list-disc list-inside space-y-1 text-sm">
                     <li>1 token = 1 session de quiz</li>
@@ -1055,10 +1055,7 @@ export default function QuizPage() {
                     <li>Difficulté: Q1-2 enfants, Q3-5 moyenne (tous sujets), Q6-10 difficile (tests de QI)</li>
                   </ul>
                 </div>
-                <button
-                  onClick={handleStartQuizClick}
-                  className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 rounded-xl font-bold text-xl transition shadow-lg"
-                >
+                <button onClick={handleStartQuizClick} className="ui-btn ui-btn--warning text-xl px-8 py-4">
                   🎮 Démarrer le Quiz (Coûte 1 token)
                 </button>
               </>
@@ -1066,12 +1063,12 @@ export default function QuizPage() {
               <>
                 <h2 className="text-2xl font-bold mb-4">⏰ Pas de token disponible</h2>
                 <p className="mb-4 text-lg">
-                  Prochain token dans <span className="font-bold text-yellow-400">{Math.floor((status.secondsUntilNextToken || 0) / 60)} minutes</span>
+                  Prochain token dans <span className="font-bold text-amber-300">{Math.floor((status.secondsUntilNextToken || 0) / 60)} minutes</span>
                 </p>
-                <p className="text-sm text-gray-300 mb-4">
+                <p className="text-sm text-surface-muted mb-4">
                   Vous gagnez automatiquement 1 token toutes les heures
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-surface-muted">
                   💡 Les tokens s'accumulent si vous ne jouez pas
                 </p>
                 <div className="mt-4 text-sm text-gray-300">
@@ -1086,66 +1083,66 @@ export default function QuizPage() {
         {session && question && (
           <div className="space-y-6">
             {/* Progression */}
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-6">
+            <div className="ui-card p-6">
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <div className="text-sm text-gray-300">Question</div>
+                  <div className="text-sm text-surface-muted">Question</div>
                   <div className="text-2xl font-bold">{session.currentQuestion} / 10</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm text-gray-300">Gains actuels</div>
+                  <div className="text-sm text-surface-muted">Gains actuels</div>
                   <div className="text-2xl font-bold text-green-400">{formatMoney(session.currentEarnings)}</div>
                 </div>
               </div>
               {/* Timer */}
               <div className="mb-2 flex items-center justify-center">
-                <div className={`text-lg font-mono px-4 py-1 rounded-full border ${timeLeft <= 5 ? 'bg-red-600 border-red-500 animate-pulse' : 'bg-black/30 border-white/20'}`}>⏱️ {timeLeft}s</div>
+                <div className={`text-lg font-mono px-4 py-1 rounded-full border ${timeLeft <= 5 ? 'bg-rose-600 border-rose-500 animate-pulse' : 'bg-black/30 border-surface-divider'}`}>⏱️ {timeLeft}s</div>
               </div>
-              <div className="text-center text-sm text-gray-300">Sauts restants : <span className="font-bold">{session.skipsLeft ?? 0} / 3</span></div>
+              <div className="text-center text-sm text-surface-muted">Sauts restants : <span className="font-bold">{session.skipsLeft ?? 0} / 3</span></div>
               <div className="text-center text-sm text-purple-300 mt-1">
                 ✨ Passes de vie : <span className="font-bold">{lifePasses}</span>
               </div>
               {session.skipsLeft === 0 && (
-                <div className="mt-2 flex justify-center text-xs text-gray-400">
+                <div className="mt-2 flex justify-center text-xs text-surface-muted">
                   Recharge de saut momentanément indisponible.
                 </div>
               )}
               <div className="text-center">
-                <div className="text-sm text-gray-300 mb-1">Prochain gain</div>
+                <div className="text-sm text-surface-muted mb-1">Prochain gain</div>
                 <div className="text-3xl font-bold text-yellow-400">{formatMoney(session.nextPrize)}</div>
                 {PRIZE_LADDER[session.currentQuestion - 1]?.milestone && (
                   <div className="mt-2 text-xs text-green-400">🛡️ Palier de sécurité</div>
                 )}
               </div>
               {session.securedAmount > 0 && (
-                <div className="mt-4 text-center text-sm text-gray-300">
+                <div className="mt-4 text-center text-sm text-surface-muted">
                   Montant sécurisé : <span className="font-bold text-green-400">{formatMoney(session.securedAmount)}</span>
                 </div>
               )}
             </div>
 
             {/* Question */}
-            <div key={question.id} className="bg-white/10 backdrop-blur-md rounded-xl p-8">
+            <div key={question.id} className="ui-card p-8">
               {/* Affichage d'image désactivé temporairement pour les tests */}
               
               <h2 className="text-2xl font-bold mb-6 text-center">{question.text}</h2>
               {showTimeoutReveal && (
-                <div className="mb-4 text-center text-red-300 text-sm">Temps écoulé — réponse correcte: <span className="font-bold">{revealCorrect}</span></div>
+                <div className="mb-4 text-center text-rose-300 text-sm">Temps écoulé — réponse correcte: <span className="font-bold">{revealCorrect}</span></div>
               )}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {['A', 'B', 'C', 'D'].map((letter) => {
                   const isCorrect = revealCorrect === letter;
                   const isWrongSelected = revealCorrect && selectedAnswer === letter && revealCorrect !== selectedAnswer;
-                  const disabled = isAnswering || !!revealCorrect;
-                  const base = 'p-4 rounded-lg text-left transition transform hover:scale-105';
+                  const disabled = !!revealCorrect; // Ne bloquer que si la réponse est révélée
+                  const base = 'p-4 rounded-card text-left transition transform hover:scale-105';
                   const stateClass = revealCorrect
                     ? (isCorrect ? 'bg-green-600 text-black font-bold' : (isWrongSelected ? 'bg-red-600 text-white font-bold' : 'bg-white/5'))
-                    : (selectedAnswer === letter ? 'bg-yellow-500 text-black font-bold shadow-lg' : 'bg-white/5 hover:bg-white/10');
+                    : (selectedAnswer === letter ? 'bg-amber-500 text-black font-bold shadow-elev-1' : 'bg-surface-1 hover:bg-surface-2');
                   return (
                   <button
                     key={letter}
-                    onClick={() => !revealCorrect && setSelectedAnswer(letter)}
+                    onClick={() => !disabled && setSelectedAnswer(letter)}
                     disabled={disabled}
                     className={`${base} ${stateClass} ${disabled ? 'opacity-70 cursor-not-allowed' : ''}`}
                   >
@@ -1161,7 +1158,7 @@ export default function QuizPage() {
               <button
                 onClick={watchAdForLifePass}
                 disabled={isLoadingAd}
-                className="w-full md:w-auto px-4 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed rounded-xl font-bold text-sm transition shadow-lg"
+                className={`ui-btn ui-btn--info w-full md:w-auto font-bold text-sm ${isLoadingAd ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="Regarder une publicité pour obtenir une passe de vie"
               >
                 {isLoadingAd ? "⏳ ..." : "📺 Pub → +1 Passe"}
@@ -1169,14 +1166,14 @@ export default function QuizPage() {
               <button
                 onClick={cashOut}
                 disabled={isAnswering || session.currentEarnings === 0}
-                className="w-full md:flex-1 px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-xl font-bold text-lg transition shadow-lg"
+                className={`ui-btn ui-btn--primary w-full md:flex-1 font-bold text-lg ${isAnswering || session.currentEarnings === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 💰 Encaisser {formatMoney(session.currentEarnings)}
               </button>
               <button
                 onClick={skipQuestion}
                 disabled={isAnswering || !!revealCorrect || (session.skipsLeft ?? 0) <= 0}
-                className="w-full md:w-auto px-4 py-4 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-xl font-bold text-lg transition shadow-lg"
+                className={`ui-btn ui-btn--neutral w-full md:w-auto font-bold text-lg ${isAnswering || !!revealCorrect || (session.skipsLeft ?? 0) <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="Passer cette question"
               >
                 ⏭️ Passer ({session.skipsLeft ?? 0}/3)
@@ -1185,7 +1182,7 @@ export default function QuizPage() {
                 <button
                   onClick={revealAnswerViaAd}
                   disabled={revealLoading || !!revealCorrect || showTimeoutReveal}
-                  className="w-full md:w-auto px-4 py-4 bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed rounded-xl font-bold text-sm transition shadow-lg"
+                  className={`ui-btn ui-btn--warning w-full md:w-auto font-bold text-sm ${revealLoading || !!revealCorrect || showTimeoutReveal ? 'opacity-50 cursor-not-allowed' : ''}`}
                   title="Regarder une publicité pour obtenir automatiquement la bonne réponse"
                 >
                   {revealLoading ? '⏳ Révélation...' : '📺 Réponse auto (pub)'}
@@ -1193,7 +1190,7 @@ export default function QuizPage() {
               ) : (
                 <button
                   disabled
-                  className="w-full md:w-auto px-4 py-4 bg-gray-700 text-gray-300 rounded-xl font-bold text-sm cursor-not-allowed"
+                  className="ui-btn ui-btn--neutral w-full md:w-auto font-bold text-sm cursor-not-allowed opacity-60"
                   title="Disponible uniquement sur l’application Android"
                 >
                   📱 Réponse auto: Android requis
@@ -1202,28 +1199,28 @@ export default function QuizPage() {
               <button
                 onClick={submitAnswer}
                 disabled={!selectedAnswer || isAnswering || !!revealCorrect}
-                className="w-full md:flex-1 px-6 py-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed rounded-xl font-bold text-lg transition shadow-lg"
+                className={`ui-btn ui-btn--info w-full md:flex-1 font-bold text-lg ${!selectedAnswer || isAnswering || !!revealCorrect ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {isAnswering ? "⏳ ..." : "✓ Valider ma réponse"}
               </button>
             </div>
             {revealError && (
-              <div className="text-xs text-red-300 mt-2">{revealError}</div>
+              <div className="text-xs text-rose-300 mt-2">{revealError}</div>
             )}
           </div>
         )}
 
         {/* Échelle des gains */}
-        <div className="mt-8 bg-white/5 backdrop-blur-md rounded-xl p-6">
+        <div className="mt-8 ui-card p-6">
           <h3 className="text-lg font-bold mb-4 text-center">📊 Échelle des gains</h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
             {PRIZE_LADDER.map((prize) => (
               <div
                 key={prize.question}
-                className={`p-2 rounded text-center ${
+                className={`p-2 rounded-card text-center ${
                   session && session.currentQuestion === prize.question
-                    ? 'bg-yellow-500 text-black font-bold'
-                    : 'bg-white/5'
+                    ? 'bg-amber-500 text-black font-bold'
+                    : 'bg-surface-1'
                 }`}
               >
                 <div className="text-xs">Q{prize.question}</div>
@@ -1242,25 +1239,29 @@ export default function QuizPage() {
         <CategorySelector
           onStart={handleCategoriesSelected}
           onCancel={handleCategoriesCancelled}
+          categoryCounts={stats?.categories?.reduce((acc, cat) => {
+            acc[cat.category] = cat.total ?? 0;
+            return acc;
+          }, {} as Record<string, number>) || {}}
         />
       )}
       
       {/* Modal: Utiliser une passe après une mauvaise réponse */}
       {showPassOffer && lifePasses > 0 && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-br from-purple-900 to-pink-900 rounded-2xl p-8 max-w-md w-full shadow-2xl border-2 border-purple-500">
+          <div className="ui-card p-8 max-w-md w-full border-2 border-purple-600/60">
             <div className="text-center">
               <div className="text-6xl mb-4">✨</div>
               <h3 className="text-2xl font-bold mb-4">Mauvaise réponse !</h3>
-              <p className="text-gray-200 mb-6">
-                Vous avez <span className="font-bold text-yellow-400">{lifePasses}</span> passe{lifePasses > 1 ? 's' : ''} de vie.
+              <p className="text-surface-on/90 mb-6">
+                Vous avez <span className="font-bold text-amber-300">{lifePasses}</span> passe{lifePasses > 1 ? 's' : ''} de vie.
                 <br />
                 Voulez-vous en utiliser une pour continuer ?
               </p>
               <div className="flex flex-col gap-3">
                 <button
                   onClick={useLifePass}
-                  className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 rounded-xl font-bold text-lg transition shadow-lg"
+                  className="ui-btn ui-btn--primary w-full font-bold text-lg"
                 >
                   ✓ Utiliser une passe et continuer
                 </button>
@@ -1277,7 +1278,7 @@ export default function QuizPage() {
                       loadStats();
                     }, 5000);
                   }}
-                  className="w-full px-6 py-4 bg-gray-600 hover:bg-gray-500 rounded-xl font-bold transition"
+                  className="ui-btn ui-btn--neutral w-full font-bold"
                 >
                   ✗ Non, arrêter le quiz
                 </button>

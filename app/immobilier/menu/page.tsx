@@ -13,7 +13,7 @@ export default function ImmobilierMenuPage() {
 
         <div className="grid md:grid-cols-3 gap-6">
           {/* Carte 1 - Recherche & Analyse */}
-          <Link href="/immobilier/recherche" className="group">
+          <Link href="/immobilier" className="group">
             <div className="h-full p-8 rounded-2xl bg-gradient-to-br from-emerald-900/30 to-emerald-950/50 border-2 border-emerald-700/30 hover:border-emerald-500/60 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-emerald-500/20">
               <div className="flex flex-col items-center text-center space-y-4">
                 <div className="p-4 rounded-full bg-emerald-500/20 group-hover:bg-emerald-500/30 transition-colors">

@@ -238,12 +238,12 @@ export default function BoursePage() {
     <main className="space-y-6">
       <section>
         <h2 className="text-xl font-semibold">Bourse</h2>
-        <p className="text-sm text-neutral-300">Investissez dans l'OR, le PÉTROLE, le S&P 500, le TSX et des OBLIGATIONS MONDIALES (pour stabiliser le portefeuille).</p>
+        <p className="text-sm text-surface-muted">Investissez dans l'OR, le PÉTROLE, le S&P 500, le TSX et des OBLIGATIONS MONDIALES (pour stabiliser le portefeuille).</p>
       </section>
 
       {(nickname || cash != null) && (
         <section>
-          <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-300">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-surface-muted">
             {nickname && (<p>Pseudo: <span className="font-medium">{nickname}</span></p>)}
             {cash != null && (
               <p>
@@ -255,26 +255,26 @@ export default function BoursePage() {
               </p>
             )}
             {economy && (
-              <p title={`Marge: base + 5 pts → ${(economy.baseMortgageRate * 100).toFixed(2)}% + 5.00 pts = ${((economy.baseMortgageRate + 0.05) * 100).toFixed(2)}%`} className="text-xs text-neutral-400">
+              <p title={`Marge: base + 5 pts → ${(economy.baseMortgageRate * 100).toFixed(2)}% + 5.00 pts = ${((economy.baseMortgageRate + 0.05) * 100).toFixed(2)}%`} className="text-xs text-surface-muted">
                 Marge: base + 5 pts
               </p>
             )}
           </div>
-          <div className="mt-1 text-xs text-neutral-400 flex items-center gap-2">
-            <button onClick={loadDividendsKpi} className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700">Actualiser dividendes</button>
+          <div className="mt-1 text-xs text-surface-muted flex items-center gap-2">
+            <button onClick={loadDividendsKpi} className="ui-btn ui-btn--neutral px-2 py-1">Actualiser dividendes</button>
             {divKpi ? (
               <span>Dividendes reçus: 24h ${divKpi["24h"].toFixed(2)} · 7j ${divKpi["7d"].toFixed(2)} · YTD ${divKpi.ytd.toFixed(2)}</span>
             ) : (
-              <span className="text-neutral-500">Cliquer pour charger les dividendes</span>
+              <span className="text-surface-muted">Cliquer pour charger les dividendes</span>
             )}
           </div>
         </section>
       )}
 
   <section className="flex flex-wrap gap-3 items-end">
-        <label className="text-sm text-neutral-300 flex flex-col gap-1">
+        <label className="text-sm text-surface-muted flex flex-col gap-1">
           Actif
-          <select value={symbol} onChange={(e) => setSymbol(e.target.value)} className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm">
+          <select value={symbol} onChange={(e) => setSymbol(e.target.value)} className="px-3 py-2 rounded bg-surface-1 border border-surface-divider text-sm">
             {MARKET_ASSETS.map((asset) => (
               <option key={asset} value={asset}>
                 {asset}
@@ -282,7 +282,7 @@ export default function BoursePage() {
             ))}
           </select>
         </label>
-        <div className="text-sm text-neutral-300 flex flex-col gap-1">
+        <div className="text-sm text-surface-muted flex flex-col gap-1">
           <label>Quantité</label>
           <div className="flex items-center gap-2">
             <input
@@ -291,20 +291,20 @@ export default function BoursePage() {
               step={0.01}
               value={quantity}
               onChange={(e) => setQuantity(Number(e.target.value))}
-              className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm"
+              className="px-3 py-2 rounded bg-surface-1 border border-surface-divider text-sm"
             />
             <button
               type="button"
               onClick={() => setQuantity(maxBuyQty)}
               disabled={!selectedPrice || maxBuyQty <= 0}
               title={!selectedPrice ? 'Prix indisponible' : (maxBuyQty <= 0 ? 'Encaisse insuffisante' : 'Remplir au maximum achetable')}
-              className={`px-2 py-1 rounded text-xs ${(!selectedPrice || maxBuyQty <= 0) ? 'bg-neutral-700 text-neutral-300 cursor-not-allowed' : 'bg-neutral-600 hover:bg-neutral-500'}`}
+              className={`ui-btn ui-btn--neutral text-xs ${(!selectedPrice || maxBuyQty <= 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               Max
             </button>
           </div>
         </div>
-        <div className="text-xs text-neutral-400 min-w-[220px]">
+        <div className="text-xs text-surface-muted min-w-[220px]">
           <div>Prix: {selectedPrice != null ? `$${selectedPrice.toFixed(2)}` : '—'}</div>
           <div>Coût estimé: {estimatedCost > 0 ? `$${estimatedCost.toFixed(2)}` : '—'}</div>
           <div>Encaisse: {typeof cash === 'number' ? (cash < 0 ? <span className="text-rose-400">{formatMoney(cash)}</span> : <span className="text-emerald-400">{formatMoney(cash)}</span>) : '—'}</div>
@@ -314,7 +314,7 @@ export default function BoursePage() {
           onClick={() => handleTrade("buy")}
           disabled={!canBuy}
           title={!canBuy ? (typeof cash === 'number' && cash <= 0 ? 'Encaisse négative (marge): achat désactivé' : 'Encaisse insuffisante pour cet achat') : ''}
-          className={`px-4 py-2 rounded ${canBuy ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-neutral-700 text-neutral-300 cursor-not-allowed'}`}
+          className={`ui-btn ui-btn--primary ${!canBuy ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           Acheter
         </button>
@@ -322,12 +322,12 @@ export default function BoursePage() {
           onClick={() => handleTrade("sell")}
           disabled={!canSell}
           title={!canSell ? 'Quantité insuffisante' : ''}
-          className={`px-4 py-2 rounded ${canSell ? 'bg-rose-600 hover:bg-rose-500' : 'bg-neutral-700 text-neutral-300 cursor-not-allowed'}`}
+          className={`ui-btn ui-btn--danger ${!canSell ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           Vendre
         </button>
-        <button onClick={loadPrices} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Actualiser prix</button>
-        <button onClick={loadHoldings} className="px-4 py-2 rounded bg-neutral-700 hover:bg-neutral-600">Actualiser positions</button>
+        <button onClick={loadPrices} className="ui-btn ui-btn--neutral">Actualiser prix</button>
+        <button onClick={loadHoldings} className="ui-btn ui-btn--neutral">Actualiser positions</button>
       </section>
 
       {message && <p className="text-sm text-emerald-400">{message}</p>}
@@ -335,7 +335,7 @@ export default function BoursePage() {
 
       <section className="space-y-3">
   <h3 className="text-lg font-semibold">Prix simulés</h3>
-        <table className="w-full text-sm bg-neutral-900 border border-neutral-800 rounded">
+        <table className="w-full text-sm bg-surface-0 border border-surface-divider rounded-card">
           <thead>
             <tr className="text-left">
               <th className="p-2">Actif</th>
@@ -346,11 +346,11 @@ export default function BoursePage() {
           </thead>
           <tbody>
             {prices.map((p) => (
-              <tr key={p.symbol} className="border-t border-neutral-800 hover:bg-neutral-800/40 cursor-pointer" onClick={() => { setSymbol(p.symbol); }}>
+              <tr key={p.symbol} className="border-t border-surface-divider hover:bg-surface-1/60 cursor-pointer" onClick={() => { setSymbol(p.symbol); }}>
                 <td className="p-2">{p.symbol}</td>
                 <td className="p-2">${p.price.toFixed(2)}</td>
-                <td className="p-2 text-neutral-400">{new Date(p.at).toLocaleString()}</td>
-                <td className="p-2 text-neutral-400">{DIVIDEND_YIELDS[p.symbol] ? ((DIVIDEND_YIELDS[p.symbol] * 100).toFixed(1) + "%") : "—"}</td>
+                <td className="p-2 text-surface-muted">{new Date(p.at).toLocaleString()}</td>
+                <td className="p-2 text-surface-muted">{DIVIDEND_YIELDS[p.symbol] ? ((DIVIDEND_YIELDS[p.symbol] * 100).toFixed(1) + "%") : "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -359,7 +359,7 @@ export default function BoursePage() {
 
       <section className="space-y-3">
         <h3 className="text-lg font-semibold">Graphique par actif</h3>
-        <table className="w-full text-sm bg-neutral-900 border border-neutral-800 rounded">
+        <table className="w-full text-sm bg-surface-0 border border-surface-divider rounded-card">
           <thead>
             <tr className="text-left">
               <th className="p-2">Actif</th>
@@ -369,11 +369,11 @@ export default function BoursePage() {
           <tbody>
             {MARKET_ASSETS.map((asset) => (
               <>
-                <tr key={asset} className="border-t border-neutral-800">
+                <tr key={asset} className="border-t border-surface-divider">
                   <td className="p-2">{asset}</td>
                   <td className="p-2">
                     <button
-                      className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-xs"
+                      className="ui-btn ui-btn--neutral text-xs"
                       onClick={async () => {
                         const nextOpen = openSymbol === asset ? null : asset;
                         setOpenSymbol(nextOpen);
@@ -400,7 +400,7 @@ export default function BoursePage() {
       {enrichedHoldings.length > 0 && (
         <section className="space-y-3">
           <h3 className="text-lg font-semibold">Vos positions</h3>
-          <table className="w-full text-sm bg-neutral-900 border border-neutral-800 rounded">
+          <table className="w-full text-sm bg-surface-0 border border-surface-divider rounded-card">
             <thead>
               <tr className="text-left">
                 <th className="p-2">Actif</th>
@@ -413,7 +413,7 @@ export default function BoursePage() {
             </thead>
             <tbody>
               {enrichedHoldings.map((h) => (
-                <tr key={h.id} className="border-t border-neutral-800">
+                <tr key={h.id} className="border-t border-surface-divider">
                   <td className="p-2">{h.symbol}</td>
                   <td className="p-2">{h.quantity.toFixed(2)}</td>
                   <td className="p-2">${h.avgPrice.toFixed(2)}</td>
@@ -434,27 +434,27 @@ export default function BoursePage() {
               .sort((a,b)=>Math.abs(b.pnl)-Math.abs(a.pnl))
               .slice(0,5);
             return (
-              <div className="mt-3 border border-neutral-800 rounded bg-neutral-950 p-3">
+              <div className="mt-3 ui-card p-3">
                 <h4 className="font-semibold text-sm mb-2">D’où vient l’argent (bourse)</h4>
-                <div className="text-xs text-neutral-300 flex flex-wrap gap-4">
+                <div className="text-xs text-surface-muted flex flex-wrap gap-4">
                   <div>
-                    <span className="text-neutral-400">PNL latent total</span><br/>
+                    <span className="text-surface-muted">PNL latent total</span><br/>
                     <span className={totalUnreal>=0?"text-emerald-400":"text-rose-400"}>{totalUnreal>=0?"+":""}${totalUnreal.toFixed(2)}</span>
                   </div>
                   <div>
-                    <span className="text-neutral-400">Dividendes YTD</span><br/>
+                    <span className="text-surface-muted">Dividendes YTD</span><br/>
                     <span className={divYtd>=0?"text-emerald-400":"text-rose-400"}>{divYtd>=0?"+":""}${divYtd.toFixed(2)}</span>
                   </div>
                   <div>
-                    <span className="text-neutral-400">Total (indicatif)</span><br/>
+                    <span className="text-surface-muted">Total (indicatif)</span><br/>
                     <span className={(totalUnreal+divYtd)>=0?"text-emerald-400":"text-rose-400"}>${(totalUnreal+divYtd).toFixed(2)}</span>
                   </div>
                 </div>
                 <div className="mt-2">
-                  <div className="text-xs text-neutral-400 mb-1">Top contributeurs (PNL latent)</div>
-                  <ul className="text-xs text-neutral-300 grid md:grid-cols-3 gap-1">
+                  <div className="text-xs text-surface-muted mb-1">Top contributeurs (PNL latent)</div>
+                  <ul className="text-xs text-surface-on grid md:grid-cols-3 gap-1">
                     {top.map(t => (
-                      <li key={t.sym} className="flex items-center justify-between border border-neutral-800 bg-neutral-900 rounded px-2 py-1">
+                      <li key={t.sym} className="flex items-center justify-between border border-surface-divider bg-surface-1 rounded-card px-2 py-1">
                         <span>{t.sym}</span>
                         <span className={t.pnl>=0?"text-emerald-400":"text-rose-400"}>{t.pnl>=0?"+":""}${t.pnl.toFixed(2)}</span>
                       </li>
@@ -482,7 +482,7 @@ function HistoryChart({ data }: { data: { at: string; price: number }[] }) {
   const pts = data.map((d) => `${x(new Date(d.at).getTime()).toFixed(1)},${y(d.price).toFixed(1)}`).join(" ");
   return (
     <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-56 bg-neutral-950 border border-neutral-800 rounded">
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-56 bg-surface-0 border border-surface-divider rounded-card">
         <polyline fill="none" stroke="#60a5fa" strokeWidth={1.5} points={pts} />
         {/* Axes simples */}
         <line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke="#333" />

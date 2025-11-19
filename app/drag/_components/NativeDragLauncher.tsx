@@ -32,15 +32,31 @@ export default function NativeDragLauncher({ onNativeDetected }: NativeDragLaunc
     }
   }, [autoLaunched, onNativeDetected]);
 
+  const getAuthPayload = () => {
+    if (typeof window === "undefined") return undefined;
+    try {
+      const token =
+        window.localStorage.getItem("HM_TOKEN") ||
+        window.localStorage.getItem("hm-token") ||
+        undefined;
+      const sessionJson = window.localStorage.getItem("hm-session") || undefined;
+      if (!token && !sessionJson) return undefined;
+      return { token, sessionJson };
+    } catch {
+      return undefined;
+    }
+  };
+
   const openNative = async () => {
     try {
       const cap: any = (window as any).Capacitor;
       const plugin: any = cap?.Plugins?.DragLauncher;
       if (!plugin) return;
+      const payload = getAuthPayload() || {};
       if (typeof plugin.race === "function") {
-        await plugin.race();
+        await plugin.race(payload);
       } else if (typeof plugin.open === "function") {
-        await plugin.open();
+        await plugin.open(payload);
       }
     } catch (e) {
       console.warn("DragLauncher natif indisponible:", e);

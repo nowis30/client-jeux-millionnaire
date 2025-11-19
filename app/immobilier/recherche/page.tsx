@@ -201,7 +201,7 @@ export default function RecherchePage() {
                   )}
                   <div className="pt-2">
                     <Link
-                      href={`/immobilier?select=${tpl.id}`}
+                      href={`/immobilier/hypotheques?id=${tpl.id}`}
                       className="block w-full text-center px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-medium transition-colors"
                     >
                       Sélectionner pour achat

@@ -9,6 +9,7 @@ import CollapsibleSection from "../components/CollapsibleSection";
 import { apiFetch, API_BASE } from "../lib/api";
 import { formatMoney } from "../lib/format";
 import { showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown } from "../lib/ads";
+import { canLaunchNativeDrag, launchNativeDrag, DRAG_WEB_URL } from "../lib/drag";
 
 
 type Entry = { playerId: string; nickname: string; netWorth: number };
@@ -696,6 +697,17 @@ export default function DashboardPage() {
     return `Regarder la publicité pour ${formatMoney(bonusRewardAmount)}`;
   })();
 
+  const openDrag = useCallback(async () => {
+    try {
+      const launched = canLaunchNativeDrag() ? await launchNativeDrag() : false;
+      if (!launched) {
+        router.push(DRAG_WEB_URL);
+      }
+    } catch {
+      router.push(DRAG_WEB_URL);
+    }
+  }, [router]);
+
   return (
     <>
   <main className="space-y-6 overflow-x-hidden">
@@ -918,7 +930,7 @@ export default function DashboardPage() {
         <Link href="/bourse" className="ui-btn ui-btn--primary text-center w-full">Bourse</Link>
         <Link href="/listings" className="ui-btn ui-btn--info text-center w-full">Annonces</Link>
         <Link href="/summary" className="ui-btn ui-btn--warning text-center w-full">Résumé</Link>
-        <Link href="/drag" className="ui-btn ui-btn--danger text-center w-full">🏁 Drag Racing</Link>
+        <button onClick={openDrag} className="ui-btn ui-btn--danger text-center w-full">🏁 Drag Racing</button>
         <Link href="/quiz" className="ui-btn bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 font-bold text-center w-full">💰 Quiz</Link>
       </section>
 

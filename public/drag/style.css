@@ -18,7 +18,8 @@ body {
 }
 
 .auth-bar {
-    display: flex;
+    /* Masquée en mode course; réactivable via JS si besoin */
+    display: none !important;
     justify-content: space-between;
     align-items: center;
     gap: 12px;

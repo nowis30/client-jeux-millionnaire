@@ -1,9 +1,9 @@
 "use client";
 
 import type { Metadata } from "next";
-import DragIframeWrapper from "./_components/DragIframeWrapper";
 import NativeDragLauncher from "./_components/NativeDragLauncher";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { canLaunchNativeDrag, launchNativeDrag } from "../../lib/drag";
 export const dynamic = "force-static";
 
 // Page interne: intègre le mini‑jeu via iframe pour éviter redirections.
@@ -12,30 +12,22 @@ export const dynamic = "force-static";
 export default function DragPage() {
   const [isNative, setIsNative] = useState(false);
 
+  // Auto‑launch du jeu natif si disponible (retour à l'expérience qui "allait bien")
+  useEffect(() => {
+    let t: any;
+    if (canLaunchNativeDrag()) {
+      t = setTimeout(() => { void launchNativeDrag(); }, 200);
+    }
+    return () => { if (t) clearTimeout(t); };
+  }, []);
+
   return (
     <main className="w-full h-[calc(100vh-4rem)] flex flex-col">
-      {!isNative && (
-        <div className="p-2 text-xs text-neutral-400">
-          <p>
-            Mini‑jeu intégré. Si l'affichage ne se charge pas, essayez la version plein écran ou rafraîchissez.
-          </p>
-          <p>
-            Les gains et meilleurs temps seront synchronisés avec votre session Millionnaire (implémentation prochaine).
-          </p>
-        </div>
-      )}
-
       <NativeDragLauncher onNativeDetected={setIsNative} />
 
       {!isNative && (
-        <div className="flex-1 border-t border-neutral-800">
-          <DragIframeWrapper />
-        </div>
-      )}
-
-      {isNative && (
         <div className="flex-1 flex items-center justify-center text-neutral-400 text-sm">
-          <p>🏁 Version native Android - Appuyez sur le bouton pour lancer une course</p>
+          <p>Chargement de la version native… Si rien ne se passe, appuyez sur le bouton ci‑dessus.</p>
         </div>
       )}
     </main>

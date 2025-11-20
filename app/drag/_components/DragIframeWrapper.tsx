@@ -8,14 +8,14 @@ import { useEffect, useRef, useState } from "react";
  */
 export default function DragIframeWrapper() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [src, setSrc] = useState<string>("/drag/iframe.html");
+  const [src, setSrc] = useState<string>("/drag/iframe");
 
   // Vérifie si /drag/iframe.html est disponible; sinon, bascule vers /drag/index.html
   useEffect(() => {
     let aborted = false;
     (async () => {
       try {
-        const res = await fetch("/drag/iframe.html", { method: "HEAD" });
+        const res = await fetch("/drag/iframe", { method: "HEAD" });
         if (!aborted && (!res.ok || res.status === 404)) {
           setSrc("/drag/index.html");
         }

@@ -49,3 +49,9 @@ a { @apply text-sky-400 hover:underline; }
 .ui-chip { @apply text-[11px] px-2 py-1 rounded-full bg-surface-2 border border-surface-divider text-surface-on/80; }
 
 .ui-touch { @apply min-h-11 min-w-11 rounded-touch; }
+
+/* Plateforme: contrôle d'affichage sans divergences SSR/CSR */
+html.native .native-hide { display: none !important; }
+html.web .web-hide { display: none !important; }
+html.web .native-only { display: none !important; }
+html.native .web-only { display: none !important; }

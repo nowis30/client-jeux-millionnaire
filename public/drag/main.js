@@ -187,37 +187,7 @@ try {
 
 let CSRF_TOKEN = null;
 function getStoredSession() {
-    try {
-        // Priorité 1: Récupérer depuis le bridge Android si disponible
-        if (typeof window !== 'undefined' && window.AndroidDrag && typeof window.AndroidDrag.getSessionData === 'function') {
-            try {
-                const androidSession = window.AndroidDrag.getSessionData();
-                if (androidSession) {
-                    const parsed = JSON.parse(androidSession);
-                    if (parsed && parsed.gameId && parsed.playerId) {
-                        // Sauvegarder dans localStorage pour réutilisation
-                        localStorage.setItem('hm-session', androidSession);
-                        console.log('[drag] Session récupérée depuis Android bridge:', parsed.gameId);
-                        return parsed;
-                    }
-                }
-            } catch (bridgeErr) {
-                console.warn('[drag] Échec récupération session Android:', bridgeErr);
-            }
-        }
-        
-        // Priorité 2: localStorage
-        const raw = localStorage.getItem('hm-session'); 
-        if (raw) {
-            const parsed = JSON.parse(raw);
-            console.log('[drag] Session trouvée dans localStorage');
-            return parsed;
-        }
-        return null;
-    } catch (err) {
-        console.error('[drag] Erreur getStoredSession:', err);
-        return null; 
-    }
+    try { const raw = localStorage.getItem('hm-session'); return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
 function setStoredSession(s) { try { localStorage.setItem('hm-session', JSON.stringify(s)); } catch {} }
 function clearStoredSession() { try { localStorage.removeItem('hm-session'); } catch {} }
@@ -241,6 +211,7 @@ function setAuthToken(t, source) {
             localStorage.setItem('hm-token', t);
             try { localStorage.setItem('HM_TOKEN', t); } catch {}
             if (source) localStorage.setItem(TOKEN_SOURCE_KEY, source);
+            try { updateMiniAuthIndicator(); } catch {}
         }
     } catch {}
 }
@@ -394,10 +365,12 @@ async function refreshAuthUi() {
         const me = await apiFetch('/api/auth/me');
         if (me && me.guest) {
             showGuestMessage(String(me.guestId || '').slice(-4));
+            try { updateMiniAuthIndicator(); } catch {}
             return { me, authenticated: false };
         }
         setStatus(me?.email || me?.nickname || 'Profil connectÃ©');
         setHint('DÃ©connexion via l\'accueil du Millionnaire.');
+        try { updateMiniAuthIndicator(); } catch {}
         return { me, authenticated: true };
     } catch {
         const source = getTokenSource();
@@ -408,16 +381,51 @@ async function refreshAuthUi() {
                 const fallback = await apiFetch('/api/auth/me');
                 if (fallback?.guest) {
                     showGuestMessage(String(fallback.guestId || '').slice(-4));
+                    try { updateMiniAuthIndicator(); } catch {}
                     return { me: fallback, authenticated: false };
                 }
                 setStatus(fallback?.email || fallback?.nickname || 'Profil connectÃ©');
                 setHint('DÃ©connexion via l\'accueil du Millionnaire.');
+                try { updateMiniAuthIndicator(); } catch {}
                 return { me: fallback, authenticated: true };
             } catch {}
         }
         showGuestMessage();
+        try { updateMiniAuthIndicator(); } catch {}
         return { me: null, authenticated: false };
     }
+
+// Mini indicateur d'état d'auth (connecté / invité / chargement)
+function updateMiniAuthIndicator(){
+    const box = document.getElementById('mini-auth-indicator');
+    if(!box) return;
+    const token = getAuthToken();
+    const source = getTokenSource();
+    if(!token){
+        box.style.display='block';
+        box.textContent='Invité';
+        return;
+    }
+    if(source==='guest'){
+        const guest = getStoredGuestIdentity();
+        if(guest && guest.nickname){
+            box.style.display='block';
+            box.textContent='Invité: '+guest.nickname;
+            return;
+        }
+        box.style.display='block';
+        box.textContent='Invité';
+        return;
+    }
+    const sess = getStoredSession();
+    if(sess && sess.profile && (sess.profile.username || sess.profile.nickname)){
+        box.style.display='block';
+        box.textContent=sess.profile.username || sess.profile.nickname;
+        return;
+    }
+    box.style.display='block';
+    box.textContent='Connecté';
+}
 }
 
 const trackCanvas = document.getElementById('trackCanvas');
@@ -2184,19 +2192,6 @@ async function finishRace(playerWins) {
     } else {
         setBanner('DÃ©faite... retente ta chance.', 4, '#ff6b6b');
         game.result = 'loss';
-
-        // === INTÉGRATION ADMOB ANDROID ===
-        try {
-            if (typeof window !== 'undefined' && window.AndroidDrag &&
-                typeof window.AndroidDrag.onRaceFinished === 'function') {
-                const elapsedMs = Math.max(1, Math.round(((player.finishTime ?? game.timer) || 0) * 1000));
-                window.AndroidDrag.onRaceFinished(finalWin, elapsedMs);
-                console.log('[Drag] Notification Android: course terminée');
-            }
-        } catch (err) {
-            console.log('[Drag] Mode web détecté');
-        }
-        // === FIN INTÉGRATION ADMOB ===
     }
 
     // Envoi des rÃ©sultats au serveur Millionnaire
@@ -2571,73 +2566,61 @@ requestAnimationFrame(gameLoop);
 // L'initialisation auth est gérée par le listener postMessage ci-dessous (voir ligne ~2535)
 
 
-// === COMMUNICATION POSTMESSAGE POUR TOKEN AUTH ===
-// Écouter les messages du parent (Next.js) pour recevoir le token d'authentification
-let parentTokenReceived = false;
-window.addEventListener('message', (event) => {
-    // Sécurité: vérifier l'origine du message
-    if (event.origin !== window.location.origin) {
-        console.warn('[drag] Message reçu origine non autorisée:', event.origin);
-        return;
-    }
-    
-    // Vérifier que c'est bien un message de token d'authentification
-    if (event.data && event.data.type === 'AUTH_TOKEN' && event.data.token) {
+// === COMMUNICATION POSTMESSAGE POUR TOKEN AUTH (REFactor) ===
+// Unifie la réception du token parent (iframe) avec whitelist d'origines et fallback invité.
+(function(){
+    const allowedOrigins = new Set([
+        window.location.origin,
+        'capacitor://localhost',
+        'http://localhost',
+        'https://localhost'
+        // Ajouter ici votre domaine production si différent
+    ]);
+    let parentTokenReceived = false;
+    let appliedTokenValue = null;
+    const DEBUG = !!window.DRAG_DEBUG;
+    const log = (...a)=>{ if (DEBUG) console.log('[drag][auth]', ...a); };
+    const warn = (...a)=>{ console.warn('[drag][auth]', ...a); };
+    const error = (...a)=>{ console.error('[drag][auth]', ...a); };
+
+    function handleAuthToken(token){
         try {
+            if (!token || typeof token !== 'string') { warn('Token invalide reçu'); return; }
+            if (appliedTokenValue === token) { log('Token déjà appliqué, skip refresh'); return; }
+            appliedTokenValue = token;
             parentTokenReceived = true;
-            console.info('[drag]  Token reçu du parent:', event.data.token.substring(0, 20) + '...');
-            
-            // Stocker le token reçu du parent
-            setAuthToken(event.data.token, 'parent');
-            
-            // Rafraîchir l'UI d'authentification et synchroniser le HUD
-            refreshAuthUi().then((result) => {
-                console.info('[drag]  Auth UI rafraîchie:', result);
-                loadDragSessionAndSyncHUD().catch((err) => {
-                    console.error('[drag] Erreur sync HUD:', err);
-                });
-            }).catch((err) => {
-                console.error('[drag] Erreur refresh auth UI:', err);
-            });
-        } catch (err) {
-            console.error('[drag]  Erreur lors du stockage du token:', err);
+            log('Token appliqué (préfixe):', token.substring(0,20)+'...');
+            setAuthToken(token, 'parent');
+            refreshAuthUi()
+                .then(()=>{
+                    log('UI auth rafraîchie');
+                    return loadDragSessionAndSyncHUD().catch(e=>error('Sync HUD échouée', e));
+                })
+                .catch(e=>error('Refresh auth échouée', e));
+        } catch (e) {
+            error('Exception handleAuthToken', e);
         }
     }
-});
 
-// Fallback : si après 500ms aucun token parent n'est reçu, essayer Android puis créer un invité
-setTimeout(() => {
-    if (!parentTokenReceived) {
-        console.warn('[drag]  Aucun token parent reçu après 500ms, tentative Android...');
-        
-        // IMPORTANT: Vérifier Android AVANT de créer un invité
-        (async function initDragAuth() {
-            try {
-                console.log('[drag] Initialisation authentification...');
-                
-                // Étape 1: Forcer la récupération du token depuis Android
-                const token = getAuthToken();
-                console.log('[drag] Token initial:', token ? 'PRÉSENT' : 'ABSENT');
-                
-                // Étape 2: Forcer la récupération de la session depuis Android
-                const session = getStoredSession();
-                console.log('[drag] Session initiale:', session ? `gameId=${session.gameId}` : 'ABSENTE');
-                
-                // Étape 3: Vérifier l'authentification
-                await refreshAuthUi();
-                
-                // Étape 4: Charger la session drag et synchroniser le HUD
-                await loadDragSessionAndSyncHUD();
-                
-                console.log('[drag] Initialisation authentification terminée');
-            } catch (err) {
-                console.error('[drag] Erreur initialisation:', err);
-                // En cas d'échec, créer un invité
-                ensureGuestToken().catch(() => null).then(() => {
-                    refreshAuthUi().then(() => loadDragSessionAndSyncHUD().catch(() => {}));
-                });
-            }
-        })();
-    }
-}, 500);
+    window.addEventListener('message', (event)=>{
+        const originOk = allowedOrigins.has(event.origin);
+        if (!originOk) { return; }
+        const d = event.data;
+        if (d && d.type === 'AUTH_TOKEN' && d.token){
+            handleAuthToken(d.token);
+        }
+    });
+
+    // Fallback invité après 1000ms si aucun token reçu.
+    setTimeout(()=>{
+        if (!parentTokenReceived) {
+            warn('Aucun token parent reçu après 1000ms, création invité');
+            ensureGuestToken()
+                .catch(()=>null)
+                .then(()=> refreshAuthUi()
+                    .then(()=> loadDragSessionAndSyncHUD().catch(()=>{}))
+                );
+        }
+    }, 1000);
+})();
 

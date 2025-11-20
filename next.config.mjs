@@ -6,6 +6,7 @@ const nextConfig = {
   reactStrictMode: true,
   output: 'export',
   trailingSlash: false,
+  productionBrowserSourceMaps: true,
   typescript: {
     ignoreBuildErrors: true,
   },

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { QuizCategory, QUIZ_CATEGORIES, CATEGORY_GROUPS, CATEGORY_GROUP_LABELS, getCategoryInfo } from '../lib/quizCategories';
 
 interface CategorySelectorProps {
@@ -26,6 +26,8 @@ export default function CategorySelector({
     new Set(defaultSelected)
   );
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['finance']));
+  // Plus de détection conditionnelle côté rendu: on garde un DOM stable
+  // et on masque/affiche via CSS (html.native / html.web)
 
   // Filtrer les catégories disponibles
   const filteredCategories = useMemo(() => {
@@ -115,7 +117,7 @@ export default function CategorySelector({
         </div>
 
         {/* Actions rapides */}
-        <div className="p-4 bg-neutral-900/50 border-b border-neutral-800 flex gap-3">
+        <div className="p-4 bg-neutral-900/50 border-b border-neutral-800 flex gap-3 flex-wrap">
           <button
             onClick={selectAll}
             className="flex-1 px-4 py-2 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 text-sm font-medium transition-all"
@@ -127,6 +129,28 @@ export default function CategorySelector({
             className="flex-1 px-4 py-2 rounded-lg bg-neutral-700/20 hover:bg-neutral-700/30 border border-neutral-600/30 text-neutral-300 text-sm font-medium transition-all"
           >
             ❌ Tout effacer
+          </button>
+          {/* Boutons natifs en haut (affichés uniquement en natif via CSS) */}
+          <button
+            onClick={onCancel}
+            className="native-only flex-1 px-4 py-2 rounded-lg bg-neutral-700 hover:bg-neutral-600 text-white text-sm font-semibold transition-all"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handleStart}
+            disabled={selectedCategories.size === 0}
+            className={`native-only
+              flex-1 px-4 py-2 rounded-lg font-bold text-white text-sm transition-all
+              ${selectedCategories.size > 0
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-lg shadow-purple-500/30'
+                : 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
+              }
+            `}
+          >
+            {selectedCategories.size > 0
+              ? `🚀 Commencer le quiz (${selectedCategories.size} catégorie${selectedCategories.size > 1 ? 's' : ''})`
+              : '⚠️ Sélectionne au moins 1 catégorie'}
           </button>
         </div>
 
@@ -222,8 +246,8 @@ export default function CategorySelector({
           })}
         </div>
 
-        {/* Footer avec boutons d'action */}
-        <div className="sticky bottom-0 bg-gradient-to-t from-neutral-900 to-neutral-900/95 backdrop-blur-sm p-6 border-t border-neutral-800 flex gap-4">
+        {/* Footer collant web uniquement (masqué en natif via CSS) */}
+        <div className="native-hide sticky bottom-0 bg-gradient-to-t from-neutral-900 to-neutral-900/95 backdrop-blur-sm p-6 border-t border-neutral-800 flex gap-4">
           <button
             onClick={onCancel}
             className="flex-1 px-6 py-3 rounded-lg bg-neutral-700 hover:bg-neutral-600 text-white font-semibold transition-all"

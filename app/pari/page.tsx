@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
-import { API_BASE, apiFetch, ApiError } from "../../lib/api";
+import { apiFetch, apiFetchRaw, ApiError } from "../../lib/api";
 import { initializeAds, showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown, isAdsSupported } from "../../lib/ads";
 const MIN_BET = 5000; 
 const DYN_FACTOR = 0.5; // 50% du cash comme plafond dynamique côté client (indicatif) 
@@ -251,8 +251,7 @@ export default function PariPage() {
     if (!gameId || !playerId) return;
     (async () => {
       try {
-        const headers: Record<string,string> = { 'X-Player-ID': playerId };
-        const res = await fetch(`${API_BASE}/api/games/${gameId}/me`, { headers, credentials:'include' });
+        const res = await apiFetchRaw(`/api/games/${gameId}/me`, { headers: { 'X-Player-ID': playerId } });
         if (!res.ok) return;
         const data = await res.json();
         if (data.player?.cash != null) setCash(data.player.cash);
@@ -388,9 +387,8 @@ export default function PariPage() {
       setAnimDice([1,2,3].map(()=> Math.floor(Math.random()*6)+1) as [number,number,number]);
     }, 120);
     try {
-      const headers: Record<string,string> = { 'Content-Type':'application/json', 'X-Player-ID': playerId };
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/pari/play`, {
-        method:'POST', credentials:'include', headers,
+      const res = await apiFetchRaw(`/api/games/${gameId}/pari/play`, {
+        method:'POST', headers: { 'Content-Type':'application/json', 'X-Player-ID': playerId },
         body: JSON.stringify({ bet })
       });
       const data = await res.json();

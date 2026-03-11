@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { formatMoney } from "../../lib/format";
-import { API_BASE, apiFetch } from "../../lib/api";
+import { apiFetch, apiFetchRaw } from "../../lib/api";
 
 interface PropertyTemplate {
   id: string;
@@ -130,13 +130,13 @@ export default function ImmobilierPage() {
         }
       }
       // Auto-join si aucune session
-      const resList = await fetch(`${API_BASE}/api/games`, { credentials: 'include' });
+      const resList = await apiFetchRaw(`/api/games`);
       if (!resList.ok) throw new Error('Liste parties indisponible');
       const dataList = await resList.json();
       const g = dataList.games?.[0];
       if (!g) throw new Error('Aucune partie disponible');
-      const resJoin = await fetch(`${API_BASE}/api/games/${g.id}/join`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+      const resJoin = await apiFetchRaw(`/api/games/${g.id}/join`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
       });
       if (!resJoin.ok) throw new Error('Join échoué');
       const dataJoin = await resJoin.json();

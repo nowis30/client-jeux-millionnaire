@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import { apiFetch, API_BASE, ApiError } from "../../lib/api";
+import { apiFetch, apiFetchRaw, ApiError, SOCKET_BASE } from "../../lib/api";
 import { formatMoney, monthlyFromWeekly } from "../../lib/format";
 
 type Template = {
@@ -73,7 +73,7 @@ export default function ListingsPage() {
   async function revealOwnerFallback(gameId: string | null | undefined, templateId: string | null | undefined): Promise<boolean> {
     if (!gameId || !templateId) return false;
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/owner/${templateId}`);
+      const res = await apiFetchRaw(`/api/games/${gameId}/properties/owner/${templateId}`);
       if (!res.ok) return false;
       const data = await res.json();
       const owner = data?.ownerNickname ? String(data.ownerNickname).trim() : "";
@@ -121,7 +121,7 @@ export default function ListingsPage() {
   const refreshHoldings = useCallback(async () => {
     if (!gameId || !playerId) return;
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/properties/holdings/${playerId}`);
+      const res = await apiFetchRaw(`/api/games/${gameId}/properties/holdings/${playerId}`);
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data: { holdings: Holding[] } = await res.json();
       setHoldings(data.holdings ?? []);
@@ -133,7 +133,7 @@ export default function ListingsPage() {
   const refreshListings = useCallback(async () => {
     if (!gameId) return;
     try {
-      const res = await fetch(`${API_BASE}/api/games/${gameId}/listings`);
+      const res = await apiFetchRaw(`/api/games/${gameId}/listings`);
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data: { listings: Listing[] } = await res.json();
       setListings(data.listings ?? []);
@@ -155,7 +155,7 @@ export default function ListingsPage() {
     (async () => {
       if (!gameId) return;
       try {
-        const res = await fetch(`${API_BASE}/api/games/${gameId}/economy`);
+        const res = await apiFetchRaw(`/api/games/${gameId}/economy`);
         if (res.ok) {
           const data = await res.json();
           setEconomy(data);
@@ -167,7 +167,7 @@ export default function ListingsPage() {
   // Socket.IO: rafraîchir en live sur events listings
   useEffect(() => {
     if (!gameId) return;
-    const socket: Socket = io(API_BASE, { query: { gameId } });
+    const socket: Socket = io(SOCKET_BASE, { query: { gameId } });
     socket.on("event-feed", (e: any) => {
       if (typeof e?.type !== "string") return;
       if (e.type.startsWith("listing:")) {

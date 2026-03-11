@@ -156,9 +156,24 @@ if (modeGhostBtn) modeGhostBtn.addEventListener('click', () => { setRaceMode('gh
 // === RÃ©seau / API (intÃ©gration Millionnaire) ===
 // PrioritÃ©:
 // 1) window.DRAG_API_BASE (forÃ§age manuel)
-// 2) En dev local (vraiment localhost), utiliser un proxy CORS si prÃ©sent
-// 3) Sinon, prod Render
+// 2) Web nowis/app.nowis: mÃªme origine via proxy /api
+// 3) Dev local: proxy CORS si prÃ©sent
+// 4) Natif / fallback: backend Render direct
 let API_BASE = (window && window.DRAG_API_BASE) ? String(window.DRAG_API_BASE) : '';
+let DIRECT_RENDER_BASE = 'https://server-jeux-millionnaire.onrender.com';
+const RETRYABLE_PROXY_STATUSES = new Set([502, 503, 504]);
+function dragDebug() {
+    try {
+        const host = window.location && window.location.hostname ? window.location.hostname : '';
+        return /(^|\.)(localhost|127\.0\.0\.1)$/.test(host);
+    } catch (_) {
+        return false;
+    }
+}
+function logDragInfo() {
+    if (!dragDebug()) return;
+    try { console.info.apply(console, arguments); } catch {}
+}
 try {
     if (!API_BASE) {
         const host = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : '';
@@ -170,20 +185,25 @@ try {
         // Vrai localhost = navigateur dev sur machine locale (PAS Capacitor)
         const isRealLocalHost = !isCapacitor && (/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(host) || host.startsWith('192.168.'));
         
-        if (isRealLocalHost) {
+        const isNowisWeb = !isCapacitor && /(nowis\.store|vercel\.app)$/i.test(host);
+
+        if (isNowisWeb) {
+            API_BASE = '';
+            logDragInfo('[drag] Mode web: API via proxy same-origin');
+        } else if (isRealLocalHost) {
             // Dev local: utiliser proxy CORS
             const devProxy = (window && window.DRAG_DEV_PROXY) ? String(window.DRAG_DEV_PROXY) : 'http://127.0.0.1:8010/proxy';
             API_BASE = devProxy;
-            try { console.info('[drag] Mode dev: API via proxy', API_BASE); } catch {}
+            logDragInfo('[drag] Mode dev: API via proxy', API_BASE);
         } else {
             // Production OU Capacitor: toujours utiliser Render
-            API_BASE = 'https://server-jeux-millionnaire.onrender.com';
+            API_BASE = DIRECT_RENDER_BASE;
             if (isCapacitor) {
-                try { console.info('[drag] App mobile: API directe', API_BASE); } catch {}
+                logDragInfo('[drag] App mobile: API directe', API_BASE);
             }
         }
     }
-} catch (_) { API_BASE = 'https://server-jeux-millionnaire.onrender.com'; }
+} catch (_) { API_BASE = DIRECT_RENDER_BASE; }
 
 let CSRF_TOKEN = null;
 function getStoredSession() {
@@ -266,10 +286,28 @@ async function ensureGuestToken(forceRenew = false) {
 async function ensureCsrf() {
     try {
         if (CSRF_TOKEN) return CSRF_TOKEN;
-        const res = await fetch(`${API_BASE}/api/auth/csrf`, { credentials: 'include' });
+        const res = await fetchWithFallback('/api/auth/csrf', { credentials: 'include' });
         const data = await res.json().catch(() => ({}));
         CSRF_TOKEN = data?.csrf || null; return CSRF_TOKEN;
     } catch { return null; }
+}
+async function fetchWithFallback(path, init) {
+    const makeUrl = (base) => `${base}${path}`;
+    const attempt = async (base) => fetch(makeUrl(base), init);
+    try {
+        const res = await attempt(API_BASE);
+        if (!API_BASE && RETRYABLE_PROXY_STATUSES.has(res.status)) {
+            logDragInfo('[drag] Proxy Vercel en erreur, fallback Render', res.status);
+            return attempt(DIRECT_RENDER_BASE);
+        }
+        return res;
+    } catch (err) {
+        if (!API_BASE) {
+            logDragInfo('[drag] Proxy indisponible, fallback Render');
+            return attempt(DIRECT_RENDER_BASE);
+        }
+        throw err;
+    }
 }
 async function apiFetch(path, init = {}, retry = true) {
     const method = (init.method || 'GET').toUpperCase();
@@ -308,7 +346,7 @@ async function apiFetch(path, init = {}, retry = true) {
         // Fallback fetch classique si plugin non dispo
     }
 
-    const res = await fetch(url, { credentials: 'include', ...init, headers });
+    const res = await fetchWithFallback(path, { credentials: 'include', ...init, headers });
     if (res.status === 401 && retry && getTokenSource() === 'guest') {
         clearAuthToken();
         try { await ensureGuestToken(true); } catch {}

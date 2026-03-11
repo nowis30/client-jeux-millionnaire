@@ -8,7 +8,7 @@ import { QuizCategory } from "../../lib/quizCategories";
 
 // API_BASE local supprimé: utiliser chemins relatifs (proxy /api/*)
 // Utiliser API_BASE défini dans lib/api (abs pour Capacitor)
-import { API_BASE, apiFetch, ApiError } from "../../lib/api";
+import { apiFetch, apiFetchRaw, ApiError } from "../../lib/api";
 import { initializeAds, showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown, isAdsSupported } from "../../lib/ads";
 import { SFX } from "../../lib/sfx";
 
@@ -151,10 +151,10 @@ export default function QuizPage() {
       // Déclencher timeout côté serveur
       (async () => {
         try {
-          const headers: Record<string,string> = { 'Content-Type':'application/json' }; // En-tête X-CSRF obsolète (utilise apiFetch pour CSRF réel)
-          if (playerId) headers['X-Player-ID'] = playerId;
-          const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/timeout`, {
-            method:'POST', credentials:'include', headers, body: JSON.stringify({ sessionId: session.id, questionId: question.id })
+          const res = await apiFetchRaw(`/api/games/${gameId}/quiz/timeout`, {
+            method:'POST',
+            headers: { 'Content-Type':'application/json' },
+            body: JSON.stringify({ sessionId: session.id, questionId: question.id })
           });
           if (!res.ok) {
             const err = await res.json().catch(()=>({}));
@@ -196,13 +196,13 @@ export default function QuizPage() {
         }
       }
       console.warn('[Quiz] No session found, fallback auto-join');
-      const resList = await fetch(`${API_BASE}/api/games`, { credentials: 'include' });
+      const resList = await apiFetchRaw(`/api/games`);
       if (!resList.ok) throw new Error('Liste parties indisponible');
       const dataList = await resList.json();
       const g = dataList.games?.[0];
       if (!g) throw new Error('Aucune partie disponible');
-      const resJoin = await fetch(`${API_BASE}/api/games/${g.id}/join`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+      const resJoin = await apiFetchRaw(`/api/games/${g.id}/join`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
       });
       if (!resJoin.ok) throw new Error('Join échoué');
       const dataJoin = await resJoin.json();
@@ -242,7 +242,7 @@ export default function QuizPage() {
       // Charger puis rafraîchir le nombre en ligne
       const loadOnline = async () => {
         try {
-  const res = await fetch(`${API_BASE}/api/games/${gameId}/online`, { credentials: 'include' });
+  const res = await apiFetchRaw(`/api/games/${gameId}/online`);
           if (!res.ok) return;
           const data = await res.json();
           setOnline(Number(data.online ?? 0));
@@ -256,7 +256,7 @@ export default function QuizPage() {
 
   async function loadStats() {
     try {
-  const res = await fetch(`${API_BASE}/api/quiz/public-stats`, { credentials: 'include' });
+  const res = await apiFetchRaw(`/api/quiz/public-stats`);
       if (!res.ok) return;
       const data = await res.json();
       const dynamicCats: Array<{ category: string; remaining: number; total?: number; used?: number }> | undefined = Array.isArray(data.categories)
@@ -273,15 +273,7 @@ export default function QuizPage() {
       }
       console.log("[Quiz] Loading status for game:", gameId);
       
-  const headers: Record<string, string> = {}; // X-CSRF retiré
-      if (playerId) {
-        headers["X-Player-ID"] = playerId; // Ajout du playerId pour iOS/Safari
-      }
-      
-  const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/status`, {
-        credentials: "include",
-        headers,
-      });
+      const res = await apiFetchRaw(`/api/games/${gameId}/quiz/status`);
 
       console.log("[Quiz] Status response:", res.status, res.statusText);
 

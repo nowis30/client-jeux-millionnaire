@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { apiFetch, API_BASE } from '../../lib/api';
+import { apiFetch, DEBUG_ENABLED, getApiUrl } from '../../lib/api';
 
 export default function DebugAuthPage() {
   const [me, setMe] = useState<any>(null);
@@ -10,6 +10,9 @@ export default function DebugAuthPage() {
   const pushErr = (m: string) => setErrors(e => [...e, m]);
 
   useEffect(() => {
+    if (!DEBUG_ENABLED) {
+      return;
+    }
     try { setLocalToken(localStorage.getItem('HM_TOKEN')); } catch { pushErr('Impossible de lire HM_TOKEN'); }
     (async () => {
       try {
@@ -19,7 +22,7 @@ export default function DebugAuthPage() {
         pushErr('/api/auth/me échec: ' + (e?.message || 'inconnu'));
       }
       try {
-        const res = await fetch(`${API_BASE}/api/auth/debug-token`, { credentials: 'include', headers: localToken ? { Authorization: `Bearer ${localToken}` } : {} });
+        const res = await fetch(getApiUrl('/api/auth/debug-token'), { credentials: 'include', headers: localToken ? { Authorization: `Bearer ${localToken}` } : {} });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           pushErr('/api/auth/debug-token status ' + res.status + ' ' + (body.error || res.statusText));
@@ -33,11 +36,21 @@ export default function DebugAuthPage() {
     })();
   }, [localToken]);
 
+  if (!DEBUG_ENABLED) {
+    return (
+      <main className="max-w-lg mx-auto space-y-4">
+        <h1 className="text-xl font-semibold">Debug Auth désactivé</h1>
+        <p className="text-sm text-neutral-300">
+          Cette page de diagnostic est désactivée en production.
+        </p>
+      </main>
+    );
+  }
+
   return (
     <main className="max-w-lg mx-auto space-y-4">
       <h1 className="text-xl font-semibold">Debug Auth</h1>
       <div className="p-3 rounded bg-neutral-900 border border-neutral-700 text-xs space-y-2">
-        <p><strong>API_BASE:</strong> {API_BASE}</p>
         <p><strong>HM_TOKEN localStorage:</strong> {localToken || 'null'}</p>
         <p><strong>Me:</strong> {me ? JSON.stringify(me) : 'null'}</p>
         <p><strong>Payload JWT:</strong> {tokenPayload ? JSON.stringify(tokenPayload) : 'null'}</p>

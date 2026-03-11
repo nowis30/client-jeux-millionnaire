@@ -292,8 +292,10 @@ export default function QuizPage() {
 
       if (data.hasActiveSession) {
         setSession(data.session);
-        // Charger la question actuelle
-        await startSession(data.session.id, true);
+        // Éviter de régénérer une nouvelle question à chaque simple rafraîchissement du statut.
+        if (!question || session?.id !== data.session.id) {
+          await startSession(data.session.id, true);
+        }
       }
       // Rafraîchir les stats d'affichage
       loadStats();
@@ -487,9 +489,8 @@ export default function QuizPage() {
   const headers: Record<string, string> = {}; // X-CSRF retiré
         if (playerId) headers["X-Player-ID"] = playerId;
 
-  const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/resume`, {
+  const res = await apiFetchRaw(`/api/games/${gameId}/quiz/resume`, {
           method: "GET",
-          credentials: "include",
           headers,
         });
 
@@ -521,9 +522,8 @@ export default function QuizPage() {
         headers["X-Player-ID"] = playerId;
       }
 
-  const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/start`, {
+  const res = await apiFetchRaw(`/api/games/${gameId}/quiz/start`, {
         method: "POST",
-        credentials: "include",
         headers,
         body: JSON.stringify({ 
           selectedCategories: categories && categories.length > 0 ? categories : undefined 
@@ -586,9 +586,8 @@ export default function QuizPage() {
         headers["X-Player-ID"] = playerId;
       }
 
-  const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/answer`, {
+  const res = await apiFetchRaw(`/api/games/${gameId}/quiz/answer`, {
         method: "POST",
-        credentials: "include",
         headers,
         body: JSON.stringify({
           sessionId: session.id,
@@ -675,9 +674,8 @@ export default function QuizPage() {
         headers["X-Player-ID"] = playerId;
       }
 
-  const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/cash-out`, {
+  const res = await apiFetchRaw(`/api/games/${gameId}/quiz/cash-out`, {
         method: "POST",
-        credentials: "include",
         headers,
         body: JSON.stringify({ sessionId: session.id }),
       });
@@ -772,9 +770,8 @@ export default function QuizPage() {
       };
       if (playerId) headers["X-Player-ID"] = playerId;
 
-  const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/skip`, {
+  const res = await apiFetchRaw(`/api/games/${gameId}/quiz/skip`, {
         method: 'POST',
-        credentials: 'include',
         headers,
         body: JSON.stringify({ sessionId: session.id, questionId: question.id })
       });

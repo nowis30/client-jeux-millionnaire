@@ -98,6 +98,28 @@ export default function QuizPage() {
   const [showCategorySelector, setShowCategorySelector] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<QuizCategory[]>([]);
 
+  const joinFirstAvailableGame = useCallback(async () => {
+    const resList = await apiFetchRaw(`/api/games`);
+    if (!resList.ok) throw new Error('Liste parties indisponible');
+    const dataList = await resList.json();
+    const g = dataList.games?.[0];
+    if (!g) throw new Error('Aucune partie disponible');
+
+    const resJoin = await apiFetchRaw(`/api/games/${g.id}/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    if (!resJoin.ok) throw new Error('Join échoué');
+
+    const dataJoin = await resJoin.json();
+    const sess = { gameId: g.id, playerId: dataJoin.playerId, nickname: '' };
+    try { localStorage.setItem('hm-session', JSON.stringify(sess)); } catch {}
+    setGameId(g.id);
+    setPlayerId(dataJoin.playerId);
+    return sess;
+  }, []);
+
   // À chaque nouvelle question, réinitialiser proprement l'état d'affichage
   useEffect(() => {
     if (question?.id) {
@@ -196,26 +218,13 @@ export default function QuizPage() {
         }
       }
       console.warn('[Quiz] No session found, fallback auto-join');
-      const resList = await apiFetchRaw(`/api/games`);
-      if (!resList.ok) throw new Error('Liste parties indisponible');
-      const dataList = await resList.json();
-      const g = dataList.games?.[0];
-      if (!g) throw new Error('Aucune partie disponible');
-      const resJoin = await apiFetchRaw(`/api/games/${g.id}/join`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
-      });
-      if (!resJoin.ok) throw new Error('Join échoué');
-      const dataJoin = await resJoin.json();
-      const sess = { gameId: g.id, playerId: dataJoin.playerId, nickname: '' };
-      try { localStorage.setItem('hm-session', JSON.stringify(sess)); } catch {}
-      setGameId(g.id);
-      setPlayerId(dataJoin.playerId);
+      await joinFirstAvailableGame();
       return true;
     } catch (e:any) {
       console.error('[Quiz] ensureSession error:', e.message);
       return false;
     }
-  }, []);
+  }, [joinFirstAvailableGame]);
 
   useEffect(() => {
     (async () => {
@@ -301,6 +310,18 @@ export default function QuizPage() {
       loadStats();
     } catch (err: any) {
       console.error("[Quiz] Error in loadStatus:", err);
+      if (String(err?.message || '').toLowerCase().includes('joueur non trouvé')) {
+        try {
+          localStorage.removeItem('hm-session');
+        } catch {}
+        try {
+          await joinFirstAvailableGame();
+          setFeedback({ type: 'success', message: 'Session réparée, reconnexion du joueur.' });
+          return;
+        } catch (recoverErr: any) {
+          console.error('[Quiz] Recovery after missing player failed:', recoverErr);
+        }
+      }
       setFeedback({ type: 'error', message: err.message });
     } finally {
       setLoading(false);

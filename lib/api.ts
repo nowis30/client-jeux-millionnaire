@@ -12,6 +12,7 @@ export const DEBUG_ENABLED = !IS_PRODUCTION;
 
 const ACCESS_TOKEN_KEY = "HM_TOKEN";
 const REFRESH_TOKEN_KEY = "HM_REFRESH_TOKEN";
+let refreshPromise: Promise<string | null> | null = null;
 
 export class ApiError extends Error {
   status: number;
@@ -107,7 +108,7 @@ async function parseSupabaseError(response: Response): Promise<string> {
   return raw;
 }
 
-async function refreshSession(): Promise<string | null> {
+async function performSessionRefresh(): Promise<string | null> {
   const refreshToken = readStorage(REFRESH_TOKEN_KEY);
   if (!refreshToken) return null;
   const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
@@ -122,6 +123,17 @@ async function refreshSession(): Promise<string | null> {
   const data = await response.json();
   storeAuthSession(data);
   return typeof data?.access_token === "string" ? data.access_token : null;
+}
+
+async function refreshSession(): Promise<string | null> {
+  // Supabase fait une rotation du refresh token. Un seul renouvellement doit donc
+  // être actif, même lorsque plusieurs écrans chargent leurs données ensemble.
+  if (!refreshPromise) {
+    refreshPromise = performSessionRefresh().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
 }
 
 async function getValidAccessToken(): Promise<string | null> {
@@ -225,7 +237,10 @@ async function requestApi(path: string, init: RequestInit = {}, retry = true): P
   if (authResponse) return authResponse;
 
   const token = await getValidAccessToken();
-  const headers: Record<string, string> = { ...(init.headers as Record<string, string> | undefined) };
+  const headers: Record<string, string> = {
+    apikey: SUPABASE_PUBLISHABLE_KEY,
+    ...(init.headers as Record<string, string> | undefined),
+  };
   if (token) headers.Authorization = `Bearer ${token}`;
   const playerId = getPlayerId();
   if (playerId && !headers["X-Player-ID"] && !headers["x-player-id"]) headers["X-Player-ID"] = playerId;

@@ -1,10 +1,10 @@
-﻿// === RÃ©compenses par mode ===
+// === Récompenses par mode ===
 const RACE_MODES = {
     world: { label: 'Record mondial', payout: 1000000 },
     pvp: { label: 'PvP', payout: 500000 },
-    ghost: { label: 'FantÃ´me IA', payout: 50000 }
+    ghost: { label: 'Fantôme IA', payout: 50000 }
 };
-let raceMode = null; // Doit Ãªtre choisi avant le dÃ©part
+let raceMode = null; // Doit être choisi avant le départ
 function getVictoryPayout() {
     const mode = raceMode && RACE_MODES[raceMode] ? raceMode : 'ghost';
     return RACE_MODES[mode].payout;
@@ -41,9 +41,9 @@ const opponentsList = document.getElementById('opponentsList');
 const closeOpponentsButton = document.getElementById('closeOpponentsButton');
 const cancelOpponentsButton = document.getElementById('cancelOpponentsButton');
 
-// --- PvP: overlay de sÃ©lection d'adversaire ---
+// --- PvP: overlay de sélection d'adversaire ---
 function formatOpponentTime(msOrSec) {
-    if (msOrSec == null || !isFinite(msOrSec)) return 'â€”';
+    if (msOrSec == null || !isFinite(msOrSec)) return '—';
     let sec = Number(msOrSec);
     if (sec > 120) sec = sec / 1000; // si back renvoie en ms
     return `${sec.toFixed(2)} s`;
@@ -70,16 +70,16 @@ function renderOpponents(items) {
         name.textContent = op?.nickname || `Joueur #${op?.playerId ?? '?'}`;
         const stats = document.createElement('div');
         stats.className = 'opponent-stats';
-        const best = (op?.bestMs != null) ? formatOpponentTime(op.bestMs) : 'â€”';
-        const levels = `Moteur ${op?.engineLevel ?? '?'} â€¢ BoÃ®te ${op?.transmissionLevel ?? '?'}`;
-        stats.textContent = `Meilleur: ${best} â€” ${levels}`;
+        const best = (op?.bestMs != null) ? formatOpponentTime(op.bestMs) : '—';
+        const levels = `Moteur ${op?.engineLevel ?? '?'} • Boîte ${op?.transmissionLevel ?? '?'}`;
+        stats.textContent = `Meilleur: ${best} — ${levels}`;
         meta.appendChild(name);
         meta.appendChild(stats);
 
         const select = document.createElement('button');
         select.className = 'secondary-button opponent-select';
         select.type = 'button';
-        select.textContent = 'DÃ©fier';
+        select.textContent = 'Défier';
         select.addEventListener('click', () => {
             selectedOpponent = op || null;
             closeOpponentsOverlay();
@@ -95,7 +95,7 @@ function renderOpponents(items) {
 
 async function openOpponentsOverlay() {
     try { if (opponentsOverlay) opponentsOverlay.hidden = false; } catch {}
-    if (opponentsList) opponentsList.innerHTML = '<div class="opponent-item"><div class="opponent-meta"><div class="opponent-name">Chargementâ€¦</div></div></div>';
+    if (opponentsList) opponentsList.innerHTML = '<div class="opponent-item"><div class="opponent-meta"><div class="opponent-name">Chargement…</div></div></div>';
     try {
         const sess = await ensureSession();
         let list = [];
@@ -106,7 +106,7 @@ async function openOpponentsOverlay() {
             console.warn('[drag] opponents fetch failed', err);
             list = [];
         }
-        // Tri par meilleur temps croissant si non triÃ©
+        // Tri par meilleur temps croissant si non trié
         if (Array.isArray(list)) {
             list.sort((a, b) => {
                 const aa = (a?.bestMs ?? Infinity);
@@ -133,13 +133,13 @@ startButton.addEventListener('click', () => {
     if (game.state === 'countdown') {
         return;
     }
-    // Exiger un mode sÃ©lectionnÃ©
+    // Exiger un mode sélectionné
     if (!raceMode) {
         openModeSelect();
         setBanner('Choisis un mode de course.', 2.2, '#d6ddff');
         return;
     }
-    // En PvP, exiger un adversaire sÃ©lectionnÃ©
+    // En PvP, exiger un adversaire sélectionné
     if (raceMode === 'pvp' && !selectedOpponent) {
         setBanner('Choisis un adversaire PvP.', 2.2, '#d6ddff');
         void openOpponentsOverlay();
@@ -150,7 +150,7 @@ startButton.addEventListener('click', () => {
     startRace();
 });
 
-// SÃ©lecteurs de mode
+// Sélecteurs de mode
 if (modeWorldBtn) modeWorldBtn.addEventListener('click', () => { setRaceMode('world'); });
 if (modePvPBtn) modePvPBtn.addEventListener('click', async () => { setRaceMode('pvp'); await openOpponentsOverlay(); });
 if (modeGhostBtn) modeGhostBtn.addEventListener('click', () => { setRaceMode('ghost'); });
@@ -294,8 +294,8 @@ async function refreshAuthUi() {
 
     try {
         const me = await apiFetch('/api/auth/me');
-        setStatus(me?.email || me?.nickname || 'Profil connectÃ©');
-        setHint('DÃ©connexion via l\'accueil du Millionnaire.');
+        setStatus(me?.email || me?.nickname || 'Profil connecté');
+        setHint('Déconnexion via l\'accueil du Millionnaire.');
         try { updateMiniAuthIndicator(); } catch {}
         return { me, authenticated: true };
     } catch {
@@ -380,7 +380,7 @@ const transmissionDesc = document.getElementById('transmissionDesc');
 const buyEngineButton = document.getElementById('buyEngineButton');
 const buyTransmissionButton = document.getElementById('buyTransmissionButton');
 
-// Etat de vision/affichage pour amÃ©liorer la lisibilitÃ©
+// Etat de vision/affichage pour améliorer la lisibilité
 const viewState = {
     large: false,
     hideGauge: false,
@@ -413,7 +413,7 @@ function applyViewState() {
 
 loadViewState();
 applyViewState();
-// Sections de mise en page Ã  basculer selon l'Ã©tat
+// Sections de mise en page à basculer selon l'état
 const hudSection = document.querySelector('.hud');
 const playfield = document.querySelector('.playfield');
 const footerEl = document.querySelector('.footer');
@@ -466,17 +466,17 @@ if (typeof document !== 'undefined' && document.addEventListener) {
     }, true);
 }
 
-// Maintenir un 16:9 strict et adapter les canvases Ã  lâ€™Ã©cran
+// Maintenir un 16:9 strict et adapter les canvases à l’écran
 function resizeCanvases() {
     try {
         const shell = document.querySelector('.game-shell');
         if (!shell) return;
         const vw = Math.max(320, Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth));
         const vh = Math.max(200, Math.min(window.innerHeight, document.documentElement.clientHeight || window.innerHeight));
-        // On tente de remplir la largeur, en respectant 16:9, et sans dÃ©passer la hauteur
+        // On tente de remplir la largeur, en respectant 16:9, et sans dépasser la hauteur
         let cssWidth = vw - 16; // petite marge
         let cssHeight = Math.round(cssWidth * 9 / 16);
-        // En vue large, on rÃ©serve moins d'espace vertical aux contrÃ´les
+        // En vue large, on réserve moins d'espace vertical aux contrôles
         const maxHeight = vh - (viewState.large ? 80 : 170);
         if (cssHeight > maxHeight) {
             cssHeight = Math.max(200, maxHeight);
@@ -507,7 +507,7 @@ const RPM_IDLE = 1200;
 const RPM_MAX = 8000;
 const RPM_SHIFT_MIN = 5000;  // Zone jaune commence
 const RPM_SHIFT_MAX = 6300;  // Zone verte commence (nouvelle borne)
-const RPM_GREEN_END = 6800;  // Fin du vert, rouge dÃ¨s 6800
+const RPM_GREEN_END = 6800;  // Fin du vert, rouge dès 6800
 const RPM_REDLINE = 7500;
 const MAX_GEAR = 8;
 
@@ -525,13 +525,13 @@ const baseGearProfile = [
 
 const UPGRADE_COST = 1000000;
 
-// SystÃ¨me de progression: Moteur (1-20) et Transmission (1-5)
+// Système de progression: Moteur (1-20) et Transmission (1-5)
 const upgrades = {
     engineLevel: 1,        // 1 = Corolla (~130hp), 20 = F1 (~1000hp)
     transmissionLevel: 1   // 1 = 5 vitesses Corolla, 5 = 8 vitesses F1
 };
 
-// Courbe de puissance moteur: progression exponentielle de 130 Ã  1000 HP
+// Courbe de puissance moteur: progression exponentielle de 130 à 1000 HP
 function getEnginePowerMultiplier(level) {
     // Niveau 1: 130 HP (base 1.0), Niveau 20: 1000 HP (~7.7x)
     const minHP = 130;
@@ -564,7 +564,7 @@ function getTransmissionConfig(level) {
                 adjustRange: { min: 1.0, max: 1.0 }
             };
         case 3:
-            // 6 vitesses, +20% vitesse, ajustable limitÃ© (0.9-1.1x)
+            // 6 vitesses, +20% vitesse, ajustable limité (0.9-1.1x)
             return {
                 gears: 6,
                 speedMultiplier: 1.20,
@@ -572,7 +572,7 @@ function getTransmissionConfig(level) {
                 adjustRange: { min: 0.9, max: 1.1 }
             };
         case 4:
-            // 6 vitesses, +25% vitesse, ajustable dÃ©barrÃ© (0.75-1.3x)
+            // 6 vitesses, +25% vitesse, ajustable débarré (0.75-1.3x)
             return {
                 gears: 6,
                 speedMultiplier: 1.25,
@@ -580,7 +580,7 @@ function getTransmissionConfig(level) {
                 adjustRange: { min: 0.75, max: 1.3 }
             };
         case 5:
-            // 8 vitesses F1, +40% vitesse, ajustable dÃ©barrÃ©
+            // 8 vitesses F1, +40% vitesse, ajustable débarré
             return {
                 gears: 8,
                 speedMultiplier: 1.40,
@@ -619,7 +619,7 @@ let adShowPromise = null;
 const AD_RACE_INTERVAL = 3;
 const AD_COOLDOWN_MS = 120000;
 
-// SÃ©lection PvP (adversaire choisi)
+// Sélection PvP (adversaire choisi)
 let selectedOpponent = null;
 
 function isNativeAdContext() {
@@ -741,7 +741,7 @@ async function showDragRewardedAd() {
     if (!isNativeAdContext()) {
         // Fallback web: simple confirmation
         return new Promise((resolve) => {
-            const confirmed = confirm('En production native, une publicitÃ© rewarded apparaÃ®trait ici.\n\nConfirmer pour simuler la pub visionnÃ©e?');
+            const confirmed = confirm('En production native, une publicité rewarded apparaîtrait ici.\n\nConfirmer pour simuler la pub visionnée?');
             setTimeout(() => resolve(confirmed), 100);
         });
     }
@@ -752,14 +752,14 @@ async function showDragRewardedAd() {
     }
     
     try {
-        // PrÃ©charger si besoin
+        // Précharger si besoin
         if (typeof plugin.loadRewarded === 'function') {
             try {
                 await plugin.loadRewarded();
             } catch {}
         }
         
-        // VÃ©rifier disponibilitÃ©
+        // Vérifier disponibilité
         let ready = false;
         if (typeof plugin.isRewardedAdReady === 'function') {
             try {
@@ -769,7 +769,7 @@ async function showDragRewardedAd() {
         }
         
         if (!ready) {
-            alert('PublicitÃ© non disponible pour le moment. RÃ©essayez dans quelques secondes.');
+            alert('Publicité non disponible pour le moment. Réessayez dans quelques secondes.');
             return false;
         }
         
@@ -792,7 +792,7 @@ async function showDragRewardedAd() {
 
 async function buyUpgrade(type) {
     if (type !== 'engine' && type !== 'transmission') {
-        setBanner('Type d\'amÃ©lioration invalide.', 2, '#ff6b6b');
+        setBanner('Type d\'amélioration invalide.', 2, '#ff6b6b');
         return;
     }
     
@@ -811,15 +811,15 @@ async function buyUpgrade(type) {
     }
     
     // Afficher la pub rewarded
-    setBanner('Chargement de la publicitÃ©...', 2, '#7ecbff');
+    setBanner('Chargement de la publicité...', 2, '#7ecbff');
     const watched = await showDragRewardedAd();
     
     if (!watched) {
-        setBanner('AmÃ©lioration annulÃ©e (publicitÃ© non visionnÃ©e).', 3, '#ffad60');
+        setBanner('Amélioration annulée (publicité non visionnée).', 3, '#ffad60');
         return;
     }
     
-    // DÃ©duire le coÃ»t
+    // Déduire le coût
     game.cash -= UPGRADE_COST;
     
     // Augmenter le niveau
@@ -832,13 +832,13 @@ async function buyUpgrade(type) {
     // Recalculer le profil de vitesses
     recalculateGearProfile();
     
-    // Mettre Ã  jour l'UI du garage
+    // Mettre à jour l'UI du garage
     updateUpgradesUI();
     updateHud();
     
     const newLevel = type === 'engine' ? upgrades.engineLevel : upgrades.transmissionLevel;
     const label = type === 'engine' ? 'Moteur' : 'Transmission';
-    setBanner(`${label} amÃ©liorÃ© ! Niveau ${newLevel}/${maxLevel}.`, 3, '#7cffb0');
+    setBanner(`${label} amélioré ! Niveau ${newLevel}/${maxLevel}.`, 3, '#7cffb0');
     
     // TODO: Sauvegarder sur le serveur via API /drag/upgrade/:type
     try {
@@ -857,9 +857,9 @@ function getTransmissionDescription(level) {
     switch (level) {
         case 1: return '5 vitesses Corolla (fixe)';
         case 2: return '6 vitesses, +15% vitesse (fixe)';
-        case 3: return '6 vitesses, +20% vitesse (ajustable limitÃ©)';
-        case 4: return '6 vitesses, +25% vitesse (dÃ©barrÃ©)';
-        case 5: return '8 vitesses F1, +40% vitesse (dÃ©barrÃ©)';
+        case 3: return '6 vitesses, +20% vitesse (ajustable limité)';
+        case 4: return '6 vitesses, +25% vitesse (débarré)';
+        case 5: return '8 vitesses F1, +40% vitesse (débarré)';
         default: return '5 vitesses Corolla (fixe)';
     }
 }
@@ -878,7 +878,7 @@ function updateUpgradesUI() {
         transmissionDesc.textContent = getTransmissionDescription(upgrades.transmissionLevel);
     }
     
-    // DÃ©sactiver les boutons si niveau max ou pas assez d'argent
+    // Désactiver les boutons si niveau max ou pas assez d'argent
     if (buyEngineButton) {
         const canBuy = upgrades.engineLevel < 20 && game.cash >= UPGRADE_COST;
         buyEngineButton.disabled = !canBuy;
@@ -911,7 +911,7 @@ function recalculateGearProfile() {
         };
     }
     
-    // Nullifier les vitesses au-delÃ  du max de la transmission
+    // Nullifier les vitesses au-delà du max de la transmission
     for (let gear = maxGear + 1; gear <= MAX_GEAR; gear += 1) {
         gearProfile[gear] = null;
     }
@@ -944,7 +944,7 @@ const player = {
     gear: 1,
     shiftMomentum: 0,
     limiterPenalty: 0,
-    shiftText: 'â€”',
+    shiftText: '—',
     shiftTint: 'rgba(255,255,255,0.8)',
     shiftTimer: 0,
     finishTime: null,
@@ -992,7 +992,7 @@ function isTypingIntoField(event) {
         }
 
         let el = (event && event.target) ? event.target : document.activeElement;
-        // Si focus gÃ©rÃ© via shadow/label, rÃ©cupÃ©rer l'input associÃ©
+        // Si focus géré via shadow/label, récupérer l'input associé
         if (el && el.tagName === 'LABEL' && typeof el.htmlFor === 'string' && el.htmlFor.length) {
             const forEl = document.getElementById(el.htmlFor);
             if (forEl) el = forEl;
@@ -1016,7 +1016,7 @@ function isTypingIntoField(event) {
     }
 }
 
-// startButton: gestion dÃ©placÃ©e en haut avec la sÃ©lection du mode
+// startButton: gestion déplacée en haut avec la sélection du mode
 
 window.addEventListener('keydown', (event) => {
     if (isTypingIntoField(event)) return;
@@ -1088,7 +1088,7 @@ if (gasButton) {
     gasButton.addEventListener('contextmenu', (event) => event.preventDefault());
 }
 
-// Bouton Shift dÃ©diÃ©
+// Bouton Shift dédié
 if (shiftButton) {
     shiftButton.addEventListener('pointerdown', (event) => {
         event.preventDefault();
@@ -1195,12 +1195,12 @@ function exitToMillionaire() {
         }
         if (document.referrer) {
             history.back();
-            // En cas dâ€™Ã©chec (navigation bloquÃ©e), fallback aprÃ¨s un court dÃ©lai
+            // En cas d’échec (navigation bloquée), fallback après un court délai
             setTimeout(() => { try { window.location.href = '/jeux-du-millionaire'; } catch {} }, 250);
             return;
         }
     } catch {}
-    // Fallback gÃ©nÃ©rique vers l'accueil du Millionnaire puis racine
+    // Fallback générique vers l'accueil du Millionnaire puis racine
     try { window.location.href = '/jeux-du-millionaire'; }
     catch { window.location.href = '/'; }
 }
@@ -1209,7 +1209,7 @@ if (exitButton) {
     exitButton.addEventListener('click', exitToMillionaire);
 }
 
-// Plein Ã©cran
+// Plein écran
 function isFullscreenActive() {
     const d = document;
     return !!(d.fullscreenElement || d.webkitFullscreenElement || d.msFullscreenElement);
@@ -1221,7 +1221,7 @@ function requestAnyFullscreen(el) {
     if (el.requestFullscreen) return el.requestFullscreen();
     if (anyEl.webkitRequestFullscreen) return anyEl.webkitRequestFullscreen();
     if (anyEl.msRequestFullscreen) return anyEl.msRequestFullscreen();
-    return Promise.reject(new Error('Fullscreen API non supportÃ©e'));
+    return Promise.reject(new Error('Fullscreen API non supportée'));
 }
 
 function exitAnyFullscreen() {
@@ -1234,7 +1234,7 @@ function exitAnyFullscreen() {
 }
 
 function updateFullscreenUI() {
-    if (fullscreenButton) fullscreenButton.textContent = isFullscreenActive() ? 'Quitter plein Ã©cran' : 'Plein Ã©cran';
+    if (fullscreenButton) fullscreenButton.textContent = isFullscreenActive() ? 'Quitter plein écran' : 'Plein écran';
     try { resizeCanvases(); } catch {}
 }
 
@@ -1265,7 +1265,7 @@ if (closeGarageButton) {
 if (applyGarageButton) {
     applyGarageButton.addEventListener('click', () => {
         recalculateGearProfile();
-        setBanner('RÃ©glages appliquÃ©s.', 2, '#7ecbff');
+        setBanner('Réglages appliqués.', 2, '#7ecbff');
         closeGarage();
     });
 }
@@ -1274,11 +1274,11 @@ if (resetGarageButton) {
     resetGarageButton.addEventListener('click', () => {
         resetTuningToDefaults();
         updateGarageUI();
-        setBanner('RÃ©glages remis Ã  zÃ©ro.', 2, '#d6ddff');
+        setBanner('Réglages remis à zéro.', 2, '#d6ddff');
     });
 }
 
-// Auth events supprimÃ©s : la session se gÃ¨re depuis l'accueil principal
+// Auth events supprimés : la session se gère depuis l'accueil principal
 
 if (garageOverlay) {
     garageOverlay.addEventListener('click', (event) => {
@@ -1303,7 +1303,7 @@ function startRace() {
     recalculateGearProfile();
     resetPlayer();
     setupOpponent();
-    setBanner('PrÃ©pare-toi : 3, 2, 1... GO !', 3, '#7ecbff');
+    setBanner('Prépare-toi : 3, 2, 1... GO !', 3, '#7ecbff');
     startButton.textContent = 'Course en cours';
     startButton.disabled = true;
     // Masquer les boutons Start/Garage pendant la course
@@ -1329,7 +1329,7 @@ function resetPlayer() {
     player.gear = 1;
     player.shiftMomentum = 0;
     player.limiterPenalty = 0;
-    player.shiftText = 'â€”';
+    player.shiftText = '—';
     player.shiftTint = 'rgba(255,255,255,0.8)';
     player.shiftTimer = 0;
     player.finishTime = null;
@@ -1342,7 +1342,7 @@ function resetPlayer() {
     player.launchApplied = false;
 
     resetThrottle();
-    hudShift.textContent = 'â€”';
+    hudShift.textContent = '—';
     hudShift.style.color = 'rgba(255,255,255,0.8)';
     updateNitroButton();
     updateGearDisplay();
@@ -1357,7 +1357,7 @@ function setupOpponent() {
     opponent.shiftStumbleTimer = 0;
     opponent.stumbleInterval = null;
 
-    // PvP: si un adversaire a Ã©tÃ© choisi, caler l'IA sur son meilleur temps
+    // PvP: si un adversaire a été choisi, caler l'IA sur son meilleur temps
     if (raceMode === 'pvp' && selectedOpponent && (selectedOpponent.bestMs != null)) {
         let sec = Number(selectedOpponent.bestMs);
         if (sec > 120) sec = sec / 1000; // backend renvoie possiblement en ms
@@ -1373,7 +1373,7 @@ function setupOpponent() {
         return;
     }
 
-    // Mode fantÃ´me local (IA sur la 10e meilleure perf perso)
+    // Mode fantôme local (IA sur la 10e meilleure perf perso)
     if (raceMode === 'ghost' || !raceMode) {
         if (playerRaceHistory.length < 2) {
             opponent.reactionDelay = 0.9;
@@ -1395,10 +1395,10 @@ function setupOpponent() {
         return;
     }
 
-    // Modes world/pvp â€” dÃ©fauts si pas d'adversaire explicite
+    // Modes world/pvp — défauts si pas d'adversaire explicite
     opponent.targetTime = null; // pilotage par accel/maxSpeed
     if (raceMode === 'world') {
-        // plus dur: adversaire trÃ¨s rapide
+        // plus dur: adversaire très rapide
         opponent.reactionDelay = 0.28;
         opponent.accel = 95;
         opponent.maxSpeed = 340;
@@ -1440,27 +1440,27 @@ function applyRaceLaunch() {
     let launchSpeed;
     let momentumDelta;
 
-    // MÃªme logique de poussÃ©e que pour les shifts
+    // Même logique de poussée que pour les shifts
     if (rpmAtLaunch < RPM_SHIFT_MIN) {
-        // Mini poussÃ©e
-        feedback = 'Mini poussÃ©e';
+        // Mini poussée
+        feedback = 'Mini poussée';
         tint = '#ffe66d';
         launchSpeed = 14;
         momentumDelta = 0.04;
     } else if (rpmAtLaunch >= RPM_SHIFT_MIN && rpmAtLaunch < RPM_SHIFT_MAX) {
-        // Bonne poussÃ©e (jaune)
-        feedback = 'Bonne poussÃ©e';
+        // Bonne poussée (jaune)
+        feedback = 'Bonne poussée';
         tint = '#ffd166';
         launchSpeed = 20;
         momentumDelta = 0.18;
     } else if (rpmAtLaunch >= RPM_SHIFT_MAX && rpmAtLaunch <= RPM_GREEN_END) {
-        // TrÃ¨s bonne poussÃ©e (vert)
-        feedback = 'PoussÃ©e parfaite !';
+        // Très bonne poussée (vert)
+        feedback = 'Poussée parfaite !';
         tint = '#7cffb0';
         launchSpeed = 28;
         momentumDelta = 0.45;
     } else {
-        // Rouge: pas de poussÃ©e
+        // Rouge: pas de poussée
         feedback = 'Zone rouge';
         tint = '#ff6b6b';
         launchSpeed = 12;
@@ -1484,7 +1484,7 @@ function handleShift() {
     const maxGear = transConfig.gears;
     
     if (player.gear >= maxGear) {
-        setShiftFeedback('DerniÃ¨re vitesse', '#d6ddff', false);
+        setShiftFeedback('Dernière vitesse', '#d6ddff', false);
         return;
     }
 
@@ -1493,25 +1493,25 @@ function handleShift() {
     let feedback;
     let tint;
 
-    // Nouvelle logique de poussÃ©e sur changement de rapport
-    // < 5000 : mini poussÃ©e
-    // 5000-6300 (jaune): bonne poussÃ©e
-    // 6300-6800 (vert): trÃ¨s bonne poussÃ©e (x2)
-    // > 6800 (rouge): pas de poussÃ©e
+    // Nouvelle logique de poussée sur changement de rapport
+    // < 5000 : mini poussée
+    // 5000-6300 (jaune): bonne poussée
+    // 6300-6800 (vert): très bonne poussée (x2)
+    // > 6800 (rouge): pas de poussée
     if (rpmBefore < RPM_SHIFT_MIN) {
-        feedback = 'Mini poussÃ©e';
+        feedback = 'Mini poussée';
         momentumDelta = 0.04;
         tint = '#ffe66d';
     } else if (rpmBefore >= RPM_SHIFT_MIN && rpmBefore < RPM_SHIFT_MAX) {
-        feedback = 'Bonne poussÃ©e';
+        feedback = 'Bonne poussée';
         momentumDelta = 0.18;
         tint = '#ffd166';
     } else if (rpmBefore >= RPM_SHIFT_MAX && rpmBefore <= RPM_GREEN_END) {
-        feedback = 'TrÃ¨s bonne poussÃ©e !';
+        feedback = 'Très bonne poussée !';
         momentumDelta = 0.45; // un peu plus fort pour marquer le vert
         tint = '#7cffb0';
     } else {
-        // Rouge: pas de poussÃ©e
+        // Rouge: pas de poussée
         feedback = 'Zone rouge';
         momentumDelta = 0.0;
         tint = '#ff6b6b';
@@ -1579,7 +1579,7 @@ function activateNitro() {
     player.nitroTimer = tuning.nitroDuration;
     player.nitroCharges = Math.max(0, player.nitroCharges - 1);
     updateNitroButton();
-    setBanner('Nitro activÃ© !', 1.4, '#9cd4ff');
+    setBanner('Nitro activé !', 1.4, '#9cd4ff');
 }
 
 function setShiftFeedback(text, tint, includeCount = false) {
@@ -1603,7 +1603,7 @@ function setBanner(text, duration = 2, tint = '') {
 
 // Affiche/masque les actions (Start/Garage) dans l'overlay pendant la course
 function setOverlayActionsVisible(visible) {
-    // RÃ©utilise la sÃ©mantique pour piloter l'accueil (home-screen)
+    // Réutilise la sémantique pour piloter l'accueil (home-screen)
     if (homeScreen) homeScreen.style.display = visible ? 'flex' : 'none';
 }
 
@@ -1702,17 +1702,17 @@ function updateGarageUI() {
         }
         const value = tuning.gearMultipliers[gear];
         sliderEntry.slider.value = value.toFixed(2);
-        sliderEntry.value.textContent = `${value.toFixed(2)}Ã—`;
+        sliderEntry.value.textContent = `${value.toFixed(2)}×`;
     }
 
     if (engineSlider && engineValue) {
         engineSlider.value = tuning.enginePower.toFixed(2);
-        engineValue.textContent = `${tuning.enginePower.toFixed(2)}Ã—`;
+        engineValue.textContent = `${tuning.enginePower.toFixed(2)}×`;
     }
 
     if (nitroPowerSlider && nitroPowerValue) {
         nitroPowerSlider.value = tuning.nitroPower.toFixed(2);
-        nitroPowerValue.textContent = `${tuning.nitroPower.toFixed(2)}Ã—`;
+        nitroPowerValue.textContent = `${tuning.nitroPower.toFixed(2)}×`;
     }
 
     if (nitroDurationSlider && nitroDurationValue) {
@@ -1757,13 +1757,13 @@ function initializeGarageUI() {
 
         const valueDisplay = document.createElement('span');
         valueDisplay.className = 'slider-value';
-        valueDisplay.textContent = `${tuning.gearMultipliers[gear].toFixed(2)}Ã—`;
+        valueDisplay.textContent = `${tuning.gearMultipliers[gear].toFixed(2)}×`;
 
         slider.addEventListener('input', () => {
             const rawValue = Number(slider.value);
             const clamped = clamp(rawValue, adjustRange.min, adjustRange.max);
             tuning.gearMultipliers[gear] = Number(clamped.toFixed(2));
-            valueDisplay.textContent = `${tuning.gearMultipliers[gear].toFixed(2)}Ã—`;
+            valueDisplay.textContent = `${tuning.gearMultipliers[gear].toFixed(2)}×`;
             recalculateGearProfile();
         });
 
@@ -1776,7 +1776,7 @@ function initializeGarageUI() {
         engineSlider.addEventListener('input', () => {
             const rawValue = parseFloat(engineSlider.value);
             tuning.enginePower = Number(clamp(rawValue, 0.9, 1.7).toFixed(2));
-            engineValue.textContent = `${tuning.enginePower.toFixed(2)}Ã—`;
+            engineValue.textContent = `${tuning.enginePower.toFixed(2)}×`;
         });
     }
 
@@ -1784,7 +1784,7 @@ function initializeGarageUI() {
         nitroPowerSlider.addEventListener('input', () => {
             const rawValue = parseFloat(nitroPowerSlider.value);
             tuning.nitroPower = Number(clamp(rawValue, 1, 1.9).toFixed(2));
-            nitroPowerValue.textContent = `${tuning.nitroPower.toFixed(2)}Ã—`;
+            nitroPowerValue.textContent = `${tuning.nitroPower.toFixed(2)}×`;
         });
     }
 
@@ -1826,7 +1826,7 @@ function update(dt) {
                     applyRaceLaunch();
                     setBanner('GO !', 1.2, '#7cffb0');
                     game.state = 'running';
-                    // Autoâ€‘throttle
+                    // Auto‑throttle
                     try { throttleState.keyboard = true; } catch {}
                     updateThrottleState();
                     game.timer = 0;
@@ -1851,7 +1851,7 @@ function update(dt) {
     if (player.shiftTimer > 0) {
         player.shiftTimer = Math.max(0, player.shiftTimer - dt);
         if (player.shiftTimer === 0) {
-            hudShift.textContent = 'â€”';
+            hudShift.textContent = '—';
             hudShift.style.color = 'rgba(255,255,255,0.8)';
         }
     }
@@ -1859,7 +1859,7 @@ function update(dt) {
     if (game.bannerTimer > 0) {
         game.bannerTimer = Math.max(0, game.bannerTimer - dt);
         if (game.bannerTimer === 0) {
-            statusBanner.textContent = 'Maintiens la pÃ©dale (flÃ¨che haut ou bouton), dÃ©clenche le nitro (N/X ou bouton) et shift dans la zone verte.';
+            statusBanner.textContent = 'Maintiens la pédale (flèche haut ou bouton), déclenche le nitro (N/X ou bouton) et shift dans la zone verte.';
             statusBanner.style.color = 'rgba(220,230,255,0.8)';
         }
     }
@@ -1872,7 +1872,7 @@ function update(dt) {
 function updatePlayer(dt) {
     const profile = gearProfile[player.gear];
     if (!profile) {
-        // Vitesse inexistante (au-delÃ  de la transmission disponible)
+        // Vitesse inexistante (au-delà de la transmission disponible)
         return;
     }
     
@@ -1894,12 +1894,12 @@ function updatePlayer(dt) {
         player.rpm -= engineBrake * dt;
     }
 
-    // PÃ©nalitÃ© zone rouge: moteur flotte, perte de puissance progressive
+    // Pénalité zone rouge: moteur flotte, perte de puissance progressive
     let redlinePenalty = 0;
     if (player.rpm > RPM_GREEN_END) {
-        // Au-delÃ  de 7300 RPM, pÃ©nalitÃ© croissante
+        // Au-delà de 7300 RPM, pénalité croissante
         const overRed = Math.max(0, player.rpm - RPM_GREEN_END);
-        redlinePenalty = Math.min(1, overRed / 700); // Max pÃ©nalitÃ© Ã  ~8000 RPM
+        redlinePenalty = Math.min(1, overRed / 700); // Max pénalité à ~8000 RPM
         player.limiterPenalty = clamp(player.limiterPenalty + dt * 2.2, 0, 1);
     } else {
         player.limiterPenalty = clamp(player.limiterPenalty - dt * 2.8, 0, 1);
@@ -1913,13 +1913,13 @@ function updatePlayer(dt) {
     player.rpm = clamp(player.rpm, RPM_IDLE, RPM_MAX + 180);
 
     const rpmRatio = clamp((player.rpm - RPM_IDLE) / (RPM_MAX - RPM_IDLE), 0, 1);
-    // Facteur combinÃ©: limiter + zone rouge
+    // Facteur combiné: limiter + zone rouge
     const totalLimiter = 1 - Math.max(player.limiterPenalty * 0.55, redlinePenalty * 0.4);
 
     if (player.throttle) {
         const baseAccel = 16;
         let acceleration = baseAccel * profile.accelFactor * (0.28 + rpmRatio * 0.88) * momentumBoost * totalLimiter;
-        // Si on est en zone rouge (> 6800), il n'y a plus d'accÃ©lÃ©ration
+        // Si on est en zone rouge (> 6800), il n'y a plus d'accélération
         if (player.rpm >= RPM_GREEN_END) {
             acceleration = 0;
         } else {
@@ -1937,12 +1937,12 @@ function updatePlayer(dt) {
     const inGreen = player.rpm >= RPM_SHIFT_MAX && player.rpm <= RPM_GREEN_END;
     let speedCap = profile.topSpeed * topSpeedBonus;
     if (inGreen) {
-        // Petit bonus de cap en zone verte pour rÃ©compenser la fenÃªtre idÃ©ale
+        // Petit bonus de cap en zone verte pour récompenser la fenêtre idéale
         speedCap *= 1.02;
     }
     player.speed = Math.min(player.speed, speedCap);
 
-    // Mise Ã  jour des pics (top speed / top RPM)
+    // Mise à jour des pics (top speed / top RPM)
     if (player.rpm > player.peakRpm) player.peakRpm = player.rpm;
     if (player.speed > player.peakSpeedKmH) player.peakSpeedKmH = player.speed;
 
@@ -2042,11 +2042,11 @@ async function finishRace(playerWins) {
     game.state = 'finished';
     startButton.textContent = 'Rejouer';
     startButton.disabled = false;
-    // RÃ©-afficher l'accueil une fois la course terminÃ©e
+    // Ré-afficher l'accueil une fois la course terminée
     setOverlayActionsVisible(true);
-    // RÃ©-afficher la barre d'authentification aprÃ¨s la course
+    // Ré-afficher la barre d'authentification après la course
     setAuthBarVisible(true);
-    // AprÃ¨s la course: cacher piste/cadran/boutons pour laisser la place au reste,
+    // Après la course: cacher piste/cadran/boutons pour laisser la place au reste,
     // mais garder le conteneur visible pour afficher les actions (Rejouer/Garage)
     setTrackVisible(false);
     setGaugeVisible(false);
@@ -2075,11 +2075,11 @@ async function finishRace(playerWins) {
         }
     }
 
-    // Affichage immÃ©diat cÃ´tÃ© client (serveur reste autoritÃ© pour cash/stage/rÃ©compense)
+    // Affichage immédiat côté client (serveur reste autorité pour cash/stage/récompense)
     if (finalWin) {
         const tentativePayout = getVictoryPayout();
         const payoutText = tentativePayout.toLocaleString('fr-CA');
-        game.reward = tentativePayout; // valeur provisoire, sera remplacÃ©e par la rÃ©ponse serveur
+        game.reward = tentativePayout; // valeur provisoire, sera remplacée par la réponse serveur
         const bannerText = forcedWin ? `Victoire parfaite ! +${payoutText} $` : `Victoire ! +${payoutText} $`;
         setBanner(bannerText, 4, '#7cffb0');
         if (finishSeconds !== null) {
@@ -2087,11 +2087,11 @@ async function finishRace(playerWins) {
         }
         game.result = 'win';
     } else {
-        setBanner('DÃ©faite... retente ta chance.', 4, '#ff6b6b');
+        setBanner('Défaite... retente ta chance.', 4, '#ff6b6b');
         game.result = 'loss';
     }
 
-    // Envoi des rÃ©sultats au serveur Millionnaire
+    // Envoi des résultats au serveur Millionnaire
     try {
         const sess = await ensureSession();
         const elapsedMs = Math.max(1, Math.round(((player.finishTime ?? game.timer) || 0) * 1000));
@@ -2114,7 +2114,7 @@ async function finishRace(playerWins) {
             body: JSON.stringify(payload)
         });
 
-        // Mise Ã  jour depuis le serveur (autoritÃ©)
+        // Mise à jour depuis le serveur (autorité)
         const newCash = Number(resp?.player?.cash ?? game.cash);
         const newStage = Number(resp?.drag?.stage ?? game.stage);
     const granted = Number(resp?.grantedReward ?? (finalWin ? getVictoryPayout() : 0));
@@ -2122,14 +2122,14 @@ async function finishRace(playerWins) {
         game.stage = Number.isFinite(newStage) ? newStage : game.stage;
         game.reward = Number.isFinite(granted) ? granted : game.reward;
 
-        // Ajuster la banniÃ¨re si la rÃ©compense a Ã©tÃ© bloquÃ©e (cooldown, etc.)
+        // Ajuster la bannière si la récompense a été bloquée (cooldown, etc.)
         if (finalWin && game.reward <= 0) {
-            setBanner('Victoire enregistrÃ©e (cooldown rÃ©compense).', 4, '#d6ddff');
+            setBanner('Victoire enregistrée (cooldown récompense).', 4, '#d6ddff');
         }
         updateHud();
     } catch (err) {
-        // En cas d'Ã©chec rÃ©seau ou 4xx/5xx, on garde lâ€™Ã©tat visuel, mais on nâ€™altÃ¨re pas le cash localement
-        setBanner('Serveur indisponible. RÃ©sultat enregistrÃ© localement.', 4, '#ffe66d');
+        // En cas d'échec réseau ou 4xx/5xx, on garde l’état visuel, mais on n’altère pas le cash localement
+        setBanner('Serveur indisponible. Résultat enregistré localement.', 4, '#ffe66d');
     } finally {
         handleRaceCompletedForAds();
     }
@@ -2137,7 +2137,7 @@ async function finishRace(playerWins) {
 
 function formatTimeValue(value) {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-        return 'â€”';
+        return '—';
     }
     return `${value.toFixed(2)} s`;
 }
@@ -2236,12 +2236,12 @@ function drawTrack() {
         trackCtx.fillStyle = game.result === 'win' ? '#7cffb0' : '#ff6b6b';
         const message = game.result === 'win'
             ? (game.perfectWin ? `Victoire parfaite ! +${game.reward} $` : `Victoire ! +${game.reward} $`)
-            : 'DÃ©faite';
+            : 'Défaite';
         trackCtx.fillText(message, width / 2, height / 2 - 20);
         if (game.result === 'win') {
             trackCtx.font = '600 28px Rajdhani, sans-serif';
             trackCtx.fillStyle = '#d6ddff';
-            const sub = game.perfectWin ? '4 shifts parfaits sur 5 â€” avantage acquis !' : 'Prochaine distance plus difficile...';
+            const sub = game.perfectWin ? '4 shifts parfaits sur 5 — avantage acquis !' : 'Prochaine distance plus difficile...';
             trackCtx.fillText(sub, width / 2, height / 2 + 32);
         }
     }
@@ -2450,11 +2450,11 @@ if (garageOverlay) {
     garageOverlay.style.display = 'none';
 }
 
-// Initialiser le mode par dÃ©faut Ã  "ghost" pour permettre de jouer immÃ©diatement
+// Initialiser le mode par défaut à "ghost" pour permettre de jouer immédiatement
 setRaceMode('ghost');
 
-setBanner('Lance la course, maintiens la pÃ©dale (flÃ¨che haut ou bouton), utilise le nitro (N/X ou bouton) et shift dans la zone verte.', 6, '#d6ddff');
-// Appliquer taille 16:9 et recalculer Ã  chaque rotation/redimensionnement
+setBanner('Lance la course, maintiens la pédale (flèche haut ou bouton), utilise le nitro (N/X ou bouton) et shift dans la zone verte.', 6, '#d6ddff');
+// Appliquer taille 16:9 et recalculer à chaque rotation/redimensionnement
 resizeCanvases();
 window.addEventListener('resize', () => { resizeCanvases(); });
 try { updateFullscreenUI(); } catch {}

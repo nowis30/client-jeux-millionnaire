@@ -1,6 +1,7 @@
 "use client";
+
 import { useState } from "react";
-import { apiFetch } from "../../lib/api";
+import { requestSupabasePasswordReset } from "../../lib/supabase-auth";
 
 export default function ForgotPage() {
   const [email, setEmail] = useState("");
@@ -11,14 +12,10 @@ export default function ForgotPage() {
     e.preventDefault();
     setError(null);
     try {
-      await apiFetch("/api/auth/request-reset", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
+      await requestSupabasePasswordReset(email);
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Échec de l'envoi");
+      setError(err instanceof Error ? err.message : "Échec de l’envoi");
     }
   };
 
@@ -31,7 +28,7 @@ export default function ForgotPage() {
         <form onSubmit={onSubmit} className="space-y-3">
           <div className="flex flex-col gap-1">
             <label className="text-sm text-neutral-300">E‑mail</label>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm" />
+            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required autoComplete="email" className="px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-sm" />
           </div>
           {error && <p className="text-sm text-red-400">{error}</p>}
           <button type="submit" className="w-full px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500">Envoyer le lien</button>

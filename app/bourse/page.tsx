@@ -1,15 +1,13 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MARKET_ASSETS } from "../../lib/constants";
-import { apiFetch, API_BASE as ABS_API_BASE } from "../../lib/api";
+import { apiFetch } from "../../lib/api";
 import { formatMoney } from "../../lib/format";
 
 type Price = { symbol: string; price: number; at: string };
 type Holding = { id: string; symbol: string; quantity: number; avgPrice: number };
 // Historique supprimé (on ne trace plus le graphique)
 
-// Utiliser l'API absolue pour export statique
-const API_BASE = ABS_API_BASE;
 // Affichage indicatif des rendements de dividendes (alignés au serveur)
 const DIVIDEND_YIELDS: Record<string, number> = {
   SP500: 0.018,
@@ -62,11 +60,6 @@ export default function BoursePage() {
     if (!quantity || quantity <= 0) return false;
     return selectedHoldingQty >= quantity;
   }, [selectedHoldingQty, quantity]);
-
-  // Préparer les cookies cross‑site (hm_guest + hm_csrf) le plus tôt possible
-  useEffect(() => {
-    (async () => { try { await fetch(`/api/auth/csrf`, { credentials: "include" }); } catch {} })();
-  }, []);
 
   // Résoudre automatiquement le game id global
   useEffect(() => {

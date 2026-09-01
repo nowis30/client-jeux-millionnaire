@@ -1,13 +1,7 @@
 "use client";
-
 import { useState } from "react";
+import { apiFetch, clearAuthSession } from "../../lib/api";
 import { useRouter } from "next/navigation";
-import {
-  clearSupabaseSession,
-  resendSupabaseSignup,
-  signInWithSupabase,
-  signUpWithSupabase,
-} from "../../lib/supabase-auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,27 +16,28 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setInfo(null);
+
+    clearAuthSession();
     setLoading(true);
-    clearSupabaseSession();
 
     try {
-      if (mode === "login") {
-        await signInWithSupabase(email, password);
-        router.replace("/");
-        router.refresh();
+      const path = mode === "login" ? "/api/auth/login" : "/api/auth/register";
+      const resp = await apiFetch<{ id?: string; email?: string; isAdmin?: boolean; token?: string; message?: string; requiresEmailConfirmation?: boolean }>(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (resp.requiresEmailConfirmation) {
+        setInfo(resp.message ?? "Compte créé. Vérifiez votre boîte de réception avant de vous connecter.");
+        setMode("login");
         return;
       }
 
-      const session = await signUpWithSupabase(email, password);
-      if (session.access_token) {
-        router.replace("/");
-        router.refresh();
-      } else {
-        setInfo("Compte créé. Confirme ton courriel, puis reviens te connecter.");
-        setMode("login");
-      }
+      router.replace("/");
+      router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Échec de l’authentification");
+      setError(err instanceof Error ? err.message : "Échec de l'authentification");
     } finally {
       setLoading(false);
     }
@@ -52,10 +47,14 @@ export default function LoginPage() {
     setError(null);
     setInfo(null);
     try {
-      await resendSupabaseSignup(email);
-      setInfo("Courriel de confirmation renvoyé. Vérifie aussi les indésirables.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de renvoyer le courriel");
+      await apiFetch<{ ok: boolean }>("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      setInfo("Email de vérification renvoyé. Vérifiez votre boîte de réception (et spam).");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible d'envoyer l'email de vérification");
     }
   };
 
@@ -74,27 +73,18 @@ export default function LoginPage() {
         {error && (
           <div className="space-y-2">
             <p className="text-sm text-red-400">{error}</p>
-            {(error.toLowerCase().includes("confirm") || error.toLowerCase().includes("verified")) && (
+            {(error.toLowerCase().includes("non vérifiée") || error.toLowerCase().includes("non vérifié")) && (
               <button type="button" onClick={resend} className="text-sm underline text-indigo-300">
-                Renvoyer le courriel de confirmation
+                Renvoyer l'email de vérification
               </button>
             )}
           </div>
         )}
         {info && <p className="text-sm text-emerald-400">{info}</p>}
-        <button disabled={loading} type="submit" className="w-full px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60">
-          {loading ? "Connexion…" : mode === "login" ? "Se connecter" : "S’inscrire"}
-        </button>
+        <button disabled={loading} type="submit" className="w-full px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60">{loading ? "Connexion…" : mode === "login" ? "Se connecter" : "S'inscrire"}</button>
       </form>
-      <button
-        onClick={() => {
-          setMode(mode === "login" ? "register" : "login");
-          setError(null);
-          setInfo(null);
-        }}
-        className="text-sm text-neutral-300 underline"
-      >
-        {mode === "login" ? "Créer un compte" : "J’ai déjà un compte"}
+      <button onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(null); setInfo(null); }} className="text-sm text-neutral-300 underline">
+        {mode === "login" ? "Créer un compte" : "J'ai déjà un compte"}
       </button>
       {mode === "login" && (
         <p className="text-sm text-neutral-400">

@@ -1,66 +1,41 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { io, Socket } from "socket.io-client";
+import { useEffect } from "react";
 import { loadSession, saveSession } from "../../lib/session";
-import { apiFetch, API_BASE } from "../../lib/api";
+import { apiFetch } from "../../lib/api";
 
 export default function PresenceClient() {
-  const socketRef = useRef<Socket | null>(null);
-  const [ready, setReady] = useState(false);
-
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      try {
-        // 1) Récupérer l'email (sert de nickname)
-        const me = await apiFetch<{ id: string; email: string }>("/api/auth/me").catch(() => null as any);
-        if (!mounted || !me?.email) return;
+    let interval: ReturnType<typeof setInterval> | undefined;
 
-        // 2) Récupérer/assurer un gameId et playerId via la session locale
+    const start = async () => {
+      try {
+        const me = await apiFetch<{ email: string }>("/api/auth/me");
+        if (!mounted || !me?.email) return;
         let { gameId, playerId, nickname } = loadSession() || { gameId: "", playerId: "", nickname: "" };
         if (!gameId || !playerId) {
-          // Partie globale
-          const list = await apiFetch<{ games: { id: string; code: string; status: string }[] }>(`/api/games`).catch(() => null as any);
-          const g = list?.games?.[0];
-          if (g) {
-            const joined = await apiFetch<{ playerId: string; code: string }>(`/api/games/${g.id}/join`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({}),
-            }).catch(() => null as any);
-            if (joined?.playerId) {
-              gameId = g.id; playerId = joined.playerId; nickname = me.email;
-              saveSession({ gameId, playerId, nickname });
-            }
-          }
+          const list = await apiFetch<{ games: { id: string }[] }>("/api/games");
+          const game = list.games?.[0];
+          if (!game) return;
+          const joined = await apiFetch<{ playerId: string }>(`/api/games/${game.id}/join`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+          gameId = game.id;
+          playerId = joined.playerId;
+          nickname = me.email;
+          saveSession({ gameId, playerId, nickname });
         }
-        if (!gameId) return;
 
-        // 3) Ouvrir un socket de présence en pointant vers l'API backend absolue
-        // En prod (Vercel export), l'hôte web n'héberge pas le socket. On cible directement le serveur (API_BASE).
-        const s = io(API_BASE, {
-          path: "/socket.io",
-          transports: ["websocket"],
-          query: { gameId, nickname: me.email },
-          withCredentials: true,
-        });
-        socketRef.current = s;
-        setReady(true);
+        const heartbeat = () => apiFetch(`/api/games/${gameId}/presence`, { method: "POST" }).catch(() => null);
+        await heartbeat();
+        interval = setInterval(heartbeat, 20_000);
+      } catch {}
+    };
 
-        // Optionnel: forcer le join si la query n'a pas pris effet
-        s.emit("join-game", gameId, me.email);
-      } catch {
-        // no-op
-      }
-    })();
-
+    void start();
     return () => {
       mounted = false;
-      try { socketRef.current?.close(); } catch {}
-      socketRef.current = null;
+      if (interval) clearInterval(interval);
     };
   }, []);
 
-  // Pas d'UI, juste un ancrage logique
-  return ready ? null : null;
+  return null;
 }

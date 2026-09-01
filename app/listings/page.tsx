@@ -1,7 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { io, Socket } from "socket.io-client";
-import { apiFetch, apiFetchRaw, ApiError, SOCKET_BASE } from "../../lib/api";
+import { apiFetch, apiFetchRaw, ApiError } from "../../lib/api";
 import { formatMoney, monthlyFromWeekly } from "../../lib/format";
 
 type Template = {
@@ -163,22 +162,6 @@ export default function ListingsPage() {
       } catch {}
     })();
   }, [gameId]);
-
-  // Socket.IO: rafraîchir en live sur events listings
-  useEffect(() => {
-    if (!gameId) return;
-    const socket: Socket = io(SOCKET_BASE, { query: { gameId } });
-    socket.on("event-feed", (e: any) => {
-      if (typeof e?.type !== "string") return;
-      if (e.type.startsWith("listing:")) {
-        refreshListings();
-        // après accept, les holdings changent
-        if (e.type === "listing:accept") refreshHoldings();
-      }
-    });
-    socket.emit("join-game", gameId);
-    return () => { socket.disconnect(); };
-  }, [gameId, refreshListings, refreshHoldings]);
 
   const myListings = useMemo<Listing[]>(() => listings.filter((l: Listing) => l.sellerId === playerId), [listings, playerId]);
   const othersListings = useMemo<Listing[]>(() => listings.filter((l: Listing) => l.sellerId !== playerId), [listings, playerId]);

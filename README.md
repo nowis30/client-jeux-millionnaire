@@ -1,26 +1,23 @@
 # client-jeux-millionnaire
 
-## Liens de déploiement
+Interface Next.js statique d’Héritier Millionnaire.
 
-- API (Render) : https://server-jeux-millionnaire.onrender.com
-- Client (Vercel) : https://client-jeux-millionnaire.vercel.app/
+## Déploiement
 
-## Configuration (proxy sans CORS)
+- Client : Vercel
+- Auth, API, base de données, présence et tâches planifiées : Supabase
 
-Le client Next.js proxy désormais toutes les requêtes vers le backend via des réécritures, ce qui élimine les problèmes de CORS et de cookies SameSite.
+Le client communique directement avec l’Edge Function `heritier-api` à l’aide d’un jeton Supabase Auth. Les tables de jeu sont conservées dans le schéma privé `heritier` et ne sont pas exposées à la Data API.
 
-- Réécritures configurées dans `next.config.js`:
-	- `/api/*` → `${API_PROXY_DEST}/api/*`
-	- `/socket.io/*` → `${API_PROXY_DEST}/socket.io/*` (WebSocket Socket.IO)
-- Variables d’environnement côté client:
-	- `API_PROXY_DEST` (recommandé): URL du backend (ex: `https://server-jeux-millionnaire.onrender.com`). Utilisée par les rewrites au build/runtime Vercel.
-	- `NEXT_PUBLIC_API_BASE` (optionnelle): sert uniquement pour les appels SSR (côté serveur) via `lib/api.ts`. En navigateur, on utilise des chemins relatifs.
+## Configuration
 
-Implications:
-- Dans le code client, utilisez toujours des chemins relatifs (`/api/...`) ou le helper `apiFetch()`.
-- N’utilisez plus `process.env.NEXT_PUBLIC_API_BASE` dans les pages/components.
+Les valeurs par défaut pointent vers le projet NOWIS. Elles peuvent être remplacées au build :
 
-## Tutoriel utilisateur
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
-- Une page d’aide est disponible dans l’app: `/tutoriel` (menu supérieur et navigation mobile)
-- Le guide complet se trouve aussi à la racine du monorepo: `TUTORIEL_JEU.md`
+Tous les appels applicatifs doivent passer par `apiFetch()` dans `lib/api.ts` afin de renouveler la session et de joindre l’identité du joueur.
+
+## Tutoriel
+
+Une page d’aide est disponible dans l’application à `/tutoriel`.

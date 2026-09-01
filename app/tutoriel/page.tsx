@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { API_BASE } from "../../lib/api";
+import { apiFetch } from "../../lib/api";
 import dynamic from "next/dynamic";
 
 // Tutoriel interactif chargé uniquement côté client
@@ -36,11 +36,9 @@ export default function TutorielPage() {
     (async () => {
       try {
         setLoading(true);
-        const headers: Record<string, string> = { "X-CSRF": "1" };
-        if (playerId) headers["X-Player-ID"] = playerId;
-        const res = await fetch(`${API_BASE}/api/games/${gameId}/quiz/status`, { credentials: "include", headers });
-        if (!res.ok) return;
-        const data = (await res.json()) as QuizStatus;
+        const data = await apiFetch<QuizStatus>(`/api/games/${gameId}/quiz/status`, {
+          headers: playerId ? { "X-Player-ID": playerId } : undefined,
+        });
         setStatus(data);
       } catch {
       } finally {

@@ -100,7 +100,8 @@ async function openOpponentsOverlay() {
         const sess = await ensureSession();
         let list = [];
         try {
-            list = await apiFetch(`/api/games/${sess.gameId}/drag/opponents`);
+            const data = await apiFetch(`/api/games/${sess.gameId}/drag/opponents`);
+            list = Array.isArray(data) ? data : (data?.opponents || []);
         } catch (err) {
             console.warn('[drag] opponents fetch failed', err);
             list = [];
@@ -153,84 +154,30 @@ startButton.addEventListener('click', () => {
 if (modeWorldBtn) modeWorldBtn.addEventListener('click', () => { setRaceMode('world'); });
 if (modePvPBtn) modePvPBtn.addEventListener('click', async () => { setRaceMode('pvp'); await openOpponentsOverlay(); });
 if (modeGhostBtn) modeGhostBtn.addEventListener('click', () => { setRaceMode('ghost'); });
-// === RÃ©seau / API (intÃ©gration Millionnaire) ===
-// PrioritÃ©:
-// 1) window.DRAG_API_BASE (forÃ§age manuel)
-// 2) Web nowis/app.nowis: mÃªme origine via proxy /api
-// 3) Dev local: proxy CORS si prÃ©sent
-// 4) Natif / fallback: backend Render direct
-let API_BASE = (window && window.DRAG_API_BASE) ? String(window.DRAG_API_BASE) : '';
-let DIRECT_RENDER_BASE = 'https://server-jeux-millionnaire.onrender.com';
-const RETRYABLE_PROXY_STATUSES = new Set([502, 503, 504]);
-function dragDebug() {
-    try {
-        const host = window.location && window.location.hostname ? window.location.hostname : '';
-        return /(^|\.)(localhost|127\.0\.0\.1)$/.test(host);
-    } catch (_) {
-        return false;
-    }
-}
-function logDragInfo() {
-    if (!dragDebug()) return;
-    try { console.info.apply(console, arguments); } catch {}
-}
-try {
-    if (!API_BASE) {
-        const host = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : '';
-        const protocol = (typeof window !== 'undefined' && window.location && window.location.protocol) ? window.location.protocol : '';
-        
-        // DÃ©tecter Capacitor/Cordova (app mobile native)
-        const isCapacitor = protocol === 'capacitor:' || protocol === 'ionic:' || protocol === 'file:';
-        
-        // Vrai localhost = navigateur dev sur machine locale (PAS Capacitor)
-        const isRealLocalHost = !isCapacitor && (/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(host) || host.startsWith('192.168.'));
-        
-        const isNowisWeb = !isCapacitor && /(nowis\.store|vercel\.app)$/i.test(host);
+// === Réseau / API Supabase (intégration Millionnaire) ===
+const SUPABASE_URL = 'https://smwrpejnegtssmtmnecb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_3-7XDsd5zEd-3rrqr0-xgQ_kk0z3ArR';
+const API_BASE = (window && window.DRAG_API_BASE)
+    ? String(window.DRAG_API_BASE).replace(/\/$/, '')
+    : `${SUPABASE_URL}/functions/v1/heritier-api`;
 
-        if (isNowisWeb) {
-            API_BASE = '';
-            logDragInfo('[drag] Mode web: API via proxy same-origin');
-        } else if (isRealLocalHost) {
-            // Dev local: utiliser proxy CORS
-            const devProxy = (window && window.DRAG_DEV_PROXY) ? String(window.DRAG_DEV_PROXY) : 'http://127.0.0.1:8010/proxy';
-            API_BASE = devProxy;
-            logDragInfo('[drag] Mode dev: API via proxy', API_BASE);
-        } else {
-            // Production OU Capacitor: toujours utiliser Render
-            API_BASE = DIRECT_RENDER_BASE;
-            if (isCapacitor) {
-                logDragInfo('[drag] App mobile: API directe', API_BASE);
-            }
-        }
-    }
-} catch (_) { API_BASE = DIRECT_RENDER_BASE; }
-
-let CSRF_TOKEN = null;
 function getStoredSession() {
     try { const raw = localStorage.getItem('hm-session'); return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
 function setStoredSession(s) { try { localStorage.setItem('hm-session', JSON.stringify(s)); } catch {} }
 function clearStoredSession() { try { localStorage.removeItem('hm-session'); } catch {} }
-const TOKEN_SOURCE_KEY = 'hm-token-source';
 function getAuthToken() {
     try {
-        // PrioritÃ© : token spÃ©cifique drag
-        const dragToken = localStorage.getItem('hm-token');
-        if (dragToken) return dragToken;
-        // Fallback : token global utilisÃ© par le client Next
-        const globalToken = localStorage.getItem('HM_TOKEN');
-        return globalToken || null;
+        return localStorage.getItem('HM_TOKEN') || localStorage.getItem('hm-token') || null;
     } catch {
         return null;
     }
 }
-function setAuthToken(t, source) {
+function setAuthToken(t) {
     try {
         if (t) {
-            // Ã‰crire Ã  la fois le token drag et le token global pour partager la session
             localStorage.setItem('hm-token', t);
             try { localStorage.setItem('HM_TOKEN', t); } catch {}
-            if (source) localStorage.setItem(TOKEN_SOURCE_KEY, source);
             try { updateMiniAuthIndicator(); } catch {}
         }
     } catch {}
@@ -238,91 +185,39 @@ function setAuthToken(t, source) {
 function clearAuthToken() {
     try {
         localStorage.removeItem('hm-token');
-        // Nettoyer aussi le token global pour forcer une reconnexion propre si nÃ©cessaire
         try { localStorage.removeItem('HM_TOKEN'); } catch {}
-        localStorage.removeItem(TOKEN_SOURCE_KEY);
     } catch {}
 }
 function getTokenSource() {
-    try { return localStorage.getItem(TOKEN_SOURCE_KEY) || null; } catch { return null; }
+    return getAuthToken() ? 'supabase' : null;
 }
-const GUEST_INFO_KEY = 'drag-guest-info';
-function getStoredGuestIdentity() {
-    try {
-        const raw = localStorage.getItem(GUEST_INFO_KEY);
-        return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
-}
-function setStoredGuestIdentity(info) {
-    try { localStorage.setItem(GUEST_INFO_KEY, JSON.stringify(info || {})); } catch {}
-}
-async function ensureGuestToken(forceRenew = false) {
-    if (!forceRenew) {
-        const existing = getAuthToken();
-        if (existing) return existing;
-    }
-    const existingInfo = getStoredGuestIdentity();
-    const body = existingInfo?.guestId ? { guestId: existingInfo.guestId } : {};
-    try {
-        const res = await fetch(`${API_BASE}/api/auth/guest-token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-            credentials: 'omit'
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json().catch(() => null);
-        if (data?.token && data?.guestId) {
-            setStoredGuestIdentity({ guestId: data.guestId, mintedAt: Date.now() });
-            setAuthToken(data.token, 'guest');
-            return data.token;
-        }
-        throw new Error('RÃ©ponse invalide');
-    } catch (err) {
-        try { console.warn('[drag] guest token fetch failed', err); } catch {}
-        throw err;
-    }
-}
-async function ensureCsrf() {
-    try {
-        if (CSRF_TOKEN) return CSRF_TOKEN;
-        const res = await fetchWithFallback('/api/auth/csrf', { credentials: 'include' });
-        const data = await res.json().catch(() => ({}));
-        CSRF_TOKEN = data?.csrf || null; return CSRF_TOKEN;
-    } catch { return null; }
-}
-async function fetchWithFallback(path, init) {
-    const makeUrl = (base) => `${base}${path}`;
-    const attempt = async (base) => fetch(makeUrl(base), init);
-    try {
-        const res = await attempt(API_BASE);
-        if (!API_BASE && RETRYABLE_PROXY_STATUSES.has(res.status)) {
-            logDragInfo('[drag] Proxy Vercel en erreur, fallback Render', res.status);
-            return attempt(DIRECT_RENDER_BASE);
-        }
-        return res;
-    } catch (err) {
-        if (!API_BASE) {
-            logDragInfo('[drag] Proxy indisponible, fallback Render');
-            return attempt(DIRECT_RENDER_BASE);
-        }
-        throw err;
-    }
+async function refreshDragToken() {
+    let refreshToken = null;
+    try { refreshToken = localStorage.getItem('HM_REFRESH_TOKEN'); } catch {}
+    if (!refreshToken) return null;
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken })
+    });
+    if (!res.ok) { clearAuthToken(); return null; }
+    const data = await res.json();
+    if (data?.access_token) setAuthToken(data.access_token);
+    if (data?.refresh_token) try { localStorage.setItem('HM_REFRESH_TOKEN', data.refresh_token); } catch {}
+    return data?.access_token || null;
 }
 async function apiFetch(path, init = {}, retry = true) {
     const method = (init.method || 'GET').toUpperCase();
     const headers = Object.assign({}, init.headers || {});
-    if ([ 'POST','PUT','PATCH','DELETE' ].includes(method)) {
-        const csrf = await ensureCsrf(); if (csrf) headers['x-csrf-token'] = csrf;
-    }
     const token = getAuthToken();
-    if (token && !headers['Authorization']) headers['Authorization'] = `Bearer ${token}`;
+    if (!token) throw new Error('Connexion requise');
+    if (!headers['Authorization']) headers['Authorization'] = `Bearer ${token}`;
     const sess = getStoredSession();
     if (sess?.playerId) headers['X-Player-ID'] = sess.playerId;
 
     const url = `${API_BASE}${path}`;
 
-    // Utiliser le plugin Capacitor HTTP en natif (Android/iOS) pour Ã©viter CORS
+    // Utiliser le plugin Capacitor HTTP en natif si disponible.
     try {
         const cap = (typeof window !== 'undefined') ? window.Capacitor : null;
         const isNative = !!(cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform());
@@ -346,18 +241,17 @@ async function apiFetch(path, init = {}, retry = true) {
         // Fallback fetch classique si plugin non dispo
     }
 
-    const res = await fetchWithFallback(path, { credentials: 'include', ...init, headers });
-    if (res.status === 401 && retry && getTokenSource() === 'guest') {
-        clearAuthToken();
-        try { await ensureGuestToken(true); } catch {}
-        return apiFetch(path, init, false);
+    const res = await fetch(url, { ...init, headers });
+    if (res.status === 401 && retry) {
+        const refreshed = await refreshDragToken();
+        if (refreshed) return apiFetch(path, init, false);
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     if (res.status === 204) return undefined;
     return await res.json();
 }
 async function ensureSession() {
-    await ensureGuestToken().catch(() => null);
+    if (!getAuthToken()) throw new Error('Connectez-vous depuis l’accueil du Millionnaire.');
     let sess = getStoredSession();
     if (sess?.gameId && sess?.playerId) return sess;
     // Auto-join sur la partie globale
@@ -393,42 +287,19 @@ async function loadDragSessionAndSyncHUD() {
 async function refreshAuthUi() {
     const setStatus = (text) => { if (authStatus) authStatus.textContent = text; };
     const setHint = (text) => { if (authHint) authHint.textContent = text; };
-    const showGuestMessage = (suffix = '') => {
-        const suffixLabel = suffix ? ` (${suffix})` : '';
-        setStatus(`Connexion requise${suffixLabel}`);
+    const showLoginMessage = () => {
+        setStatus('Connexion requise');
         setHint('Ouvre Drag depuis l\'accueil du Millionnaire pour utiliser ton profil.');
     };
 
     try {
         const me = await apiFetch('/api/auth/me');
-        if (me && me.guest) {
-            showGuestMessage(String(me.guestId || '').slice(-4));
-            try { updateMiniAuthIndicator(); } catch {}
-            return { me, authenticated: false };
-        }
         setStatus(me?.email || me?.nickname || 'Profil connectÃ©');
         setHint('DÃ©connexion via l\'accueil du Millionnaire.');
         try { updateMiniAuthIndicator(); } catch {}
         return { me, authenticated: true };
     } catch {
-        const source = getTokenSource();
-        if (source && source !== 'guest') {
-            clearAuthToken();
-            try {
-                await ensureGuestToken(true);
-                const fallback = await apiFetch('/api/auth/me');
-                if (fallback?.guest) {
-                    showGuestMessage(String(fallback.guestId || '').slice(-4));
-                    try { updateMiniAuthIndicator(); } catch {}
-                    return { me: fallback, authenticated: false };
-                }
-                setStatus(fallback?.email || fallback?.nickname || 'Profil connectÃ©');
-                setHint('DÃ©connexion via l\'accueil du Millionnaire.');
-                try { updateMiniAuthIndicator(); } catch {}
-                return { me: fallback, authenticated: true };
-            } catch {}
-        }
-        showGuestMessage();
+        showLoginMessage();
         try { updateMiniAuthIndicator(); } catch {}
         return { me: null, authenticated: false };
     }
@@ -438,21 +309,9 @@ function updateMiniAuthIndicator(){
     const box = document.getElementById('mini-auth-indicator');
     if(!box) return;
     const token = getAuthToken();
-    const source = getTokenSource();
     if(!token){
         box.style.display='block';
-        box.textContent='Invité';
-        return;
-    }
-    if(source==='guest'){
-        const guest = getStoredGuestIdentity();
-        if(guest && guest.nickname){
-            box.style.display='block';
-            box.textContent='Invité: '+guest.nickname;
-            return;
-        }
-        box.style.display='block';
-        box.textContent='Invité';
+        box.textContent='Connexion requise';
         return;
     }
     const sess = getStoredSession();
@@ -2649,16 +2508,11 @@ requestAnimationFrame(gameLoop);
         }
     });
 
-    // Fallback invité après 1000ms si aucun token reçu.
+    // Sans jeton parent, conserver l'écran de connexion requise.
     setTimeout(()=>{
         if (!parentTokenReceived) {
-            warn('Aucun token parent reçu après 1000ms, création invité');
-            ensureGuestToken()
-                .catch(()=>null)
-                .then(()=> refreshAuthUi()
-                    .then(()=> loadDragSessionAndSyncHUD().catch(()=>{}))
-                );
+            warn('Aucun jeton Supabase reçu après 1000ms');
+            refreshAuthUi().catch(()=>{});
         }
     }, 1000);
 })();
-

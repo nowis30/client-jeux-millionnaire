@@ -1,12 +1,11 @@
 "use client";
 import Link from "next/link";
-import { io, Socket } from "socket.io-client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearSession, loadSession, saveSession } from "../lib/session";
 import OnboardingHome from "../components/OnboardingHome";
 import CollapsibleSection from "../components/CollapsibleSection";
-import { apiFetch, API_BASE } from "../lib/api";
+import { apiFetch, clearAuthSession } from "../lib/api";
 import { formatMoney } from "../lib/format";
 import { showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown } from "../lib/ads";
 import { canLaunchNativeDrag, launchNativeDrag, DRAG_WEB_URL } from "../lib/drag";
@@ -16,7 +15,6 @@ type Entry = { playerId: string; nickname: string; netWorth: number };
 type GamePlayer = { id: string; nickname: string; cash: number; netWorth: number };
 type LobbySummary = { id: string; code: string; status: string; players: number; createdAt: string };
 
-// API_BASE fourni par lib/api
 const DEFAULT_STATUS = "lobby";
 
 export default function DashboardPage() {
@@ -24,7 +22,6 @@ export default function DashboardPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userEmail, setUserEmail] = useState<string>("");
-  const [authError, setAuthError] = useState<string | null>(null);
   // Vérifier la session utilisateur (auth)
   useEffect(() => {
     let mounted = true;
@@ -37,7 +34,6 @@ export default function DashboardPage() {
           setIsLoggedIn(true);
           setIsAdmin(!!me.isAdmin);
           setUserEmail(me.email);
-          setAuthError(null);
         }
         // Démarrer la musique de thème immédiatement sur accueil
         try {
@@ -49,7 +45,6 @@ export default function DashboardPage() {
           setIsLoggedIn(false);
           setIsAdmin(false);
           setUserEmail("");
-          setAuthError('Non connecté.');
         }
         // Ne pas rediriger automatiquement - laisser l'utilisateur décider
       }
@@ -88,7 +83,6 @@ export default function DashboardPage() {
   const [showHomeTutorial, setShowHomeTutorial] = useState(false);
   const [inviteAccepted, setInviteAccepted] = useState<string | null>(null);
   const [onlineEmails, setOnlineEmails] = useState<string[]>([]);
-  const [socketRef, setSocketRef] = useState<Socket | null>(null);
   const [bonusRewardAmount, setBonusRewardAmount] = useState(1_000_000);
   const [bonusCooldown, setBonusCooldown] = useState(0);
   const [bonusReady, setBonusReady] = useState(false);
@@ -100,17 +94,6 @@ export default function DashboardPage() {
   // Ouverture interne simple: /drag est maintenant une page intégrée.
   // Ancienne logique Capacitor supprimée (redirections externes). 
   
-    // Affichage debug auth si erreur
-    const AuthDebugBanner = () => {
-      if (!authError) return null;
-      return (
-        <div className="p-3 mb-4 rounded bg-red-900/40 border border-red-700 text-sm">
-          <p className="font-semibold">Auth: {authError}</p>
-          <p className="mt-1 text-xs opacity-75">Si cela persiste, ouvrez la page /debug-auth pour plus de détails (token, cookies).</p>
-        </div>
-      );
-    };
-
   useEffect(() => {
     const session = loadSession();
     if (session) {
@@ -295,50 +278,33 @@ export default function DashboardPage() {
     autoJoinGlobal();
   }, [autoJoinGlobal]);
 
-  // Connexion Socket.IO légère pour présence et polling online list
+  // Présence Supabase: battement léger et liste des joueurs actifs.
   useEffect(() => {
     if (!gameId || !userEmail) return;
-    try {
-      // Connexion Socket.IO directe au serveur API (nécessaire en APK/Capacitor)
-      const s = io(API_BASE, {
-        path: "/socket.io",
-        transports: ["websocket"],
-        withCredentials: true,
-        query: { gameId, nickname: userEmail },
-      });
-      setSocketRef(s);
-      const poll = async () => {
-        try {
-          const res = await fetch(`${API_BASE}/api/games/${gameId}/online`, { credentials: 'include' });
-          if (!res.ok) return;
-          const data = await res.json();
-          setOnlineEmails(Array.isArray(data.users) ? data.users : []);
-        } catch {}
-      };
-      poll();
-      const iv = setInterval(poll, 15000);
-      return () => { try { clearInterval(iv); } catch {}; s.close(); setSocketRef(null); };
-    } catch {
-      // ignore en cas d’échec de connexion socket
-    }
+    let mounted = true;
+    const poll = async () => {
+      try {
+        await apiFetch(`/api/games/${gameId}/presence`, { method: "POST" });
+        const data = await apiFetch<{ users?: string[] }>(`/api/games/${gameId}/online`);
+        if (mounted) setOnlineEmails(Array.isArray(data.users) ? data.users : []);
+      } catch {}
+    };
+    void poll();
+    const interval = setInterval(poll, 20_000);
+    return () => { mounted = false; clearInterval(interval); };
   }, [gameId, userEmail]);
 
   const openPortfolio = useCallback(async (p: GamePlayer) => {
     if (!gameId) return;
     setPortfolioPlayer(p);
     try {
-      const [propsRes, mktRes, pricesRes, ecoRes, statsRes] = await Promise.all([
-        fetch(`${API_BASE}/api/games/${gameId}/properties/holdings/${p.id}`, { credentials: 'include' }),
-        fetch(`${API_BASE}/api/games/${gameId}/markets/holdings/${p.id}`, { credentials: 'include' }),
-        fetch(`${API_BASE}/api/games/${gameId}/markets/latest`, { credentials: 'include' }),
-        fetch(`${API_BASE}/api/games/${gameId}/economy`, { credentials: 'include' }),
-        fetch(`${API_BASE}/api/quiz/public-stats`, { credentials: 'include' }),
+      const [propsData, mktData, pricesData, ecoData, statsData] = await Promise.all([
+        apiFetch<any>(`/api/games/${gameId}/properties/holdings/${p.id}`),
+        apiFetch<any>(`/api/games/${gameId}/markets/holdings/${p.id}`),
+        apiFetch<any>(`/api/games/${gameId}/markets/latest`),
+        apiFetch<any>(`/api/games/${gameId}/economy`),
+        apiFetch<any>(`/api/quiz/public-stats`),
       ]);
-      const propsData = propsRes.ok ? await propsRes.json() : { holdings: [] };
-      const mktData = mktRes.ok ? await mktRes.json() : { holdings: [] };
-      const pricesData = pricesRes.ok ? await pricesRes.json() : { prices: [] };
-      const ecoData = ecoRes.ok ? await ecoRes.json() : null;
-  const statsData = statsRes.ok ? await statsRes.json() : null;
       setPortfolioProps(propsData.holdings ?? []);
       setPortfolioMkts(mktData.holdings ?? []);
       const pm: Record<string, number> = {};
@@ -711,8 +677,6 @@ export default function DashboardPage() {
   return (
     <>
   <main className="space-y-6 overflow-x-hidden">
-      <div className="text-xs opacity-60">DEBUG API_BASE: {API_BASE}</div>
-  <AuthDebugBanner />
       {/* Bannière Nouveautés (nov 2025) */}
       <div className="rounded-card border border-indigo-600 bg-gradient-to-r from-indigo-700/60 to-purple-700/50 p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 shadow-elev-1">
         <div className="text-sm md:text-base font-semibold text-indigo-100 flex items-center gap-2">
@@ -788,16 +752,7 @@ export default function DashboardPage() {
               <button
                 onClick={async () => {
                   try { await apiFetch<{ ok: boolean }>("/api/auth/logout", { method: "POST" }); } catch {}
-                  // Double filet: purge locale explicite des cookies si navigateur ne retire pas les SameSite=None (dev HTTP)
-                  try {
-                    if (typeof document !== 'undefined') {
-                      const exp = 'Thu, 01 Jan 1970 00:00:00 GMT';
-                      document.cookie = 'hm_auth=; expires=' + exp + '; path=/';
-                      document.cookie = 'hm_csrf=; expires=' + exp + '; path=/';
-                      document.cookie = 'hm_guest=; expires=' + exp + '; path=/';
-                    }
-                  } catch {}
-                  try { if (typeof window !== "undefined") window.localStorage.removeItem("HM_TOKEN"); } catch {}
+                  clearAuthSession();
                   try { if (typeof window !== "undefined") window.localStorage.removeItem("hm-session"); } catch {}
                   clearSession(); setIsLoggedIn(false); setIsAdmin(false); setUserEmail('');
                   router.replace("/login");

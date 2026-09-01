@@ -1,9 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { apiFetch, API_BASE } from "../../lib/api";
+import { apiFetch } from "../../lib/api";
 import { formatMoney } from "../../lib/format";
-
-// Utiliser toujours l'API_BASE absolu (export statique => pas de proxy Next)
 
 export default function PortefeuillePage() {
   const [gameId, setGameId] = useState("");

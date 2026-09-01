@@ -1,32 +1,29 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [
-    {
-      "source": "/api/games/:gameId/drag/:path*",
-      "destination": "https://smwrpejnegtssmtmnecb.supabase.co/functions/v1/heritier-drag/api/games/:gameId/drag/:path*"
-    },
-    {
-      "source": "/api/:path*",
-      "destination": "https://smwrpejnegtssmtmnecb.supabase.co/functions/v1/heritier-api/api/:path*"
-    },
-    {
-      "source": "/health",
-      "destination": "https://smwrpejnegtssmtmnecb.supabase.co/functions/v1/heritier-api/health"
-    },
-    {
-      "source": "/healthz",
-      "destination": "https://smwrpejnegtssmtmnecb.supabase.co/functions/v1/heritier-api/healthz"
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
-        { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains; preload" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains; preload"
+        }
       ]
     }
   ]

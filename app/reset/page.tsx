@@ -1,8 +1,7 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { recoveryAccessTokenFromUrl, updateSupabasePassword } from "../../lib/supabase-auth";
+import { apiFetch, captureAuthSessionFromUrl } from "../../lib/api";
 
 export default function ResetPage() {
   const router = useRouter();
@@ -12,22 +11,26 @@ export default function ResetPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const recoveryToken = recoveryAccessTokenFromUrl();
-    setToken(recoveryToken ?? "");
-    if (!recoveryToken) setError("Lien de réinitialisation invalide ou expiré.");
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const captured = captureAuthSessionFromUrl();
+      const t = captured.accessToken || sp.get("token") || "";
+      setToken(t);
+      if (!t) setError("Lien de réinitialisation invalide ou expiré.");
+    }
   }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!token) {
-      setError("Lien de réinitialisation invalide ou expiré.");
-      return;
-    }
     try {
-      await updateSupabasePassword(token, password);
+      await apiFetch("/api/auth/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password }),
+      });
       setDone(true);
-      window.setTimeout(() => router.replace("/login"), 1200);
+      setTimeout(() => router.push("/login"), 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Échec de la réinitialisation");
     }

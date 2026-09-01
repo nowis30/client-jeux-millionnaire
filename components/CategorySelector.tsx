@@ -48,7 +48,7 @@ export default function CategorySelector({
 
   const toggleCategory = (categoryId: QuizCategory) => {
     const count = categoryCounts[categoryId] || 0;
-    if (count < 20) return; // Prevent selection if not enough questions
+    if (count < 1) return;
 
     const newSelected = new Set(selectedCategories);
     if (newSelected.has(categoryId)) {
@@ -60,9 +60,9 @@ export default function CategorySelector({
   };
 
   const selectAll = () => {
-    // Only select categories with enough questions
+    // Sélectionner les catégories déjà alimentées dans la banque Supabase.
     const validCategories = filteredCategories
-      .filter(cat => (categoryCounts[cat.id] || 0) >= 20)
+      .filter(cat => (categoryCounts[cat.id] || 0) >= 1)
       .map(cat => cat.id);
     setSelectedCategories(new Set(validCategories));
   };
@@ -85,7 +85,7 @@ export default function CategorySelector({
     const groupCategories = categoriesByGroup[groupKey] || [];
     const newSelected = new Set(selectedCategories);
     groupCategories.forEach(cat => {
-      if ((categoryCounts[cat.id] || 0) >= 20) {
+      if ((categoryCounts[cat.id] || 0) >= 1) {
         newSelected.add(cat.id);
       }
     });
@@ -200,7 +200,7 @@ export default function CategorySelector({
                     {categories.map((category) => {
                       const isSelected = selectedCategories.has(category.id);
                       const count = categoryCounts[category.id] || 0;
-                      const isDisabled = count < 20;
+                      const isDisabled = count < 1;
                       
                       return (
                         <button

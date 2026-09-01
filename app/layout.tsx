@@ -12,7 +12,6 @@ const PresenceClient = dynamic(() => import("./_components/PresenceClient"), { s
 const AdInitializer = dynamic(() => import("./_components/AdInitializer"), { ssr: false });
 const BackgroundMusic = dynamic(() => import("./_components/BackgroundMusic"), { ssr: false });
 const ConsentBanner = dynamic(() => import("./_components/ConsentBanner"), { ssr: false });
-const KeepAliveClient = dynamic(() => import("./_components/KeepAliveClient"), { ssr: false });
 export const metadata: Metadata = {
   title: "Héritier Millionnaire",
   description: "Simulez immobilier, bourse, quiz de culture financière et devenez l'héritier millionnaire.",
@@ -145,8 +144,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <BackgroundMusic />
             {/* Bandeau de consentement RGPD */}
             <ConsentBanner />
-            {/* Keep-alive Render pour limiter le cold start apparent */}
-            <KeepAliveClient />
           </MountGate>
           {/* Suppression de l'écran d'attente: on arrive directement sur l'accueil */}
           {children}

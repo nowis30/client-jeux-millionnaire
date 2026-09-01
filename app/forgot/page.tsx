@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { requestSupabasePasswordReset } from "../../lib/supabase-auth";
+import { apiFetch } from "../../lib/api";
 
 export default function ForgotPage() {
   const [email, setEmail] = useState("");
@@ -12,7 +12,11 @@ export default function ForgotPage() {
     e.preventDefault();
     setError(null);
     try {
-      await requestSupabasePasswordReset(email);
+      await apiFetch<{ ok: boolean }>("/api/auth/request-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Échec de l’envoi");

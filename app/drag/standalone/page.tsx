@@ -37,7 +37,7 @@ export default function DragStandalonePage() {
       <iframe
         ref={iframeRef}
         title="Drag Shift Duel Fullscreen"
-        src="/drag/iframe.html"
+        src="/drag/iframe"
         className="w-full h-full"
         allow="fullscreen"
       />

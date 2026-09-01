@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 /**
  * Wrapper client-side pour l'iframe drag qui gère le transfert du token d'authentification
@@ -8,23 +8,6 @@ import { useEffect, useRef, useState } from "react";
  */
 export default function DragIframeWrapper() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [src, setSrc] = useState<string>("/drag/iframe");
-
-  // Vérifie si /drag/iframe.html est disponible; sinon, bascule vers /drag/index.html
-  useEffect(() => {
-    let aborted = false;
-    (async () => {
-      try {
-        const res = await fetch("/drag/iframe", { method: "HEAD" });
-        if (!aborted && (!res.ok || res.status === 404)) {
-          setSrc("/drag/index.html");
-        }
-      } catch {
-        if (!aborted) setSrc("/drag/index.html");
-      }
-    })();
-    return () => { aborted = true; };
-  }, []);
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -66,10 +49,9 @@ export default function DragIframeWrapper() {
     <iframe
       ref={iframeRef}
       title="Drag Shift Duel"
-      src={src}
+      src="/drag/iframe"
       className="w-full h-full bg-black"
       allow="fullscreen"
-      onError={() => setSrc("/drag/index.html")}
     />
   );
 }

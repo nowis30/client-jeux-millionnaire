@@ -1,7 +1,7 @@
 const ABS_BACKEND = (
-  process.env.NEXT_PUBLIC_RENDER_API_URL ??
+  process.env.NEXT_PUBLIC_SUPABASE_API_URL ??
   process.env.NEXT_PUBLIC_API_BASE ??
-  "https://server-jeux-millionnaire.onrender.com"
+  "https://smwrpejnegtssmtmnecb.supabase.co/functions/v1/heritier-api"
 ).replace(/\/+$/, "");
 
 const isBrowser = typeof window !== "undefined";
@@ -16,13 +16,12 @@ export const DEBUG_ENABLED = !IS_PRODUCTION;
 
 const shouldUseSameOriginProxy = !isCapacitor && !forceAbs && (forceProxy || !isLocalDev);
 
-// En production web, on privilégie le proxy Vercel `/api/*` pour éviter les problèmes
-// de cookies tiers, CORS et sessions entre app.nowis.store et Render.
+// Sur le Web, /api/* est réécrit par Vercel vers l'Edge Function Supabase.
+// Sur Android/Capacitor et en secours réseau, les appels vont directement à Supabase.
 export const API_BASE = shouldUseSameOriginProxy ? "" : ABS_BACKEND;
 
-// Les websockets restent directs vers Render: les proxys Vercel externes ne sont pas
-// fiables pour Socket.IO avec un export statique.
-export const SOCKET_BASE = process.env.NEXT_PUBLIC_SOCKET_BASE ?? ABS_BACKEND;
+// Socket.IO Render est retiré. Le temps réel sera migré vers Supabase Realtime.
+export const SOCKET_BASE = process.env.NEXT_PUBLIC_SOCKET_BASE ?? "";
 
 const RETRYABLE_PROXY_STATUSES = new Set([502, 503, 504]);
 
@@ -60,7 +59,7 @@ debugLog("[API] isLocalDev:", isLocalDev);
 debugLog("[API] forceAbs:", forceAbs);
 debugLog("[API] forceProxy:", forceProxy);
 debugLog("[API] API_BASE:", API_BASE || "(same-origin proxy)");
-debugLog("[API] SOCKET_BASE:", SOCKET_BASE);
+debugLog("[API] SOCKET_BASE:", SOCKET_BASE || "(Supabase Realtime à venir)");
 
 export function getApiUrl(path: string, base = API_BASE): string {
   if (/^https?:\/\//i.test(path)) return path;
@@ -82,13 +81,13 @@ async function fetchWithFallback(path: string, init: RequestInit): Promise<{ res
   try {
     const primary = await attempt(API_BASE);
     if (shouldRetryWithAbsoluteBackend(primary.baseUsed, primary.res.status)) {
-      debugLog(`[API] Proxy Vercel ${primary.res.status}, tentative directe Render`);
+      debugLog(`[API] Proxy Vercel ${primary.res.status}, tentative directe Supabase`);
       return attempt(ABS_BACKEND);
     }
     return primary;
   } catch (error) {
     if (shouldRetryWithAbsoluteBackend(API_BASE)) {
-      debugLog("[API] Échec proxy, tentative directe Render");
+      debugLog("[API] Échec proxy, tentative directe Supabase");
       return attempt(ABS_BACKEND);
     }
     throw error;
@@ -126,8 +125,8 @@ function getPlayerId(): string | null {
     if (!session) return null;
     const data = JSON.parse(session);
     return data.playerId || null;
-  } catch { 
-    return null; 
+  } catch {
+    return null;
   }
 }
 
@@ -156,50 +155,45 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
 
     debugLog(`[API] Response ${res.status} ${res.statusText}`);
 
-  // Si 401 et on a un bearer local, tenter un refresh côté serveur puis rejouer 1x
-  if (res.status === 401) {
-    try {
-      if (bearer) {
-        // tenter un refresh silencieux
-        const r = await fetch(getApiUrl("/api/auth/refresh", baseUsed), { credentials: "include", headers: { Authorization: `Bearer ${bearer}` } });
-        if (r.ok) {
-          const data = await r.json().catch(() => ({} as any));
-          if (data?.token) {
-            try { window.localStorage.setItem(TOKEN_KEY, data.token); } catch {}
-            headers["Authorization"] = `Bearer ${data.token}`;
+    if (res.status === 401) {
+      try {
+        if (bearer) {
+          const r = await fetch(getApiUrl("/api/auth/refresh", baseUsed), { credentials: "include", headers: { Authorization: `Bearer ${bearer}` } });
+          if (r.ok) {
+            const data = await r.json().catch(() => ({} as any));
+            if (data?.token) {
+              try { window.localStorage.setItem(TOKEN_KEY, data.token); } catch {}
+              headers["Authorization"] = `Bearer ${data.token}`;
+            }
+            const retry = await fetch(getApiUrl(path, baseUsed), { credentials: "include", ...init, headers });
+            if (!retry.ok) throw new ApiError(retry.status, retry.statusText);
+            if (retry.status === 204) return undefined as unknown as T;
+            return (await retry.json()) as T;
           }
-          // rejouer la requête originale une seule fois
-          const retry = await fetch(getApiUrl(path, baseUsed), { credentials: "include", ...init, headers });
-          if (!retry.ok) throw new ApiError(retry.status, retry.statusText);
-          if (retry.status === 204) return undefined as unknown as T;
-          return (await retry.json()) as T;
         }
-      }
-    } catch {}
-  }
-  if (!res.ok) {
-    // Essayer d'extraire le message d'erreur renvoyé par le serveur (JSON ou texte)
-    try {
-      const ct = res.headers.get("content-type") || "";
-      if (ct.includes("application/json")) {
-        const data = (await res.json()) as any;
-        const msg = (data && (data.error || data.message)) ? String(data.error || data.message) : `Erreur ${res.status}`;
-        throw new ApiError(res.status, msg);
-      } else {
-        const text = await res.text();
-        const trimmed = (text || '').trim();
-        const msg = trimmed.length ? trimmed : (res.statusText ? `${res.status} ${res.statusText}` : `Erreur ${res.status}`);
-        throw new ApiError(res.status, msg);
-      }
-    } catch (e) {
-      // Si tout échoue, renvoyer un message d'état générique
-      const fallback = res.statusText ? `${res.status} ${res.statusText}` : `Erreur ${res.status}`;
-      if (e instanceof ApiError) throw e;
-      throw new ApiError(res.status, fallback);
+      } catch {}
     }
-  }
-  if (res.status === 204) return undefined as unknown as T;
-  return (await res.json()) as T;
+    if (!res.ok) {
+      try {
+        const ct = res.headers.get("content-type") || "";
+        if (ct.includes("application/json")) {
+          const data = (await res.json()) as any;
+          const msg = (data && (data.error || data.message)) ? String(data.error || data.message) : `Erreur ${res.status}`;
+          throw new ApiError(res.status, msg);
+        } else {
+          const text = await res.text();
+          const trimmed = (text || '').trim();
+          const msg = trimmed.length ? trimmed : (res.statusText ? `${res.status} ${res.statusText}` : `Erreur ${res.status}`);
+          throw new ApiError(res.status, msg);
+        }
+      } catch (e) {
+        const fallback = res.statusText ? `${res.status} ${res.statusText}` : `Erreur ${res.status}`;
+        if (e instanceof ApiError) throw e;
+        throw new ApiError(res.status, fallback);
+      }
+    }
+    if (res.status === 204) return undefined as unknown as T;
+    return (await res.json()) as T;
   } catch (fetchError: any) {
     if (DEBUG_ENABLED) {
       console.error('[API] Fetch error:', fetchError);

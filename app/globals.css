@@ -4,12 +4,43 @@
 
 :root {
   --bg: 16 16 20;
+  color-scheme: dark;
 }
 
-/* Fond et texte globaux alignés sur le thème Android */
-body { @apply bg-surface-0 text-surface-on; }
+html {
+  background: #080b12;
+  overscroll-behavior-y: none;
+}
+
+body {
+  @apply bg-surface-0 text-surface-on;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(34, 211, 238, 0.10), transparent 34rem),
+    radial-gradient(circle at 110% 20%, rgba(99, 102, 241, 0.09), transparent 28rem),
+    #0a0d14;
+  -webkit-tap-highlight-color: transparent;
+}
 
 a { @apply text-sky-400 hover:underline; }
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(103, 232, 249, 0.9);
+  outline-offset: 2px;
+}
 
 /* Respecte les encoches et barres système sur mobile */
 .safe-top { padding-top: env(safe-area-inset-top); }
@@ -33,13 +64,26 @@ a { @apply text-sky-400 hover:underline; }
   animation: fadeIn 0.3s ease-out;
 }
 
-/* Composants utilitaires basés sur les tokens Tailwind */
-.ui-card { @apply bg-surface-2 border border-surface-divider rounded-card shadow-elev-1; }
-.ui-section { @apply bg-surface-1 border border-surface-divider rounded-card shadow-elev-2; }
+/* Surfaces plus nettes et plus cohérentes avec une application de jeu moderne. */
+.ui-card {
+  @apply bg-surface-2 border border-surface-divider rounded-card shadow-elev-1;
+  background-image: linear-gradient(145deg, rgba(255,255,255,0.035), rgba(255,255,255,0));
+}
+
+.ui-section {
+  @apply bg-surface-1 border border-surface-divider rounded-card shadow-elev-2;
+  background-image: linear-gradient(145deg, rgba(34,211,238,0.025), rgba(255,255,255,0));
+}
+
 .ui-divider { @apply border-t border-surface-divider; }
 .ui-badge { @apply text-xs px-2 py-1 rounded-card bg-surface-3 border border-surface-divider text-surface-on/90; }
 
-.ui-btn { @apply inline-flex items-center justify-center px-4 py-2 rounded-button font-semibold transition-colors; }
+.ui-btn {
+  @apply inline-flex items-center justify-center px-4 py-2 rounded-button font-semibold transition-colors;
+  min-height: 44px;
+  transition: transform 120ms ease, filter 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+.ui-btn:active { transform: scale(0.975); }
 .ui-btn--primary { @apply bg-brand-green text-black hover:brightness-110 shadow-elev-1; }
 .ui-btn--info { @apply bg-brand-sky text-black hover:brightness-110 shadow-elev-1; }
 .ui-btn--warning { @apply bg-brand-amber text-black hover:brightness-110 shadow-elev-1; }
@@ -47,7 +91,6 @@ a { @apply text-sky-400 hover:underline; }
 .ui-btn--neutral { @apply bg-surface-3 text-surface-on hover:bg-surface-2 border border-surface-divider; }
 
 .ui-chip { @apply text-[11px] px-2 py-1 rounded-full bg-surface-2 border border-surface-divider text-surface-on/80; }
-
 .ui-touch { @apply min-h-11 min-w-11 rounded-touch; }
 
 /* Plateforme: contrôle d'affichage sans divergences SSR/CSR */
@@ -55,3 +98,127 @@ html.native .native-hide { display: none !important; }
 html.web .web-hide { display: none !important; }
 html.web .native-only { display: none !important; }
 html.native .web-only { display: none !important; }
+
+/* -------------------------------------------------------------------------- */
+/* Quiz mobile : une question doit se jouer comme un écran, pas comme un site */
+/* qui oblige à descendre à chaque réponse.                                   */
+/* -------------------------------------------------------------------------- */
+@media (max-width: 639px) {
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden !important;
+    padding: max(6px, env(safe-area-inset-top)) 6px 0 !important;
+  }
+
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) > .max-w-4xl {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) > .max-w-4xl > .flex:first-child {
+    flex: 0 0 auto;
+    margin-bottom: 4px !important;
+    min-height: 40px;
+  }
+
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .pb-44 {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: calc(70px + env(safe-area-inset-bottom)) !important;
+    scrollbar-width: none;
+  }
+
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .pb-44::-webkit-scrollbar {
+    display: none;
+  }
+
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .pb-44 .ui-card {
+    border-radius: 16px;
+  }
+
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .pb-44 img {
+    max-height: 76px !important;
+  }
+
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .pb-44 h2 {
+    font-size: 1rem !important;
+    line-height: 1.28 !important;
+    margin-bottom: 8px !important;
+  }
+
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .pb-44 .grid.grid-cols-2 > button {
+    min-height: 50px !important;
+    padding: 9px 10px !important;
+  }
+
+  /* Barre d'actions du quiz: une seule rangée compacte. */
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 {
+    display: flex !important;
+    align-items: center;
+    gap: 5px !important;
+    min-height: 64px;
+    padding: 6px 6px max(6px, env(safe-area-inset-bottom)) !important;
+    overflow: hidden;
+    background: rgba(7, 10, 19, 0.97) !important;
+    border-top-color: rgba(255,255,255,0.10) !important;
+    box-shadow: 0 -12px 30px rgba(0,0,0,0.28);
+  }
+
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button {
+    min-height: 48px !important;
+    border-radius: 14px !important;
+    padding: 6px 8px !important;
+    white-space: nowrap;
+  }
+
+  /* Actions secondaires = icônes; on garde l'espace pour les deux décisions importantes. */
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(1),
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(3),
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(4) {
+    flex: 0 0 44px !important;
+    width: 44px !important;
+    font-size: 0 !important;
+  }
+
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(1)::after {
+    content: "🎁";
+    font-size: 20px;
+  }
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(3)::after {
+    content: "⏭";
+    font-size: 20px;
+  }
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(4)::after {
+    content: "💡";
+    font-size: 20px;
+  }
+
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(2) {
+    flex: 0 1 108px !important;
+    font-size: 11px !important;
+    line-height: 1.1 !important;
+    overflow: hidden;
+  }
+
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:last-of-type {
+    flex: 1 1 118px !important;
+    width: auto !important;
+    font-size: 13px !important;
+    line-height: 1.1 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

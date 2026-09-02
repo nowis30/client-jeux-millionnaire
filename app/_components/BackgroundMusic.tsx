@@ -40,7 +40,7 @@ export default function BackgroundMusic() {
       "/audio/Theme.mp3",
       "/audio/theme.MP3"
     ];
-    const tryNext = async (idx: number) => {
+    const tryNext = async (idx: number): Promise<void> => {
       if (disposed || idx >= candidates.length) {
         setMissingFile(true);
         return;
@@ -52,7 +52,8 @@ export default function BackgroundMusic() {
         if (!res.ok) throw new Error(String(res.status));
       } catch {
         // essaie suivant si HEAD échoue
-        return tryNext(idx + 1);
+        await tryNext(idx + 1);
+        return;
       }
       const a = new Audio(src);
       a.loop = true;

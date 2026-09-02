@@ -864,28 +864,28 @@ export default function QuizPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900 text-white p-4 overflow-x-hidden">
+    <div className={`min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900 text-white overflow-x-hidden ${session && question ? 'px-2 py-2 sm:p-4' : 'p-4'}`}>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
+        <div className={`flex justify-between items-center ${session && question ? 'mb-2' : 'mb-8'}`}>
           <button
             onClick={() => router.push("/")}
-            className="ui-btn ui-btn--neutral"
+            className={`ui-btn ui-btn--neutral ${session && question ? 'px-2 py-1 text-xs sm:text-sm' : ''}`}
           >
-            ← Retour
+            <span className="sm:hidden">←</span><span className="hidden sm:inline">← Retour</span>
           </button>
-          <h1 className="text-3xl font-bold text-center">💰 Quitte ou Double</h1>
-          <div className="text-sm text-surface-muted min-w-[120px] text-right">
-            <div className="flex items-center justify-end gap-2">
+          <h1 className={`${session && question ? 'text-lg sm:text-2xl' : 'text-3xl'} font-bold text-center`}>💰 Quitte ou Double</h1>
+          <div className={`text-sm text-surface-muted text-right ${session && question ? '' : 'min-w-[120px]'}`}>
+            <div className="flex items-center justify-end gap-1 sm:gap-2">
               <button
                 onClick={() => setShowTutorial(true)}
                 className="ui-btn ui-btn--neutral px-2 py-1"
                 title="Voir le tutoriel"
               >
-                ❓ Tutoriel
+                <span className="sm:hidden">❓</span><span className="hidden sm:inline">❓ Tutoriel</span>
               </button>
               {online != null ? (
-                <span title="Joueurs connectés à la partie">👥 {online} en ligne</span>
+                <span className="hidden sm:inline" title="Joueurs connectés à la partie">👥 {online} en ligne</span>
               ) : (
                 <span className="text-surface-muted"> </span>
               )}
@@ -894,7 +894,7 @@ export default function QuizPage() {
         </div>
 
         {/* Statistiques des questions en banque */}
-        {stats && (
+        {stats && !session && (
           <div className="mb-6 text-xs">
             <div className="flex flex-wrap items-center gap-2">
               {typeof stats.remaining === 'number' && (
@@ -1095,72 +1095,59 @@ export default function QuizPage() {
 
         {/* Session active */}
         {session && question && (
-          <div className="space-y-6">
+          <div className="space-y-2 sm:space-y-4 pb-44 sm:pb-4">
             {/* Progression */}
-            <div className="ui-card bg-white/10 backdrop-blur rounded-xl border border-white/10 p-6">
-              <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="ui-card bg-white/10 backdrop-blur rounded-xl border border-white/10 p-2 sm:p-4">
+              <div className="grid grid-cols-3 gap-2 items-center">
                 <div>
-                  <div className="text-sm text-surface-muted">Question</div>
-                  <div className="text-2xl font-bold">{session.currentQuestion} / 10</div>
+                  <div className="text-[10px] sm:text-sm text-surface-muted">Question</div>
+                  <div className="text-lg sm:text-2xl font-bold">{session.currentQuestion} / 10</div>
+                </div>
+                <div className="flex justify-center">
+                  <div className={`text-base sm:text-lg font-mono px-3 py-1 rounded-full border ${timeLeft <= 5 ? 'bg-rose-600 border-rose-500 animate-pulse' : 'bg-black/30 border-surface-divider'}`}>⏱️ {timeLeft}s</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm text-surface-muted">Gains actuels</div>
-                  <div className="text-2xl font-bold text-green-400">{formatMoney(session.currentEarnings)}</div>
+                  <div className="text-[10px] sm:text-sm text-surface-muted">Gains</div>
+                  <div className="text-lg sm:text-2xl font-bold text-green-400">{formatMoney(session.currentEarnings)}</div>
                 </div>
               </div>
-              {/* Timer */}
-              <div className="mb-2 flex items-center justify-center">
-                <div className={`text-lg font-mono px-4 py-1 rounded-full border ${timeLeft <= 5 ? 'bg-rose-600 border-rose-500 animate-pulse' : 'bg-black/30 border-surface-divider'}`}>⏱️ {timeLeft}s</div>
-              </div>
-              <div className="text-center text-sm text-surface-muted">Sauts restants : <span className="font-bold">{session.skipsLeft ?? 0} / 3</span></div>
-              <div className="text-center text-sm text-purple-300 mt-1">
-                ✨ Passes de vie : <span className="font-bold">{lifePasses}</span>
-              </div>
-              {session.skipsLeft === 0 && (
-                <div className="mt-2 flex justify-center text-xs text-surface-muted">
-                  Recharge de saut momentanément indisponible.
-                </div>
-              )}
-              <div className="text-center">
-                <div className="text-sm text-surface-muted mb-1">Prochain gain</div>
-                <div className="text-3xl font-bold text-yellow-400">{formatMoney(session.nextPrize)}</div>
+              <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] sm:text-sm">
+                <span>⏭️ {session.skipsLeft ?? 0}/3</span>
+                <span className="text-purple-300">✨ {lifePasses}</span>
+                <span className="text-yellow-300">Prochain : <b>{formatMoney(session.nextPrize)}</b></span>
                 {PRIZE_LADDER[session.currentQuestion - 1]?.milestone && (
-                  <div className="mt-2 text-xs text-green-400">🛡️ Palier de sécurité</div>
+                  <span className="text-green-400">🛡️ Palier</span>
                 )}
+                {session.securedAmount > 0 && <span className="text-green-400">Sécurisé : <b>{formatMoney(session.securedAmount)}</b></span>}
               </div>
-              {session.securedAmount > 0 && (
-                <div className="mt-4 text-center text-sm text-surface-muted">
-                  Montant sécurisé : <span className="font-bold text-green-400">{formatMoney(session.securedAmount)}</span>
-                </div>
-              )}
             </div>
 
             {/* Question */}
-            <div key={question.id} className="ui-card bg-white/10 backdrop-blur rounded-xl border border-white/10 p-8">
+            <div key={question.id} className="ui-card bg-white/10 backdrop-blur rounded-xl border border-white/10 p-3 sm:p-6">
               {/* Illustration de la question (réactivée, plus claire) */}
               {question.imageUrl && !isClassic && (
-                <div className="mb-6 relative rounded-card overflow-hidden border border-surface-divider">
+                <div className="mb-2 sm:mb-4 relative rounded-card overflow-hidden border border-surface-divider">
                   <img
                     src={question.imageUrl}
                     alt="Illustration de la question"
-                    className="w-full max-h-72 object-cover brightness-110"
+                    className="w-full max-h-28 sm:max-h-52 object-cover brightness-110"
                   />
                   {/* Overlay léger pour garder les couleurs douces sans trop assombrir */}
                   <div className="absolute inset-0 pointer-events-none bg-black/10" />
                 </div>
               )}
 
-              <h2 className="text-2xl font-bold mb-6 text-center">{question.text}</h2>
+              <h2 className="text-lg sm:text-2xl font-bold mb-3 sm:mb-5 text-center leading-snug">{question.text}</h2>
               {showTimeoutReveal && (
                 <div className="mb-4 text-center text-rose-300 text-sm">Temps écoulé — réponse correcte: <span className="font-bold">{revealCorrect}</span></div>
               )}
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 {['A', 'B', 'C', 'D'].map((letter) => {
                   const isCorrect = revealCorrect === letter;
                   const isWrongSelected = revealCorrect && selectedAnswer === letter && revealCorrect !== selectedAnswer;
                   const disabled = !!revealCorrect; // Ne bloquer que si la réponse est révélée
-                  const base = 'p-4 rounded-card text-left transition transform hover:scale-105';
+                  const base = 'p-3 sm:p-4 min-h-14 rounded-card text-left text-sm sm:text-base leading-tight transition sm:hover:scale-[1.02]';
                   const stateClass = revealCorrect
                     ? (isCorrect ? 'bg-green-400 text-black font-bold' : (isWrongSelected ? 'bg-red-600 text-white font-bold' : 'bg-white/5'))
                     : (selectedAnswer === letter ? 'bg-amber-400 text-black font-bold shadow-elev-1' : 'bg-white/5 hover:bg-white/10 text-white');
@@ -1179,11 +1166,11 @@ export default function QuizPage() {
             </div>
 
             {/* Actions */}
-            <div className="flex flex-col md:flex-row gap-4">
+            <div className="fixed sm:static bottom-0 inset-x-0 z-40 grid grid-cols-2 sm:flex gap-2 p-2 sm:p-0 bg-slate-950/95 sm:bg-transparent border-t sm:border-0 border-white/10 backdrop-blur sm:backdrop-blur-none">
               <button
                 onClick={watchAdForLifePass}
                 disabled={isLoadingAd}
-                className={`ui-btn ui-btn--info w-full md:w-auto font-bold text-sm ${isLoadingAd ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`ui-btn ui-btn--info w-full sm:w-auto font-bold text-xs sm:text-sm ${isLoadingAd ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="Regarder une publicité pour obtenir une passe de vie"
               >
                 {isLoadingAd ? "⏳ ..." : "📺 Pub → +1 Passe"}
@@ -1191,14 +1178,14 @@ export default function QuizPage() {
               <button
                 onClick={cashOut}
                 disabled={isAnswering || session.currentEarnings === 0}
-                className={`ui-btn ui-btn--primary w-full md:flex-1 font-bold text-lg ${isAnswering || session.currentEarnings === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`ui-btn ui-btn--primary w-full sm:flex-1 font-bold text-sm sm:text-lg ${isAnswering || session.currentEarnings === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 💰 Encaisser {formatMoney(session.currentEarnings)}
               </button>
               <button
                 onClick={skipQuestion}
                 disabled={isAnswering || !!revealCorrect || (session.skipsLeft ?? 0) <= 0}
-                className={`ui-btn ui-btn--neutral w-full md:w-auto font-bold text-lg ${isAnswering || !!revealCorrect || (session.skipsLeft ?? 0) <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`ui-btn ui-btn--neutral w-full sm:w-auto font-bold text-sm sm:text-lg ${isAnswering || !!revealCorrect || (session.skipsLeft ?? 0) <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="Passer cette question"
               >
                 ⏭️ Passer ({session.skipsLeft ?? 0}/3)
@@ -1207,7 +1194,7 @@ export default function QuizPage() {
                 <button
                   onClick={revealAnswerViaAd}
                   disabled={revealLoading || !!revealCorrect || showTimeoutReveal}
-                  className={`ui-btn ui-btn--warning w-full md:w-auto font-bold text-sm ${revealLoading || !!revealCorrect || showTimeoutReveal ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`ui-btn ui-btn--warning w-full sm:w-auto font-bold text-xs sm:text-sm ${revealLoading || !!revealCorrect || showTimeoutReveal ? 'opacity-50 cursor-not-allowed' : ''}`}
                   title="Regarder une publicité pour obtenir automatiquement la bonne réponse"
                 >
                   {revealLoading ? '⏳ Révélation...' : '📺 Réponse auto (pub)'}
@@ -1215,7 +1202,7 @@ export default function QuizPage() {
               ) : (
                 <button
                   disabled
-                  className="ui-btn ui-btn--neutral w-full md:w-auto font-bold text-sm cursor-not-allowed opacity-60"
+                  className="ui-btn ui-btn--neutral w-full sm:w-auto font-bold text-xs sm:text-sm cursor-not-allowed opacity-60"
                   title="Disponible uniquement sur l’application Android"
                 >
                   📱 Réponse auto: Android requis
@@ -1224,7 +1211,7 @@ export default function QuizPage() {
               <button
                 onClick={submitAnswer}
                 disabled={!selectedAnswer || isAnswering || !!revealCorrect}
-                className={`ui-btn ui-btn--info w-full md:flex-1 font-bold text-lg ${!selectedAnswer || isAnswering || !!revealCorrect ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`ui-btn ui-btn--info col-span-2 sm:flex-1 w-full font-bold text-base sm:text-lg ${!selectedAnswer || isAnswering || !!revealCorrect ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {isAnswering ? "⏳ ..." : "✓ Valider ma réponse"}
               </button>
@@ -1236,7 +1223,7 @@ export default function QuizPage() {
         )}
 
         {/* Échelle des gains */}
-        <div className="mt-8 ui-card bg-white/10 backdrop-blur rounded-xl border border-white/10 p-6">
+        {!session && <div className="mt-8 ui-card bg-white/10 backdrop-blur rounded-xl border border-white/10 p-6">
           <h3 className="text-lg font-bold mb-4 text-center">📊 Échelle des gains</h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
             {PRIZE_LADDER.map((prize) => (
@@ -1253,7 +1240,7 @@ export default function QuizPage() {
               </div>
             ))}
           </div>
-        </div>
+        </div>}
       </div>
       {showTutorial && (
         <Onboarding onClose={() => setShowTutorial(false)} />

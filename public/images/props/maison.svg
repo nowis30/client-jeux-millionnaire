@@ -1,22 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 192" width="256" height="192">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" role="img" aria-label="Maison unifamiliale illustrée">
   <defs>
-    <linearGradient id="roof" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#a61e4d"/>
-      <stop offset="100%" stop-color="#d6336c"/>
-    </linearGradient>
-    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#e9ecef"/>
-      <stop offset="100%" stop-color="#dee2e6"/>
-    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#8dd9ff"/><stop offset="1" stop-color="#dff5ff"/></linearGradient>
+    <linearGradient id="grass" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#67c57b"/><stop offset="1" stop-color="#2e8c58"/></linearGradient>
+    <linearGradient id="wall" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff1cf"/><stop offset="1" stop-color="#e4c993"/></linearGradient>
+    <linearGradient id="roof" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ef6a62"/><stop offset="1" stop-color="#9f3343"/></linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%"><feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#17324a" flood-opacity=".25"/></filter>
   </defs>
-  <rect x="0" y="0" width="256" height="192" fill="#0b0f14"/>
-  <g transform="translate(16,16)">
-    <polygon points="112,0 0,64 224,64" fill="url(#roof)"/>
-    <rect x="24" y="64" width="176" height="96" rx="6" fill="url(#wall)"/>
-    <rect x="44" y="88" width="44" height="28" rx="3" fill="#74c0fc"/>
-    <rect x="136" y="88" width="44" height="28" rx="3" fill="#74c0fc"/>
-    <rect x="100" y="104" width="32" height="56" rx="3" fill="#343a40"/>
-    <rect x="24" y="64" width="176" height="10" fill="#adb5bd" opacity="0.35"/>
-    <circle cx="114" cy="132" r="2" fill="#868e96"/>
+  <rect width="600" height="400" fill="url(#sky)"/>
+  <circle cx="490" cy="80" r="38" fill="#ffe59a" opacity=".9"/>
+  <g fill="#fff" opacity=".72"><ellipse cx="106" cy="75" rx="62" ry="22"/><ellipse cx="155" cy="70" rx="38" ry="17"/><ellipse cx="395" cy="122" rx="52" ry="18"/></g>
+  <path d="M0 288 Q115 250 228 281 T600 267 V400 H0Z" fill="url(#grass)"/>
+  <path d="M0 327 Q145 297 295 325 T600 309 V400 H0Z" fill="#3c9e60" opacity=".55"/>
+  <g filter="url(#shadow)">
+    <rect x="142" y="168" width="315" height="154" rx="14" fill="url(#wall)" stroke="#6f543b" stroke-width="5"/>
+    <path d="M105 181 295 77 493 181Z" fill="url(#roof)" stroke="#6f2f3b" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M269 95 330 95 369 168 230 168Z" fill="#f3ddad" stroke="#6f543b" stroke-width="5"/>
+    <rect x="286" y="112" width="31" height="38" rx="5" fill="#73c8ee" stroke="#315c6f" stroke-width="4"/>
+    <path d="M301.5 114v34M288 131h28" stroke="#e8fbff" stroke-width="3"/>
+    <rect x="266" y="220" width="70" height="102" rx="8" fill="#476c72" stroke="#25444b" stroke-width="5"/>
+    <rect x="310" y="269" width="7" height="7" rx="3.5" fill="#ffd978"/>
+    <g fill="#72c9ef" stroke="#315c6f" stroke-width="4">
+      <rect x="174" y="213" width="57" height="52" rx="7"/><rect x="365" y="213" width="57" height="52" rx="7"/>
+    </g>
+    <g stroke="#eafaff" stroke-width="3"><path d="M202 215v48M176 239h53M393 215v48M367 239h53"/></g>
+    <rect x="123" y="176" width="353" height="13" rx="6" fill="#fff7df" opacity=".75"/>
+    <rect x="182" y="299" width="231" height="23" rx="10" fill="#a67d55" opacity=".35"/>
   </g>
+  <g>
+    <path d="M51 332c0-45 25-74 50-74s49 29 49 74" fill="#246c45"/><circle cx="75" cy="280" r="31" fill="#55b96f"/><circle cx="118" cy="275" r="36" fill="#69c77d"/>
+    <path d="M480 334c0-38 21-63 43-63s44 25 44 63" fill="#256c46"/><circle cx="503" cy="289" r="27" fill="#58bb71"/><circle cx="545" cy="286" r="30" fill="#6ac77c"/>
+  </g>
+  <path d="M272 322 238 400h142l-45-78Z" fill="#d8cbb1"/>
+  <g fill="#ffe26f"><circle cx="195" cy="331" r="7"/><circle cx="215" cy="340" r="5"/><circle cx="390" cy="337" r="6"/><circle cx="410" cy="329" r="5"/></g>
 </svg>

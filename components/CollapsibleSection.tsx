@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface CollapsibleSectionProps {
@@ -12,14 +12,9 @@ interface CollapsibleSectionProps {
 }
 
 /**
- * Composant de section rétractable avec compteur d'éléments
- * Permet d'afficher/masquer du contenu avec une animation fluide
- * 
- * @param title - Titre de la section
- * @param children - Contenu à afficher/masquer
- * @param defaultOpen - État initial (ouvert par défaut)
- * @param maxHeight - Hauteur maximale du conteneur (ex: "500px")
- * @param itemCount - Nombre d'éléments dans la section (affiché dans le titre)
+ * Section rétractable optimisée mobile.
+ * Sur téléphone, elle démarre fermée même si la version bureau souhaite
+ * l'ouvrir par défaut; cela évite plusieurs écrans de défilement dès l'accueil.
  */
 export default function CollapsibleSection({
   title,
@@ -28,44 +23,42 @@ export default function CollapsibleSection({
   maxHeight = '500px',
   itemCount
 }: CollapsibleSectionProps) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 640px)').matches;
+    setIsOpen(desktop ? defaultOpen : false);
+  }, [defaultOpen]);
 
   return (
-    <div className="w-full mb-6">
-      {/* En-tête cliquable */}
+    <div className="mb-3 w-full sm:mb-6">
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-t-lg hover:from-purple-800/60 hover:to-blue-800/60 transition-all duration-200"
+        className="flex min-h-12 w-full items-center justify-between rounded-2xl border border-white/10 bg-gradient-to-r from-purple-950/65 to-slate-900/70 px-3 py-2.5 text-left shadow-lg transition active:scale-[0.995] sm:min-h-14 sm:rounded-t-lg sm:rounded-b-none sm:p-4"
         aria-expanded={isOpen}
       >
-        <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold text-white">{title}</h2>
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <h2 className="truncate text-sm font-black text-white sm:text-xl">{title}</h2>
           {itemCount !== undefined && (
-            <span className="px-3 py-1 bg-white/20 rounded-full text-sm text-white/90 font-semibold">
+            <span className="shrink-0 rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white/80 sm:px-3 sm:py-1 sm:text-sm">
               {itemCount}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-white/70">
-            {isOpen ? 'Masquer' : 'Afficher'}
-          </span>
-          {isOpen ? (
-            <ChevronUp className="w-6 h-6 text-white" />
-          ) : (
-            <ChevronDown className="w-6 h-6 text-white" />
-          )}
+        <div className="flex shrink-0 items-center gap-1.5 text-slate-400">
+          <span className="hidden text-xs sm:inline">{isOpen ? 'Masquer' : 'Afficher'}</span>
+          {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
         </div>
       </button>
 
-      {/* Conteneur rétractable avec animation */}
       <div
         className={`overflow-hidden transition-all duration-300 ease-in-out ${
           isOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
         <div
-          className="bg-gray-900/50 backdrop-blur-sm rounded-b-lg border-t-0 overflow-y-auto custom-scrollbar"
+          className="overflow-y-auto rounded-b-2xl border border-t-0 border-white/8 bg-gray-950/55 backdrop-blur-sm custom-scrollbar sm:rounded-b-lg"
           style={{ maxHeight: isOpen ? maxHeight : '0' }}
         >
           {children}

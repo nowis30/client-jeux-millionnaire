@@ -1,26 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 192" width="256" height="192">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" role="img" aria-label="Duplex illustré">
   <defs>
-    <linearGradient id="roof2" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#5f3dc4"/>
-      <stop offset="100%" stop-color="#7048e8"/>
-    </linearGradient>
-    <linearGradient id="wall2" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#f1f3f5"/>
-      <stop offset="100%" stop-color="#e9ecef"/>
-    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#88d7ff"/><stop offset="1" stop-color="#e3f6ff"/></linearGradient>
+    <linearGradient id="brick" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d98d72"/><stop offset="1" stop-color="#a8514e"/></linearGradient>
+    <linearGradient id="roof" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#45536f"/><stop offset="1" stop-color="#232c41"/></linearGradient>
+    <filter id="s"><feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#17324a" flood-opacity=".28"/></filter>
+    <pattern id="lines" width="42" height="18" patternUnits="userSpaceOnUse"><path d="M0 18h42M21 0v18" stroke="#7f3e3e" stroke-opacity=".25" stroke-width="2"/></pattern>
   </defs>
-  <rect x="0" y="0" width="256" height="192" fill="#0b0f14"/>
-  <g transform="translate(12,18)">
-    <polygon points="116,0 0,56 232,56" fill="url(#roof2)"/>
-    <rect x="18" y="56" width="196" height="100" rx="6" fill="url(#wall2)"/>
-    <!-- étage 1 -->
-    <rect x="32" y="76" width="56" height="26" rx="3" fill="#74c0fc"/>
-    <rect x="148" y="76" width="56" height="26" rx="3" fill="#74c0fc"/>
-    <!-- étage 2 -->
-    <rect x="32" y="108" width="56" height="26" rx="3" fill="#74c0fc"/>
-    <rect x="148" y="108" width="56" height="26" rx="3" fill="#74c0fc"/>
-    <!-- portes -->
-    <rect x="98" y="96" width="36" height="60" rx="3" fill="#343a40"/>
-    <circle cx="130" cy="126" r="2" fill="#868e96"/>
+  <rect width="600" height="400" fill="url(#sky)"/>
+  <circle cx="506" cy="76" r="35" fill="#ffe6a1"/>
+  <path d="M0 292Q130 260 260 286t340-8v122H0Z" fill="#4da76b"/>
+  <g filter="url(#s)">
+    <rect x="118" y="145" width="365" height="191" rx="12" fill="url(#brick)" stroke="#713f43" stroke-width="5"/>
+    <rect x="122" y="149" width="357" height="183" rx="9" fill="url(#lines)"/>
+    <path d="M92 154 294 66 510 154Z" fill="url(#roof)" stroke="#1d2535" stroke-width="7" stroke-linejoin="round"/>
+    <rect x="250" y="90" width="85" height="64" rx="7" fill="#d88a70" stroke="#713f43" stroke-width="5"/>
+    <rect x="276" y="105" width="35" height="34" rx="5" fill="#79d4f3" stroke="#345f73" stroke-width="4"/>
+    <path d="M293.5 107v30M278 121h31" stroke="#ecfcff" stroke-width="3"/>
+    <rect x="128" y="230" width="345" height="12" fill="#f4d0b6" opacity=".55"/>
+    <g fill="#79d4f3" stroke="#345f73" stroke-width="4">
+      <rect x="151" y="177" width="61" height="44" rx="6"/><rect x="388" y="177" width="61" height="44" rx="6"/>
+      <rect x="151" y="258" width="61" height="44" rx="6"/><rect x="388" y="258" width="61" height="44" rx="6"/>
+    </g>
+    <g stroke="#effcff" stroke-width="3">
+      <path d="M181 179v40M153 198h57M418 179v40M390 198h57M181 260v40M153 279h57M418 260v40M390 279h57"/>
+    </g>
+    <rect x="263" y="246" width="72" height="90" rx="7" fill="#385c66" stroke="#203b42" stroke-width="5"/>
+    <rect x="281" y="265" width="36" height="30" rx="4" fill="#9adbf1" opacity=".6"/>
+    <circle cx="320" cy="306" r="4" fill="#ffd96a"/>
+    <path d="M242 234h115v14H242Z" fill="#f0caa8"/>
   </g>
+  <path d="M259 336 226 400h151l-39-64Z" fill="#d7c9ad"/>
+  <g fill="#2a764d"><ellipse cx="72" cy="323" rx="47" ry="58"/><ellipse cx="529" cy="323" rx="43" ry="55"/></g>
+  <g fill="#66c77e"><circle cx="61" cy="284" r="29"/><circle cx="91" cy="296" r="31"/><circle cx="515" cy="291" r="31"/><circle cx="545" cy="299" r="28"/></g>
 </svg>

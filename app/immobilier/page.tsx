@@ -1,420 +1,349 @@
 "use client";
-import { useState, useEffect, useCallback, useMemo } from "react";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatMoney } from "../../lib/format";
 import { apiFetch, apiFetchRaw } from "../../lib/api";
 
-interface PropertyTemplate {
+type PropertyTemplate = {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   price: number;
   baseRent: number;
   units: number;
-  imageUrl: string;
-  address: string;
-  city: string;
-  province: string;
-  postalCode: string;
-  yearBuilt: number;
-  surfaceArea: number;
-  landArea: number;
-  taxes: number;
-  insurance: number;
-  maintenance: number;
-  plumbingState: string;
-  electricityState: string;
-  roofState: string;
-  windowsState: string;
-  foundationState: string;
-  interiorState: string;
-  exteriorState: string;
+  imageUrl?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  taxes?: number;
+  insurance?: number;
+  maintenance?: number;
+  plumbingState?: string;
+  electricityState?: string;
+  roofState?: string;
+};
+
+type Segment = "all" | "buyable" | "house" | "plex" | "large";
+type SortMode = "yield" | "price" | "income";
+
+const SEGMENTS: Array<{ id: Segment; label: string }> = [
+  { id: "all", label: "Tout" },
+  { id: "buyable", label: "À ma portée" },
+  { id: "house", label: "Maisons" },
+  { id: "plex", label: "Plex" },
+  { id: "large", label: "6+ logts" },
+];
+
+const MIN_DOWN_PAYMENT = 0.20;
+
+function metrics(property: PropertyTemplate) {
+  const units = Math.max(1, Number(property.units || 1));
+  const grossMonthly = Number(property.baseRent || 0) * units;
+  const annualExpenses = Number(property.taxes || 0) + Number(property.insurance || 0) + Number(property.maintenance || 0);
+  const noiAnnual = grossMonthly * 12 - annualExpenses;
+  const capRate = Number(property.price) > 0 ? (noiAnnual / Number(property.price)) * 100 : 0;
+  return {
+    grossMonthly,
+    annualExpenses,
+    noiAnnual,
+    noiMonthly: noiAnnual / 12,
+    capRate,
+    downPayment: Number(property.price || 0) * MIN_DOWN_PAYMENT,
+  };
 }
 
-// Catégories strictement typées
-const CATEGORIES = [
-  { id: 'all', label: 'Tous' },
-  { id: 'buyable', label: 'Achetables' },
-  { id: 'u12', label: '1–2 logts' },
-  { id: 'u34', label: '3–4 logts' },
-  { id: 'u56', label: '5–6 logts' },
-  { id: 'u50p', label: '50+ logts' },
-  { id: 'p2', label: '250k–500k' },
-  { id: 'p3', label: '500k–1M' },
-  { id: 'p4', label: '1M+' },
-] as const;
-
-type Category = typeof CATEGORIES[number]['id'];
+function conditionLabel(property: PropertyTemplate) {
+  const states = [property.roofState, property.plumbingState, property.electricityState]
+    .filter(Boolean)
+    .map((state) => String(state).toLowerCase());
+  if (!states.length) return { label: "État à vérifier", tone: "text-slate-300 bg-slate-700/40" };
+  if (states.some((state) => state.includes("rénover"))) return { label: "Travaux à prévoir", tone: "text-amber-200 bg-amber-500/15" };
+  if (states.some((state) => state.includes("moyen"))) return { label: "État moyen", tone: "text-cyan-100 bg-cyan-500/12" };
+  return { label: "Bon état", tone: "text-emerald-200 bg-emerald-500/15" };
+}
 
 export default function ImmobilierPage() {
   const router = useRouter();
   const [gameId, setGameId] = useState<string | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [templates, setTemplates] = useState<PropertyTemplate[]>([]);
+  const [playerCash, setPlayerCash] = useState<number | null>(null);
+  const [segment, setSegment] = useState<Segment>("all");
+  const [city, setCity] = useState("");
+  const [sortMode, setSortMode] = useState<SortMode>("yield");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [playerCash, setPlayerCash] = useState<number | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<Category>('all');
-  const [selectedCity, setSelectedCity] = useState<string>('');
-
-  // Compte des résultats par catégorie (après filtre ville et avec cash)
-  const categoryCounts: Record<Category, number> = useMemo(() => {
-    const list = Array.isArray(templates) ? templates : [];
-    const byCity = selectedCity ? list.filter(p => p.city === selectedCity) : list;
-
-    const apply = (cat: Category, prop: PropertyTemplate) => {
-      switch (cat) {
-        case 'buyable':
-          return playerCash !== null && Number(prop.price) <= playerCash;
-        case 'u12':
-          return Number(prop.units || 0) <= 2;
-        case 'u34':
-          return Number(prop.units || 0) >= 3 && Number(prop.units || 0) <= 4;
-        case 'u56':
-          return Number(prop.units || 0) >= 5 && Number(prop.units || 0) <= 6;
-        case 'u50p':
-          return Number(prop.units || 0) >= 50;
-        case 'p2':
-          return Number(prop.price || 0) >= 250000 && Number(prop.price || 0) < 500000;
-        case 'p3':
-          return Number(prop.price || 0) >= 500000 && Number(prop.price || 0) < 1000000;
-        case 'p4':
-          return Number(prop.price || 0) >= 1000000;
-        default:
-          return true;
-      }
-    };
-
-    const map = Object.fromEntries(
-      CATEGORIES.map(({ id }) => [id, byCity.filter(p => apply(id, p)).length])
-    ) as Record<Category, number>;
-    return map;
-  }, [templates, selectedCity, playerCash]);
-
-  const filteredTemplates = useMemo(() => {
-    const list = Array.isArray(templates) ? templates : [];
-    return list.filter((prop) => {
-      if (selectedCity && prop.city !== selectedCity) return false;
-      switch (selectedCategory) {
-        case 'buyable':
-          return playerCash !== null && Number(prop.price) <= playerCash;
-        case 'u12':
-          return Number(prop.units) <= 2;
-        case 'u34':
-          return Number(prop.units) >= 3 && Number(prop.units) <= 4;
-        case 'u56':
-          return Number(prop.units) >= 5 && Number(prop.units) <= 6;
-        case 'u50p':
-          return Number(prop.units) >= 50;
-        case 'p2':
-          return Number(prop.price) >= 250000 && Number(prop.price) < 500000;
-        case 'p3':
-          return Number(prop.price) >= 500000 && Number(prop.price) < 1000000;
-        case 'p4':
-          return Number(prop.price) >= 1000000;
-        default:
-          return true;
-      }
-    });
-  }, [templates, selectedCity, selectedCategory, playerCash]);
 
   const ensureSession = useCallback(async () => {
     try {
       const raw = localStorage.getItem("hm-session");
       if (raw) {
-        const s = JSON.parse(raw);
-        if (s?.gameId && s?.playerId) {
-          setGameId(s.gameId);
-          setPlayerId(s.playerId);
+        const session = JSON.parse(raw);
+        if (session?.gameId && session?.playerId) {
+          setGameId(session.gameId);
+          setPlayerId(session.playerId);
           return true;
         }
       }
-      // Auto-join si aucune session
-      const resList = await apiFetchRaw(`/api/games`);
-      if (!resList.ok) throw new Error('Liste parties indisponible');
-      const dataList = await resList.json();
-      const g = dataList.games?.[0];
-      if (!g) throw new Error('Aucune partie disponible');
-      const resJoin = await apiFetchRaw(`/api/games/${g.id}/join`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+
+      const gamesResponse = await apiFetchRaw("/api/games");
+      if (!gamesResponse.ok) throw new Error("Liste des parties indisponible");
+      const games = await gamesResponse.json();
+      const game = games.games?.[0];
+      if (!game?.id) throw new Error("Aucune partie disponible");
+
+      const joinResponse = await apiFetchRaw(`/api/games/${game.id}/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
       });
-      if (!resJoin.ok) throw new Error('Join échoué');
-      const dataJoin = await resJoin.json();
-      const sess = { gameId: g.id, playerId: dataJoin.playerId, nickname: '' };
-      try { localStorage.setItem('hm-session', JSON.stringify(sess)); } catch {}
-      setGameId(g.id);
-      setPlayerId(dataJoin.playerId);
+      if (!joinResponse.ok) throw new Error("Connexion au marché impossible");
+      const joined = await joinResponse.json();
+      const session = { gameId: game.id, playerId: joined.playerId, nickname: "" };
+      localStorage.setItem("hm-session", JSON.stringify(session));
+      setGameId(game.id);
+      setPlayerId(joined.playerId);
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   }, []);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       const ok = await ensureSession();
-      if (!ok) {
-        router.push("/");
-      }
+      if (!ok) router.push("/");
     })();
   }, [ensureSession, router]);
 
   useEffect(() => {
     if (!gameId) return;
-
-    async function loadTemplates() {
-      try {
-        setLoading(true);
-        // On passe gameId pour exclure les propriétés déjà achetées
-        const data = await apiFetch<{ templates: PropertyTemplate[] }>(
-          `/api/properties/templates?gameId=${gameId}`
-        );
-        setTemplates(data.templates);
-      } catch (err: any) {
-        console.error("Erreur chargement immeubles:", err);
-        setError(err.message || "Impossible de charger les propriétés");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadTemplates();
+    let active = true;
+    setLoading(true);
+    apiFetch<{ templates: PropertyTemplate[] }>(`/api/properties/templates?gameId=${encodeURIComponent(gameId)}`)
+      .then((data) => {
+        if (active) setTemplates(Array.isArray(data.templates) ? data.templates : []);
+      })
+      .catch((err) => {
+        if (active) setError(err instanceof Error ? err.message : "Impossible de charger les propriétés");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
   }, [gameId]);
 
-  // Helpers robustes pour extraire le cash depuis différentes structures possibles
-  function extractCash(data: any): number | null {
-    if (!data) return null;
-    const candidates = [
-      data.playerCash,
-      data.cash,
-      data.availableCash,
-      data.liquidCash,
-      data.wallet?.cash,
-      data.player?.cash,
-      data.totals?.cash,
-      data.totals?.availableCash
-    ];
-    for (const v of candidates) {
-      const n = Number(v);
-      if (!Number.isNaN(n) && Number.isFinite(n)) return Math.round(n);
-    }
-    return null;
-  }
-
-  // Charger le cash disponible du joueur depuis le portefeuille
   useEffect(() => {
     if (!gameId || !playerId) return;
-    (async () => {
+    void (async () => {
       try {
         const data = await apiFetch<any>(`/api/games/${gameId}/players/${playerId}/portfolio`);
-        const cash = extractCash(data);
-        if (cash !== null) {
-          setPlayerCash(cash);
-        } else {
-          // tentative de fallback via l'état global (si dispo)
-          try {
-            const st = await apiFetch<any>(`/api/games/${gameId}/state`);
-            const p = (st?.players || []).find((pp: any) => pp?.id === playerId);
-            const cc = extractCash(p);
-            if (cc !== null) setPlayerCash(cc);
-          } catch {}
-        }
-      } catch (e) {
-        // silencieux: ne bloque pas la page si indisponible
+        const candidates = [data?.playerCash, data?.cash, data?.availableCash, data?.wallet?.cash, data?.player?.cash, data?.totals?.cash];
+        const found = candidates.map(Number).find((value) => Number.isFinite(value));
+        if (typeof found === "number") setPlayerCash(found);
+      } catch {
+        try {
+          const state = await apiFetch<any>(`/api/games/${gameId}/state`);
+          const player = (state?.players ?? []).find((item: any) => item?.id === playerId);
+          if (Number.isFinite(Number(player?.cash))) setPlayerCash(Number(player.cash));
+        } catch {}
       }
     })();
   }, [gameId, playerId]);
 
-  const handlePropertyClick = (id: string) => {
-    router.push(`/immobilier/hypotheques?id=${id}`);
-  };
+  const cities = useMemo(
+    () => Array.from(new Set(templates.map((property) => property.city).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, "fr")),
+    [templates]
+  );
+
+  const filtered = useMemo(() => {
+    const matchesSegment = (property: PropertyTemplate) => {
+      const units = Math.max(1, Number(property.units || 1));
+      if (segment === "buyable") return playerCash != null && metrics(property).downPayment <= playerCash;
+      if (segment === "house") return units === 1;
+      if (segment === "plex") return units >= 2 && units <= 5;
+      if (segment === "large") return units >= 6;
+      return true;
+    };
+
+    return templates
+      .filter((property) => (!city || property.city === city) && matchesSegment(property))
+      .slice()
+      .sort((a, b) => {
+        if (sortMode === "price") return Number(a.price) - Number(b.price);
+        if (sortMode === "income") return metrics(b).noiMonthly - metrics(a).noiMonthly;
+        return metrics(b).capRate - metrics(a).capRate;
+      });
+  }, [templates, city, segment, sortMode, playerCash]);
+
+  const topOpportunity = filtered[0];
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface-0 text-surface-on flex items-center justify-center">
-        <div className="text-xl">Chargement des opportunités...</div>
-      </div>
+      <main className="grid min-h-[70dvh] place-items-center px-4 text-center">
+        <div>
+          <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-4 border-cyan-300/20 border-t-cyan-300" />
+          <p className="font-semibold text-slate-300">Analyse du marché immobilier…</p>
+        </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen bg-surface-0 text-surface-on pb-20">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-surface-1/95 backdrop-blur border-b border-surface-divider p-4 shadow-elev-1">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-2">
-          <button
-            onClick={() => router.push("/")}
-            className="ui-btn ui-btn--neutral text-sm"
-          >
-            ← Retour
-          </button>
-          <h1 className="flex-1 text-xl font-bold text-center bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
-            Agence Immobilière
-          </h1>
+    <main className="mx-auto w-full max-w-6xl pb-28 sm:pb-8">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0a0d14]/94 px-3 py-3 backdrop-blur-xl sm:px-6">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/70">Immobilier</p>
+            <h1 className="truncate text-xl font-black tracking-tight text-white">Marché</h1>
+          </div>
           <div className="flex items-center gap-2">
-            {playerCash !== null && (
-              <div className="px-2 py-1 rounded border border-emerald-700 bg-emerald-900/30 text-emerald-200 text-xs font-semibold whitespace-nowrap">
-                {formatMoney(playerCash)} dispo
+            {playerCash != null && (
+              <div className="hidden rounded-xl border border-emerald-300/15 bg-emerald-400/10 px-3 py-2 text-right min-[370px]:block">
+                <div className="text-[9px] uppercase tracking-wide text-emerald-200/60">Encaisse</div>
+                <div className="text-xs font-black text-emerald-200">{formatMoney(playerCash)}</div>
               </div>
             )}
-            <button
-              onClick={() => router.push("/immobilier/parc")}
-              className="ui-btn ui-btn--info text-sm font-bold"
-            >
-              Mon Parc
+            <button type="button" onClick={() => router.push("/immobilier/parc")} className="ui-btn ui-btn--info px-3 text-xs font-black">
+              Mon parc
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-5xl mx-auto p-4">
-        {error && (
-          <div className="mb-6 p-4 border border-rose-700/60 bg-rose-900/30 rounded-card text-rose-100">
-            {error}
-          </div>
-        )}
+      <div className="space-y-4 px-3 pt-4 sm:px-6 sm:pt-6">
+        {error && <div className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-200">{error}</div>}
 
-        <div className="mb-6 text-center">
-          <p className="text-slate-400">
-            Investissez dans l'immobilier pour générer des revenus passifs.
-            <br />
-            <span className="text-xs opacity-70">Les prix incluent le terrain et le bâtiment.</span>
-          </p>
-        </div>
-
-        {/* Filtres */}
-        <div className="mb-4 flex flex-col gap-3">
-          <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-            {CATEGORIES.map((c) => (
+        <section className="overflow-hidden rounded-[26px] border border-cyan-300/15 bg-gradient-to-br from-[#142234] via-[#0f1725] to-[#0a0d14] p-4 shadow-2xl sm:p-6">
+          <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+            <div>
+              <div className="inline-flex rounded-full border border-cyan-300/15 bg-cyan-300/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-200">
+                Simulation d'investisseur
+              </div>
+              <h2 className="mt-3 text-2xl font-black leading-tight text-white sm:text-3xl">Achète selon le rendement, pas juste selon la façade.</h2>
+              <p className="mt-2 max-w-2xl text-xs leading-relaxed text-slate-400 sm:text-sm">
+                Les cartes montrent maintenant le revenu net avant financement, le taux de capitalisation et la mise de fonds de référence de 20 %.
+              </p>
+            </div>
+            {topOpportunity && (
               <button
-                key={c.id}
                 type="button"
-                onClick={() => setSelectedCategory(c.id)}
-                className={[
-                  'px-3 py-1.5 rounded-full text-xs border',
-                  selectedCategory === c.id
-                    ? 'bg-brand-sky/20 border-brand-sky text-brand-sky'
-                    : 'bg-neutral-900 border-neutral-800 text-neutral-300 hover:bg-neutral-800/60'
-                ].join(' ')}
+                onClick={() => router.push(`/immobilier/hypotheques?id=${topOpportunity.id}`)}
+                className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-left sm:min-w-[210px]"
               >
-                {c.label} ({categoryCounts[c.id] ?? 0})
+                <div className="text-[10px] font-bold uppercase tracking-wide text-amber-200/70">Meilleur rendement filtré</div>
+                <div className="mt-1 truncate text-sm font-black text-white">{topOpportunity.name}</div>
+                <div className="mt-1 text-lg font-black text-amber-200">{metrics(topOpportunity).capRate.toFixed(1)} %</div>
+              </button>
+            )}
+          </div>
+        </section>
+
+        <section className="ui-card p-3">
+          <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {SEGMENTS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setSegment(item.id)}
+                className={[
+                  "min-h-10 shrink-0 rounded-full border px-3 text-xs font-bold transition",
+                  segment === item.id ? "border-cyan-300/50 bg-cyan-300/15 text-cyan-100" : "border-white/10 bg-white/[0.03] text-slate-400",
+                ].join(" ")}
+              >
+                {item.label}
               </button>
             ))}
           </div>
-          {/* Ville */}
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-neutral-400">Ville:</span>
-            <select
-              value={selectedCity}
-              onChange={(e) => setSelectedCity(e.target.value)}
-              className="px-2 py-1 rounded bg-neutral-900 border border-neutral-700"
-            >
-              <option value="">Toutes</option>
-              {[...new Set(templates.map(t => t.city).filter(Boolean))]
-                .sort((a,b)=>String(a).localeCompare(String(b)))
-                .map((c) => (
-                  <option key={String(c)} value={String(c)}>{String(c)}</option>
-                ))}
-            </select>
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">Ville</span>
+              <select value={city} onChange={(event) => setCity(event.target.value)} className="h-11 w-full rounded-xl border border-white/10 bg-black/20 px-3 text-xs font-semibold text-slate-200">
+                <option value="">Toutes les villes</option>
+                {cities.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">Trier par</span>
+              <select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)} className="h-11 w-full rounded-xl border border-white/10 bg-black/20 px-3 text-xs font-semibold text-slate-200">
+                <option value="yield">Meilleur rendement</option>
+                <option value="price">Prix le plus bas</option>
+                <option value="income">Revenu net</option>
+              </select>
+            </label>
           </div>
+        </section>
+
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-sm font-black text-white">{filtered.length} opportunité{filtered.length > 1 ? "s" : ""}</h2>
+          <span className="text-[10px] text-slate-500">Touchez un immeuble pour le financer</span>
         </div>
 
-        {templates.length === 0 ? (
-          <div className="text-center py-12 ui-card">
-            <div className="text-4xl mb-4">🏙️</div>
-            <h3 className="text-xl font-bold mb-2">Aucune propriété disponible</h3>
-            <p className="text-surface-muted">
-              Le marché est actuellement vide ou vous avez tout acheté !
-            </p>
-          </div>
+        {filtered.length === 0 ? (
+          <section className="ui-card p-10 text-center">
+            <div className="text-4xl">⌂</div>
+            <h3 className="mt-2 font-black text-white">Aucun immeuble avec ces filtres</h3>
+            <button type="button" onClick={() => { setSegment("all"); setCity(""); }} className="ui-btn ui-btn--neutral mt-4 text-xs">Réinitialiser</button>
+          </section>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTemplates.length === 0 ? (
-              <div className="col-span-full text-center py-10 ui-card">
-                <div className="text-4xl mb-2">🔎</div>
-                <div className="font-semibold mb-1">Aucun résultat pour ce filtre</div>
-                <div className="text-sm text-neutral-400">Modifiez la catégorie ou la ville pour voir des biens.</div>
-              </div>
-            ) : (
-              filteredTemplates.map((prop) => (
-              <div
-                key={prop.id}
-                onClick={() => handlePropertyClick(prop.id)}
-                className="group ui-card overflow-hidden hover:border-brand-sky/60 transition-all cursor-pointer hover:shadow-elev-2 hover:-translate-y-1"
-              >
-                <div className="relative h-48 bg-surface-3 overflow-hidden">
-                  {prop.imageUrl ? (
+          <section className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+            {filtered.map((property) => {
+              const stat = metrics(property);
+              const condition = conditionLabel(property);
+              const affordable = playerCash != null && stat.downPayment <= playerCash;
+              return (
+                <button
+                  key={property.id}
+                  type="button"
+                  onClick={() => router.push(`/immobilier/hypotheques?id=${property.id}`)}
+                  className="group min-w-0 overflow-hidden rounded-[22px] border border-white/10 bg-[#121722] text-left shadow-lg transition active:scale-[0.985] sm:hover:-translate-y-1 sm:hover:border-cyan-300/35"
+                >
+                  <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-b from-sky-950 to-slate-950">
                     <img
-                      src={prop.imageUrl}
-                      alt={prop.name}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src =
-                          "https://placehold.co/600x400/1e293b/cbd5e1?text=Immeuble";
-                      }}
+                      src={property.imageUrl || "/images/props/maison.svg"}
+                      alt=""
+                      className="h-full w-full object-cover transition duration-300 sm:group-hover:scale-[1.035]"
+                      onError={(event) => { (event.currentTarget as HTMLImageElement).src = "/images/props/maison.svg"; }}
                     />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-surface-muted">
-                      <span className="text-4xl">🏢</span>
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent px-2.5 pb-2.5 pt-8">
+                      <div className="truncate text-sm font-black text-white sm:text-base">{formatMoney(Number(property.price))}</div>
                     </div>
-                  )}
-                  <div className="absolute top-2 right-2 bg-black/70 backdrop-blur px-2 py-1 rounded text-xs font-bold text-white border border-white/10">
-                    {prop.units} logement{prop.units > 1 ? "s" : ""}
-                  </div>
-                  {playerCash !== null && (
-                    <div className="absolute top-2 left-2">
-                      {prop.price <= playerCash ? (
-                        <span className="px-2 py-0.5 rounded bg-emerald-600 text-white text-[11px] font-semibold border border-emerald-400/50">Achetable</span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded bg-neutral-900/80 text-neutral-200 text-[11px] border border-neutral-700/60">
-                          Manque {formatMoney(prop.price - playerCash)}
-                        </span>
-                      )}
+                    <div className="absolute left-2 top-2 rounded-full border border-white/10 bg-black/65 px-2 py-1 text-[9px] font-black text-white backdrop-blur">
+                      {Math.max(1, Number(property.units || 1))} logt{Number(property.units || 1) > 1 ? "s" : ""}
                     </div>
-                  )}
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 pt-12">
-                    <div className="text-white font-bold text-lg truncate shadow-black drop-shadow-md">
-                      {formatMoney(prop.price)}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4">
-                  <h3 className="font-bold text-lg mb-1 text-surface-on group-hover:text-brand-sky transition-colors truncate">
-                    {prop.name}
-                  </h3>
-                  <div className="flex items-center text-xs text-surface-muted mb-3">
-                    <span className="truncate">
-                      📍 {prop.address}, {prop.city}
-                    </span>
+                    {affordable && (
+                      <div className="absolute right-2 top-2 rounded-full bg-emerald-400 px-2 py-1 text-[8px] font-black uppercase tracking-wide text-slate-950">Finançable</div>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-sm mb-4">
-                    <div className="bg-surface-1 p-2 rounded border border-surface-divider">
-                      <div className="text-surface-muted text-xs">Revenus bruts</div>
-                      <div className="font-semibold text-emerald-400">
-                        {formatMoney(prop.baseRent * prop.units)}/mois
+                  <div className="p-2.5 sm:p-3">
+                    <h3 className="truncate text-xs font-black text-white sm:text-sm">{property.name}</h3>
+                    <p className="mt-0.5 truncate text-[10px] text-slate-500">{property.city || "Québec"}</p>
+
+                    <div className="mt-2 grid grid-cols-2 gap-1.5">
+                      <div className="rounded-xl bg-black/20 p-2">
+                        <div className="text-[8px] uppercase tracking-wide text-slate-500">Cap rate</div>
+                        <div className={`mt-0.5 text-xs font-black ${stat.capRate >= 5 ? "text-emerald-300" : "text-amber-200"}`}>{stat.capRate.toFixed(1)}%</div>
+                      </div>
+                      <div className="rounded-xl bg-black/20 p-2">
+                        <div className="text-[8px] uppercase tracking-wide text-slate-500">Net / mois</div>
+                        <div className={`mt-0.5 truncate text-xs font-black ${stat.noiMonthly >= 0 ? "text-cyan-200" : "text-rose-300"}`}>{formatMoney(Math.round(stat.noiMonthly))}</div>
                       </div>
                     </div>
-                    <div className="bg-surface-1 p-2 rounded border border-surface-divider">
-                      <div className="text-surface-muted text-xs">Rentabilité</div>
-                      <div className="font-semibold text-brand-sky">
-                        {((prop.baseRent * prop.units * 12) / prop.price * 100).toFixed(1)}%
-                      </div>
+
+                    <div className="mt-2 flex items-center justify-between gap-1">
+                      <span className={`truncate rounded-full px-2 py-1 text-[8px] font-bold ${condition.tone}`}>{condition.label}</span>
+                      <span className="shrink-0 text-[9px] font-bold text-slate-400">20%: {formatMoney(Math.round(stat.downPayment))}</span>
                     </div>
                   </div>
-
-                  <button className="ui-btn ui-btn--info w-full text-sm">
-                    Voir le dossier
-                  </button>
-                </div>
-              </div>
-              ))
-            )}
-          </div>
+                </button>
+              );
+            })}
+          </section>
         )}
       </div>
-    </div>
+    </main>
   );
 }
-

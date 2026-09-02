@@ -48,23 +48,13 @@ textarea:focus-visible {
 .safe-left { padding-left: env(safe-area-inset-left); }
 .safe-right { padding-right: env(safe-area-inset-right); }
 
-/* Animation fade-in pour les composants */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
+.animate-fade-in { animation: fadeIn 0.3s ease-out; }
 
-/* Surfaces plus nettes et plus cohérentes avec une application de jeu moderne. */
 .ui-card {
   @apply bg-surface-2 border border-surface-divider rounded-card shadow-elev-1;
   background-image: linear-gradient(145deg, rgba(255,255,255,0.035), rgba(255,255,255,0));
@@ -93,16 +83,12 @@ textarea:focus-visible {
 .ui-chip { @apply text-[11px] px-2 py-1 rounded-full bg-surface-2 border border-surface-divider text-surface-on/80; }
 .ui-touch { @apply min-h-11 min-w-11 rounded-touch; }
 
-/* Plateforme: contrôle d'affichage sans divergences SSR/CSR */
 html.native .native-hide { display: none !important; }
 html.web .web-hide { display: none !important; }
 html.web .native-only { display: none !important; }
 html.native .web-only { display: none !important; }
 
-/* -------------------------------------------------------------------------- */
-/* Quiz mobile : une question doit se jouer comme un écran, pas comme un site */
-/* qui oblige à descendre à chaque réponse.                                   */
-/* -------------------------------------------------------------------------- */
+/* Quiz mobile : une question doit se jouer comme un écran, pas comme un site. */
 @media (max-width: 639px) {
   .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) {
     height: 100dvh;
@@ -134,17 +120,9 @@ html.native .web-only { display: none !important; }
     scrollbar-width: none;
   }
 
-  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .pb-44::-webkit-scrollbar {
-    display: none;
-  }
-
-  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .pb-44 .ui-card {
-    border-radius: 16px;
-  }
-
-  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .pb-44 img {
-    max-height: 76px !important;
-  }
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .pb-44::-webkit-scrollbar { display: none; }
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .pb-44 .ui-card { border-radius: 16px; }
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .pb-44 img { max-height: 76px !important; }
 
   .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .pb-44 h2 {
     font-size: 1rem !important;
@@ -157,7 +135,6 @@ html.native .web-only { display: none !important; }
     padding: 9px 10px !important;
   }
 
-  /* Barre d'actions du quiz: une seule rangée compacte. */
   .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 {
     display: flex !important;
     align-items: center;
@@ -177,7 +154,6 @@ html.native .web-only { display: none !important; }
     white-space: nowrap;
   }
 
-  /* Actions secondaires = icônes; on garde l'espace pour les deux décisions importantes. */
   .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(1),
   .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(3),
   .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(4) {
@@ -186,18 +162,9 @@ html.native .web-only { display: none !important; }
     font-size: 0 !important;
   }
 
-  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(1)::after {
-    content: "🎁";
-    font-size: 20px;
-  }
-  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(3)::after {
-    content: "⏭";
-    font-size: 20px;
-  }
-  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(4)::after {
-    content: "💡";
-    font-size: 20px;
-  }
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(1)::after { content: "🎁"; font-size: 20px; }
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(3)::after { content: "⏭"; font-size: 20px; }
+  .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(4)::after { content: "💡"; font-size: 20px; }
 
   .bg-gradient-to-br.from-slate-900.via-indigo-900.to-purple-900:has(.pb-44) .fixed.bottom-0.inset-x-0.grid.grid-cols-2 > button:nth-of-type(2) {
     flex: 0 1 108px !important;
@@ -211,6 +178,56 @@ html.native .web-only { display: none !important; }
     width: auto !important;
     font-size: 13px !important;
     line-height: 1.1 !important;
+  }
+
+  /* Les anciens écrans immobilier/financement restent accessibles, mais doivent
+     se comporter comme des écrans d'app et non comme de longues pages desktop. */
+  main.bg-neutral-950 {
+    min-height: 100dvh !important;
+    padding: 6px 4px calc(88px + env(safe-area-inset-bottom)) !important;
+    background: transparent !important;
+  }
+
+  main.bg-neutral-950 > div[class*="max-w-"] {
+    width: 100%;
+    margin: 0 auto;
+    gap: 10px !important;
+  }
+
+  main.bg-neutral-950 h1.text-3xl {
+    font-size: 1.2rem !important;
+    line-height: 1.2 !important;
+    text-align: right;
+  }
+
+  main.bg-neutral-950 h2.text-xl,
+  main.bg-neutral-950 h3.text-xl {
+    font-size: 1rem !important;
+  }
+
+  main.bg-neutral-950 .p-6 { padding: 12px !important; }
+  main.bg-neutral-950 .p-4 { padding: 10px !important; }
+  main.bg-neutral-950 .gap-6 { gap: 10px !important; }
+  main.bg-neutral-950 .gap-4 { gap: 8px !important; }
+  main.bg-neutral-950 .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 10px !important; }
+  main.bg-neutral-950 .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 8px !important; }
+
+  main.bg-neutral-950 img {
+    max-height: 150px;
+    object-fit: cover;
+  }
+
+  main.bg-neutral-950 .grid.md\:grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  main.bg-neutral-950 .grid.lg\:grid-cols-2,
+  main.bg-neutral-950 .grid.lg\:grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  main.bg-neutral-950 table {
+    font-size: 12px;
   }
 }
 

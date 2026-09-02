@@ -1,4 +1,5 @@
 "use client";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 // Simple lecteur de musique de fond avec mémoire volume et play/pause
@@ -8,6 +9,7 @@ const LS_KEY_ENABLED = "hm-music-enabled";
 const LS_KEY_VOLUME = "hm-music-volume";
 
 export default function BackgroundMusic() {
+  const pathname = usePathname();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [enabled, setEnabled] = useState<boolean>(true);
   const [volume, setVolume] = useState<number>(0.35);
@@ -46,12 +48,10 @@ export default function BackgroundMusic() {
         return;
       }
       const src = candidates[idx];
-      // Préflight HEAD pour aider au diagnostic
       try {
         const res = await fetch(src, { method: 'HEAD', cache: 'no-store' });
         if (!res.ok) throw new Error(String(res.status));
       } catch {
-        // essaie suivant si HEAD échoue
         await tryNext(idx + 1);
         return;
       }
@@ -84,8 +84,6 @@ export default function BackgroundMusic() {
     try { localStorage.setItem(LS_KEY_VOLUME, String(volume)); } catch {}
   }, [volume]);
 
-  // Gestion autoplay (nécessite interaction utilisateur sur Android/iOS)
-  // Fallback: démarrer un petit tone si fichier manquant
   const startFallbackTone = () => {
     if (oscRef.current || !enabled || forcedPauseRef.current) return;
     try {
@@ -94,10 +92,9 @@ export default function BackgroundMusic() {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.value = 220; // basse discrète
-      gain.gain.value = Math.min(1, Math.max(0, volume * 0.3)); // un peu plus fort pour PC
+      osc.frequency.value = 220;
+      gain.gain.value = Math.min(1, Math.max(0, volume * 0.3));
       osc.connect(gain).connect(ctx.destination);
-      // reprendre le contexte si suspendu (Chrome desktop)
       if (ctx.state === 'suspended') { ctx.resume().catch(()=>{}); }
       osc.start();
       oscRef.current = osc;
@@ -122,18 +119,14 @@ export default function BackgroundMusic() {
       stopFallbackTone();
       return;
     }
-    // Si le fichier existe, tenter play après interaction
     const tryPlay = () => {
       if (forcedPauseRef.current) return;
-      // tenter de reprendre le contexte audio Web si présent
       if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
         audioCtxRef.current.resume().catch(()=>{});
       }
       if (missingFile) { startFallbackTone(); cleanupInteraction(); return; }
       if (!audioRef.current) return;
-      audioRef.current.play().catch(() => {
-        // si échec (autoplay bloqué), on laissera interactions suivantes
-      });
+      audioRef.current.play().catch(() => {});
     };
     const cleanupInteraction = () => {
       window.removeEventListener("touchend", tryPlay);
@@ -145,12 +138,10 @@ export default function BackgroundMusic() {
     window.addEventListener("pointerdown", tryPlay, { once: true });
     window.addEventListener("click", tryPlay, { once: true });
     window.addEventListener("keydown", tryPlay, { once: true });
-    // tentative initiale (si déjà interactif)
     setTimeout(() => { tryPlay(); }, 350);
     return cleanupInteraction;
   }, [enabled, ready, missingFile]);
 
-  // Pause quand on perd le focus (optimisation UX)
   useEffect(() => {
     const onVis = () => {
       const a = audioRef.current;
@@ -159,7 +150,6 @@ export default function BackgroundMusic() {
         stopFallbackTone();
       } else if (enabled && !forcedPauseRef.current) {
         if (missingFile) {
-          // reprendre AudioContext si nécessaire puis fallback
           if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
             audioCtxRef.current.resume().catch(()=>{});
           }
@@ -171,7 +161,6 @@ export default function BackgroundMusic() {
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [enabled, missingFile]);
 
-  // Écoute des événements globaux pour pause/reprise forcée
   useEffect(() => {
     const onPause = () => {
       forcedPauseRef.current = true;
@@ -191,7 +180,6 @@ export default function BackgroundMusic() {
       }
     };
     const onPlayNow = () => {
-      // Force lecture immédiate (page accueil) même si ready=false (tentatives multiples)
       forcedPauseRef.current = false;
       const a = audioRef.current;
       if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
@@ -213,6 +201,10 @@ export default function BackgroundMusic() {
     };
   }, [enabled]);
 
+  // Les écrans de jeu immersifs doivent garder 100 % de l'espace pour les réponses/contrôles.
+  // La musique continue de respecter les événements pause/reprise, mais son panneau flottant disparaît.
+  if (pathname?.startsWith("/quiz") || pathname?.startsWith("/drag")) return null;
+
   return (
     <div className="fixed z-40 bottom-24 right-4 md:right-6 flex items-center gap-2 bg-neutral-900/80 backdrop-blur border border-neutral-800 rounded-full px-3 py-1.5">
       <button
@@ -224,7 +216,6 @@ export default function BackgroundMusic() {
           const a = audioRef.current;
           if (!a) return;
           if (next) {
-            // Si l'utilisateur active manuellement, on ignore temporairement forcedPause
             forcedPauseRef.current = false;
             if (missingFile) startFallbackTone(); else a.play().catch(()=>{});
           } else {

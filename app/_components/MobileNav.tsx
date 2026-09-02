@@ -42,7 +42,9 @@ export default function MobileNav() {
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const isDragRoute = pathname?.startsWith("/drag") ?? false;
+  const isImmersiveRoute = Boolean(
+    pathname?.startsWith("/drag") || pathname?.startsWith("/quiz")
+  );
   const secondaryActive = useMemo(
     () => secondaryItems.some((item) => !item.external && isPathActive(pathname, item.href)),
     [pathname]
@@ -89,8 +91,8 @@ export default function MobileNav() {
     [pathname, router]
   );
 
-  // Le Drag possède ses propres contrôles plein écran et son bouton Sortir.
-  if (isDragRoute) return null;
+  // Le Quiz et le Drag ont leurs propres contrôles plein écran.
+  if (isImmersiveRoute) return null;
 
   return (
     <div className="md:hidden">

@@ -22,7 +22,11 @@ const secondaryItems: NavItem[] = [
   { href: "/portefeuille", label: "Portefeuille", icon: "💼" },
   { href: "/pari", label: "Pari", icon: "🎯" },
   { href: DRAG_WEB_URL, label: "Drag Racing", icon: "🏁", external: true },
-  { href: "/login", label: "Compte / Connexion", icon: "👤" },
+  { href: "/listings", label: "Annonces", icon: "🏷" },
+  { href: "/summary", label: "Résumé", icon: "📊" },
+  { href: "/bonus", label: "Bonus", icon: "🎁" },
+  { href: "/parametres", label: "Paramètres", icon: "⚙" },
+  { href: "/login", label: "Compte", icon: "👤" },
 ];
 
 function normalizePath(path?: string | null) {
@@ -103,7 +107,7 @@ export default function MobileNav() {
           role="presentation"
         >
           <section
-            className="absolute inset-x-0 bottom-0 rounded-t-[28px] border-t border-white/10 bg-[#11151f]/98 px-4 pt-3 shadow-2xl"
+            className="absolute inset-x-0 bottom-0 max-h-[82dvh] overflow-y-auto rounded-t-[28px] border-t border-white/10 bg-[#11151f]/98 px-4 pt-3 shadow-2xl"
             style={{ paddingBottom: "calc(92px + env(safe-area-inset-bottom))" }}
             onClick={(event) => event.stopPropagation()}
             role="dialog"
@@ -126,7 +130,7 @@ export default function MobileNav() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5">
               {secondaryItems.map((item) => {
                 const active = !item.external && isPathActive(pathname, item.href);
                 return (
@@ -135,14 +139,14 @@ export default function MobileNav() {
                     type="button"
                     onClick={() => void navigate(item)}
                     className={[
-                      "min-h-[76px] rounded-2xl border px-4 py-3 text-left transition active:scale-[0.98]",
+                      "min-h-[68px] rounded-2xl border px-3 py-2.5 text-left transition active:scale-[0.98]",
                       active
                         ? "border-cyan-300/50 bg-cyan-300/15 text-white"
                         : "border-white/10 bg-white/[0.045] text-slate-200",
                     ].join(" ")}
                   >
-                    <span className="mb-1 block text-2xl" aria-hidden>{item.icon}</span>
-                    <span className="block text-sm font-bold">{item.label}</span>
+                    <span className="mb-0.5 block text-xl" aria-hidden>{item.icon}</span>
+                    <span className="block text-xs font-bold">{item.label}</span>
                   </button>
                 );
               })}

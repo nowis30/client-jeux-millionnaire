@@ -237,11 +237,7 @@ export default function QuizPage() {
         const seen = localStorage.getItem("hm-tutorial-quiz");
         if (!seen) setShowTutorial(true);
       } catch {}
-      // Pause musique globale (événement) quand on arrive sur la page quiz
-      try { window.dispatchEvent(new Event('hm-music/pause')); } catch {}
     })();
-    // À la sortie de la page, reprendre la musique
-    return () => { try { window.dispatchEvent(new Event('hm-music/resume')); } catch {} };
   }, [ensureSession, router]);
 
   useEffect(() => {

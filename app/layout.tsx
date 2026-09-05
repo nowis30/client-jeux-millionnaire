@@ -10,7 +10,6 @@ const UserBadge = dynamic(() => import("./_components/UserBadge"), { ssr: false 
 const MobileNav = dynamic(() => import("./_components/MobileNav"), { ssr: false });
 const PresenceClient = dynamic(() => import("./_components/PresenceClient"), { ssr: false });
 const AdInitializer = dynamic(() => import("./_components/AdInitializer"), { ssr: false });
-const BackgroundMusic = dynamic(() => import("./_components/BackgroundMusic"), { ssr: false });
 const ConsentBanner = dynamic(() => import("./_components/ConsentBanner"), { ssr: false });
 export const metadata: Metadata = {
   title: "Héritier Millionnaire",
@@ -140,8 +139,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <PresenceClient />
             {/* Initialisation AdMob pour app Android */}
             <AdInitializer />
-            {/* Musique de fond (lecture après première interaction utilisateur) */}
-            <BackgroundMusic />
             {/* Bandeau de consentement RGPD */}
             <ConsentBanner />
           </MountGate>

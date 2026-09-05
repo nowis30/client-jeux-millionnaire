@@ -35,11 +35,6 @@ export default function DashboardPage() {
           setIsAdmin(!!me.isAdmin);
           setUserEmail(me.email);
         }
-        // Démarrer la musique de thème immédiatement sur accueil
-        try {
-          window.dispatchEvent(new Event('hm-music/resume'));
-          window.dispatchEvent(new Event('hm-music/play-now'));
-        } catch {}
       } catch {
         if (mounted) {
           setIsLoggedIn(false);

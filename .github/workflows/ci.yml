@@ -20,11 +20,12 @@ jobs:
         run: npm install --prefer-offline --no-audit
       - name: Build
         env:
-          NEXT_PUBLIC_SUPABASE_URL: https://smwrpejnegtssmtmnecb.supabase.co
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_3-7XDsd5zEd-3rrqr0-xgQ_kk0z3ArR
+          NEXT_PUBLIC_SUPABASE_URL: https://hzyxrubwggcjueqkongh.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_03fRORDfOBFt7PO7RcNEEA_zA8_fQbO
           NEXT_PUBLIC_APK_URL: ""
           NEXT_PUBLIC_TRAILER_YT: ""
           NEXT_PUBLIC_TRAILER_MP4: ""
           NEXT_PUBLIC_GITHUB_REPO: ""
           NEXT_PUBLIC_APK_FILENAME: ""
         run: npm run build
+

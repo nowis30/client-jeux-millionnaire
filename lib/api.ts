@@ -1,10 +1,10 @@
-export const SUPABASE_URL = (
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://smwrpejnegtssmtmnecb.supabase.co"
-).replace(/\/+$/, "");
-
-export const SUPABASE_PUBLISHABLE_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-  "sb_publishable_3-7XDsd5zEd-3rrqr0-xgQ_kk0z3ArR";
+const configuredSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/\/+$/, "");
+const sharedSupabaseUrl = "https://hzyxrubwggcjueqkongh.supabase.co";
+const usesSharedProject = !configuredSupabaseUrl || configuredSupabaseUrl === "https://smwrpejnegtssmtmnecb.supabase.co" || configuredSupabaseUrl === sharedSupabaseUrl;
+export const SUPABASE_URL = usesSharedProject ? sharedSupabaseUrl : configuredSupabaseUrl;
+export const SUPABASE_PUBLISHABLE_KEY = usesSharedProject
+  ? "sb_publishable_03fRORDfOBFt7PO7RcNEEA_zA8_fQbO"
+  : process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() || "";
 
 export const API_BASE = `${SUPABASE_URL}/functions/v1/heritier-api`;
 export const IS_PRODUCTION = process.env.NODE_ENV === "production";
@@ -272,3 +272,4 @@ export async function apiFetch<T = any>(path: string, init: RequestInit = {}): P
   if (response.status === 204) return undefined as T;
   return await response.json() as T;
 }
+

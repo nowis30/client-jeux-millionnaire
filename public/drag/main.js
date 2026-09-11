@@ -155,8 +155,8 @@ if (modeWorldBtn) modeWorldBtn.addEventListener('click', () => { setRaceMode('wo
 if (modePvPBtn) modePvPBtn.addEventListener('click', async () => { setRaceMode('pvp'); await openOpponentsOverlay(); });
 if (modeGhostBtn) modeGhostBtn.addEventListener('click', () => { setRaceMode('ghost'); });
 // === Réseau / API Supabase (intégration Millionnaire) ===
-const SUPABASE_URL = 'https://smwrpejnegtssmtmnecb.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_3-7XDsd5zEd-3rrqr0-xgQ_kk0z3ArR';
+const SUPABASE_URL = 'https://hzyxrubwggcjueqkongh.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_03fRORDfOBFt7PO7RcNEEA_zA8_fQbO';
 const API_BASE = (window && window.DRAG_API_BASE)
     ? String(window.DRAG_API_BASE).replace(/\/$/, '')
     : `${SUPABASE_URL}/functions/v1/heritier-api`;
@@ -2516,3 +2516,4 @@ requestAnimationFrame(gameLoop);
         }
     }, 1000);
 })();
+

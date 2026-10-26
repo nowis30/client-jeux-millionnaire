@@ -1,6 +1,6 @@
 'use client';
 
-import { watchVerifiedReward } from "../../lib/reward-verification";
+import { finishReward, usePendingReward, watchVerifiedReward } from "../../lib/reward-verification";
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { isRewardedAdReady, getRewardedAdCooldown } from '../../lib/ads';
@@ -14,6 +14,7 @@ export default function BonusPage() {
   const [serverAvailable, setServerAvailable] = useState(false);
   const [adReady, setAdReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const pendingBonus = usePendingReward(gameId, 'bonus');
   const [cooldown, setCooldown] = useState(0);
   const [reward, setReward] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -102,7 +103,7 @@ export default function BonusPage() {
       setError("Rejoignez la partie mondiale pour débloquer ce bonus.");
       return;
     }
-    if (isLoading || cooldown > 0 || !serverAvailable || !adReady) return;
+    if (isLoading || (!pendingBonus && (cooldown > 0 || !serverAvailable || !adReady))) return;
 
     setIsLoading(true);
     setError(null);
@@ -122,6 +123,7 @@ export default function BonusPage() {
         body: JSON.stringify({ rewardIntentId }),
       });
 
+      finishReward(gameId, 'bonus', rewardIntentId);
       const awarded = Number(response?.rewardAmount ?? rewardAmount);
       setReward(awarded);
       setRewardAmount(awarded);
@@ -156,7 +158,7 @@ export default function BonusPage() {
     return `${secs}s`;
   };
 
-  const isDisabled = !gameId || !playerId || isLoading || cooldown > 0 || !serverAvailable || !adReady;
+  const isDisabled = !gameId || !playerId || isLoading || (!pendingBonus && (cooldown > 0 || !serverAvailable || !adReady));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white p-4">
@@ -240,6 +242,8 @@ export default function BonusPage() {
               </span>
             ) : !gameId || !playerId ? (
               <span>Connexion en cours...</span>
+            ) : pendingBonus ? (
+              <span>Récupérer la récompense</span>
             ) : cooldown > 0 ? (
               <span>⏱️ Disponible dans {formatCooldown(cooldown)}</span>
             ) : !serverAvailable ? (

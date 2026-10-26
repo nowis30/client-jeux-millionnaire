@@ -1,5 +1,5 @@
 "use client";
-import { watchVerifiedReward } from "../../lib/reward-verification";
+import { finishReward, usePendingReward, watchVerifiedReward } from "../../lib/reward-verification";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Onboarding from "../../components/Onboarding";
@@ -89,6 +89,7 @@ export default function QuizPage() {
   const [tokenAdReady, setTokenAdReady] = useState(false);
   const [tokenAdCooldown, setTokenAdCooldown] = useState(0);
   const [tokenAdLoading, setTokenAdLoading] = useState(false);
+  const pendingTokenReward = usePendingReward(gameId, 'quiz-token');
   const [tokenAdMessage, setTokenAdMessage] = useState<string | null>(null);
   const [tokenAdError, setTokenAdError] = useState<string | null>(null);
   const [adsSupported, setAdsSupported] = useState<boolean>(false);
@@ -339,7 +340,7 @@ export default function QuizPage() {
 
     try {
       const ready = await isRewardedAdReady();
-      if (!ready) {
+      if (!pendingTokenReward && !ready) {
         const pluginCooldown = getRewardedAdCooldown();
         if (pluginCooldown > 0) {
           setTokenAdCooldown(prev => Math.max(prev, pluginCooldown));
@@ -361,6 +362,7 @@ export default function QuizPage() {
         }
       );
 
+      finishReward(gameId, 'quiz-token', rewardIntentId);
       const added = Number(res?.added ?? 0);
       const updatedTokens = typeof res?.tokens === 'number' ? Number(res.tokens) : undefined;
       if (typeof updatedTokens === 'number') {
@@ -429,6 +431,7 @@ export default function QuizPage() {
         }
       );
 
+      finishReward(gameId, 'quiz-reveal', rewardIntentId, { sessionId: session.id, questionId: question.id });
       const correct = data.correctAnswer as 'A' | 'B' | 'C' | 'D' | undefined;
       if (!correct) {
         throw new Error('Réponse invalide renvoyée.');
@@ -1023,11 +1026,13 @@ export default function QuizPage() {
                   </div>
                   <button
                     onClick={handleTokenAdRecharge}
-                    disabled={tokenAdLoading || tokenAdCooldown > 0 || !tokenAdReady || (status?.tokens ?? 0) >= 20}
-                    className={`ui-btn ui-btn--primary w-full ${tokenAdLoading || tokenAdCooldown > 0 || !tokenAdReady || (status?.tokens ?? 0) >= 20 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={tokenAdLoading || (!pendingTokenReward && (tokenAdCooldown > 0 || !tokenAdReady || (status?.tokens ?? 0) >= 20))}
+                    className={`ui-btn ui-btn--primary w-full ${tokenAdLoading || (!pendingTokenReward && (tokenAdCooldown > 0 || !tokenAdReady || (status?.tokens ?? 0) >= 20)) ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     {tokenAdLoading
                       ? 'Lecture en cours…'
+                      : pendingTokenReward
+                        ? 'Récupérer la récompense'
                       : tokenAdCooldown > 0
                         ? `Disponible dans ${formatAdCooldown(tokenAdCooldown)}`
                         : (status?.tokens ?? 0) >= 20

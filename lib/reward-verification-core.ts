@@ -10,10 +10,20 @@ export type RewardServices = {
 };
 type Status = { verified: boolean; consumed: boolean; expired: boolean };
 
+export function rewardStorageKey(gameId: string, kind: RewardKind, context: RewardContext = {}): string {
+  return `hm-pending-ad:${gameId}:${kind}:${context.sessionId ?? ''}:${context.questionId ?? ''}`;
+}
+
+export function completeRewardIntent(services: Pick<RewardServices, 'readPending' | 'writePending'>, gameId: string, kind: RewardKind, intentId: string, context: RewardContext = {}): void {
+  const key = rewardStorageKey(gameId, kind, context);
+  // A delayed response from another tab must not remove a newer receipt.
+  if (services.readPending(key) === intentId) services.writePending(key, null);
+}
+
 export async function requestVerifiedReward(services: RewardServices, gameId: string, kind: RewardKind, context: RewardContext = {}): Promise<string | null> {
   if (!(await services.supported())) throw new Error('Mettez l’application Android à jour pour recevoir les récompenses publicitaires.');
   const path = `/api/games/${gameId}/rewards/intents`;
-  const storageKey = `hm-pending-ad:${gameId}:${kind}:${context.sessionId ?? ''}:${context.questionId ?? ''}`;
+  const storageKey = rewardStorageKey(gameId, kind, context);
   let id = services.readPending(storageKey);
   if (id) {
     try {

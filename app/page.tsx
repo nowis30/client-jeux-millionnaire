@@ -1,5 +1,5 @@
 "use client";
-import { watchVerifiedReward } from "../lib/reward-verification";
+import { finishReward, usePendingReward, watchVerifiedReward } from "../lib/reward-verification";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -83,6 +83,7 @@ export default function DashboardPage() {
   const [bonusCooldown, setBonusCooldown] = useState(0);
   const [bonusReady, setBonusReady] = useState(false);
   const [bonusLoading, setBonusLoading] = useState(false);
+  const pendingBonus = usePendingReward(gameId, 'bonus');
   const [bonusMessage, setBonusMessage] = useState<string | null>(null);
   const [bonusError, setBonusError] = useState<string | null>(null);
   const [adReady, setAdReady] = useState(false);
@@ -247,6 +248,7 @@ export default function DashboardPage() {
         body: JSON.stringify({ rewardIntentId }),
       });
 
+      finishReward(gameId, 'bonus', rewardIntentId);
       const awarded = Number(result?.rewardAmount ?? bonusRewardAmount);
       setBonusRewardAmount(awarded);
       setBonusMessage(`+${formatMoney(awarded)}`);
@@ -648,10 +650,11 @@ export default function DashboardPage() {
       .sort((a, b) => b.netWorth - a.netWorth);
   }, [leaderboard, players]);
 
-  const bonusButtonDisabled = !gameId || !playerId || bonusLoading || bonusCooldown > 0 || !adReady;
+  const bonusButtonDisabled = !gameId || !playerId || bonusLoading || (!pendingBonus && (bonusCooldown > 0 || !adReady));
   const bonusButtonLabel = (() => {
     if (!gameId || !playerId) return "Connexion en cours...";
     if (bonusLoading) return "Chargement de la publicité...";
+    if (pendingBonus) return "Récupérer la récompense";
     if (bonusCooldown > 0) return `Disponible dans ${formatBonusCooldown(bonusCooldown)}`;
     if (!adReady) return isNativeEnv ? "Chargement de la publicité..." : "Disponible dans l'app mobile";
     return `Regarder la publicité pour ${formatMoney(bonusRewardAmount)}`;

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { requestVerifiedReward } from '../lib/reward-verification-core.ts';
+import { completeRewardIntent, requestVerifiedReward, rewardStorageKey } from '../lib/reward-verification-core.ts';
 
 function fixture() {
   const state = { supported: true, shown: true, verified: true, consumed: false, expired: false, requests: [], ads: [], waits: 0, storage: new Map() };
@@ -44,4 +44,36 @@ test('expired or consumed receipt is never returned as a reward', async () => {
     await assert.rejects(requestVerifiedReward(services,'game','bonus'),/expiré/);
     assert.equal(state.storage.size,0);
   }
+});
+
+test('successful consumption clears the pending receipt so cooldowns apply to the next ad', async () => {
+  const {state, services} = fixture();
+  const receipt = await requestVerifiedReward(services, 'game', 'bonus');
+  assert.equal(state.storage.get(rewardStorageKey('game', 'bonus')), receipt);
+  completeRewardIntent(services, 'game', 'bonus', receipt);
+  assert.equal(state.storage.size, 0);
+});
+
+test('a delayed completion does not erase a newer pending receipt from another tab', () => {
+  const {state, services} = fixture();
+  const key = rewardStorageKey('game', 'bonus');
+  state.storage.set(key, 'new-receipt');
+  completeRewardIntent(services, 'game', 'bonus', 'old-receipt');
+  assert.equal(state.storage.get(key), 'new-receipt');
+});
+
+test('pending receipts remain isolated by game, reward kind and quiz question', () => {
+  const {state, services} = fixture();
+  const contexts = [
+    ['game', 'bonus', {}],
+    ['other-game', 'bonus', {}],
+    ['game', 'pari-token', {}],
+    ['game', 'quiz-reveal', {sessionId:'session', questionId:'q1'}],
+    ['game', 'quiz-reveal', {sessionId:'session', questionId:'q2'}],
+  ];
+  for (const [game, kind, context] of contexts) state.storage.set(rewardStorageKey(game, kind, context), 'receipt');
+  assert.equal(state.storage.size, contexts.length);
+  completeRewardIntent(services, 'game', 'quiz-reveal', 'receipt', {sessionId:'session', questionId:'q1'});
+  assert.equal(state.storage.size, contexts.length - 1);
+  assert.equal(state.storage.get(rewardStorageKey('game', 'quiz-reveal', {sessionId:'session', questionId:'q2'})), 'receipt');
 });

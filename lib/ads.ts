@@ -16,7 +16,8 @@ interface AdMobPlugin {
   showInterstitial(): Promise<void>;
   isAdReady(): Promise<{ ready: boolean }>;
   loadRewardedAd(): Promise<void>;
-  showRewardedAd(): Promise<RewardEarned>;
+  showRewardedAd(options?: { intentId: string; userId: string }): Promise<RewardEarned>;
+  getRewardVerificationSupport?: () => Promise<{ supported: boolean }>;
   isRewardedAdReady(): Promise<{ ready: boolean }>;
   // UMP consent (natif). Retourne { npa: boolean }
   requestConsent?: () => Promise<{ npa: boolean }>;
@@ -262,6 +263,7 @@ export async function showRewardedAd(_adUnitId?: string): Promise<boolean> {
  * @returns true si l'annonce a été affichée, false sinon
  */
 type RewardedAdOptions = {
+  verification?: { intentId: string; userId: string };
   onReward?: (amount: number, type: string) => void;
   ignoreCooldown?: boolean;
 };
@@ -307,7 +309,7 @@ export async function showRewardedAdForReward(
     }
 
     // Afficher l'annonce et attendre la récompense
-  const reward = await AdMob.showRewardedAd();
+  const reward = await AdMob.showRewardedAd(options.verification);
   if (!ignoreCooldown) {
     lastRewardedAdShown = now;
     try { if (typeof window !== 'undefined') localStorage.setItem('hm-ads-rewarded-last', String(now)); } catch {}
@@ -408,3 +410,10 @@ export function getAdUnit(_idFromEnv?: string): string | undefined {
 
 
 
+
+export async function supportsRewardVerification(): Promise<boolean> {
+  const plugin = getAdMobPlugin();
+  if (!plugin?.getRewardVerificationSupport) return false;
+  try { return (await plugin.getRewardVerificationSupport()).supported === true; }
+  catch { return false; }
+}

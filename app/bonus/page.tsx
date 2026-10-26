@@ -1,8 +1,9 @@
 'use client';
 
+import { watchVerifiedReward } from "../../lib/reward-verification";
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown } from '../../lib/ads';
+import { isRewardedAdReady, getRewardedAdCooldown } from '../../lib/ads';
 import { loadSession } from '../../lib/session';
 import { apiFetch } from '../../lib/api';
 import { formatMoney } from '../../lib/format';
@@ -108,11 +109,9 @@ export default function BonusPage() {
     setReward(null);
 
     try {
-      const displayed = await showRewardedAdForReward((amount: number, type: string) => {
-        console.log(`Récompense AdMob gagnée: ${amount} ${type}`);
-      });
+      const rewardIntentId = await watchVerifiedReward(gameId, 'bonus');
 
-      if (!displayed) {
+      if (!rewardIntentId) {
         setError("La pub n'a pas pu être affichée. Réessayez dans quelques instants.");
         return;
       }
@@ -120,7 +119,7 @@ export default function BonusPage() {
       const response = await apiFetch<{ rewardAmount?: number; secondsUntilNext?: number }>(`/api/games/${gameId}/bonus/redeem`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ rewardIntentId }),
       });
 
       const awarded = Number(response?.rewardAmount ?? rewardAmount);

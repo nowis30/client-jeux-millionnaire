@@ -1,4 +1,5 @@
 "use client";
+import { watchVerifiedReward } from "../lib/reward-verification";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -7,7 +8,7 @@ import OnboardingHome from "../components/OnboardingHome";
 import CollapsibleSection from "../components/CollapsibleSection";
 import { apiFetch, clearAuthSession } from "../lib/api";
 import { formatMoney } from "../lib/format";
-import { showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown } from "../lib/ads";
+import { isRewardedAdReady, getRewardedAdCooldown } from "../lib/ads";
 import { canLaunchNativeDrag, launchNativeDrag, DRAG_WEB_URL } from "../lib/drag";
 
 
@@ -234,10 +235,8 @@ export default function DashboardPage() {
     setBonusMessage(null);
 
     try {
-      const displayed = await showRewardedAdForReward((amount, type) => {
-        console.log(`[Bonus] Reward callback ${amount} ${type}`);
-      });
-      if (!displayed) {
+      const rewardIntentId = await watchVerifiedReward(gameId, 'bonus');
+      if (!rewardIntentId) {
         setBonusError("La publicité n'est pas prête. Réessayez dans quelques instants.");
         return;
       }
@@ -245,7 +244,7 @@ export default function DashboardPage() {
       const result = await apiFetch<{ rewardAmount?: number; secondsUntilNext?: number }>(`/api/games/${gameId}/bonus/redeem`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ rewardIntentId }),
       });
 
       const awarded = Number(result?.rewardAmount ?? bonusRewardAmount);

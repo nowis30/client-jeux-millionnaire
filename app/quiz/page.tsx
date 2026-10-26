@@ -1,4 +1,5 @@
 "use client";
+import { watchVerifiedReward } from "../../lib/reward-verification";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Onboarding from "../../components/Onboarding";
@@ -9,7 +10,7 @@ import { QuizCategory } from "../../lib/quizCategories";
 // API_BASE local supprimé: utiliser chemins relatifs (proxy /api/*)
 // Utiliser API_BASE défini dans lib/api (abs pour Capacitor)
 import { apiFetch, apiFetchRaw, ApiError } from "../../lib/api";
-import { initializeAds, showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown, isAdsSupported } from "../../lib/ads";
+import { initializeAds, isRewardedAdReady, getRewardedAdCooldown, isAdsSupported } from "../../lib/ads";
 import { SFX } from "../../lib/sfx";
 
 const BASE_STAKE = 50000;
@@ -158,17 +159,18 @@ export default function QuizPage() {
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
+  const tokenAdCoolingDown = tokenAdCooldown > 0;
   useEffect(() => {
-    if (tokenAdCooldown <= 0) return;
+    if (!tokenAdCoolingDown) return;
     const timer = setInterval(() => {
       setTokenAdCooldown(prev => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
-  }, [tokenAdCooldown > 0]);
+  }, [tokenAdCoolingDown]);
 
   // Timer 30s
   useEffect(() => {
-    if (!session || !question || revealCorrect || showTimeoutReveal) return;
+    if (!session || !question || revealCorrect || showTimeoutReveal || revealLoading) return;
     if (timeLeft <= 0) {
       // Déclencher timeout côté serveur
       (async () => {
@@ -203,7 +205,7 @@ export default function QuizPage() {
     }
     const id = setTimeout(()=> setTimeLeft(t => t - 1), 1000);
     return () => clearTimeout(id);
-  }, [timeLeft, session, question, revealCorrect, showTimeoutReveal, playerId, gameId]);
+  }, [timeLeft, session, question, revealCorrect, showTimeoutReveal, revealLoading, playerId, gameId]);
 
   const ensureSession = useCallback(async () => {
     try {
@@ -345,8 +347,8 @@ export default function QuizPage() {
         throw new Error("La publicité n'est pas encore prête. Réessayez bientôt.");
       }
 
-      const displayed = await showRewardedAdForReward();
-      if (!displayed) {
+      const rewardIntentId = await watchVerifiedReward(gameId, 'quiz-token');
+      if (!rewardIntentId) {
         throw new Error("Impossible d'afficher la publicité maintenant.");
       }
 
@@ -355,7 +357,7 @@ export default function QuizPage() {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Player-ID': playerId },
-          body: JSON.stringify({ type: 'quiz' }),
+          body: JSON.stringify({ type: 'quiz', rewardIntentId }),
         }
       );
 
@@ -413,8 +415,8 @@ export default function QuizPage() {
     setRevealLoading(true);
 
     try {
-      const displayed = await showRewardedAdForReward({ ignoreCooldown: true });
-      if (!displayed) {
+      const rewardIntentId = await watchVerifiedReward(gameId, 'quiz-reveal', { sessionId: session.id, questionId: question.id });
+      if (!rewardIntentId) {
         throw new Error("Publicité indisponible. Réessayez dans un instant.");
       }
 
@@ -423,7 +425,7 @@ export default function QuizPage() {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: session.id, questionId: question.id }),
+          body: JSON.stringify({ sessionId: session.id, questionId: question.id, rewardIntentId }),
         }
       );
 

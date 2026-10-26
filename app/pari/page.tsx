@@ -1,7 +1,8 @@
 "use client";
+import { watchVerifiedReward } from "../../lib/reward-verification";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { apiFetch, apiFetchRaw, ApiError } from "../../lib/api";
-import { initializeAds, showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown, isAdsSupported } from "../../lib/ads";
+import { initializeAds, isRewardedAdReady, getRewardedAdCooldown, isAdsSupported } from "../../lib/ads";
 const MIN_BET = 5000; 
 const DYN_FACTOR = 0.5; // 50% du cash comme plafond dynamique côté client (indicatif) 
 const AUTO_ROLL_MIN_DELAY_MS = 2500; // Délai minimum entre deux lancers auto
@@ -118,13 +119,14 @@ export default function PariPage() {
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
+  const adCoolingDown = adCooldown > 0;
   useEffect(() => {
-    if (adCooldown <= 0) return;
+    if (!adCoolingDown) return;
     const timer = setInterval(() => {
       setAdCooldown(prev => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
-  }, [adCooldown > 0]);
+  }, [adCoolingDown]);
 
   function clearAutoTimers() {
     if (autoTimerRef.current) {
@@ -306,8 +308,8 @@ export default function PariPage() {
         throw new Error("La publicité n'est pas prête. Réessayez dans quelques instants.");
       }
 
-      const displayed = await showRewardedAdForReward();
-      if (!displayed) {
+      const rewardIntentId = await watchVerifiedReward(gameId, 'pari-token');
+      if (!rewardIntentId) {
         throw new Error("Impossible d'afficher la publicité pour le moment.");
       }
 
@@ -316,7 +318,7 @@ export default function PariPage() {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Player-ID': playerId },
-          body: JSON.stringify({ type: 'pari' }),
+          body: JSON.stringify({ type: 'pari', rewardIntentId }),
         }
       );
 

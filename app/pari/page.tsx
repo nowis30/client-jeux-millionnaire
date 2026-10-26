@@ -1,7 +1,8 @@
 "use client";
+import { finishReward, usePendingReward, watchVerifiedReward } from "../../lib/reward-verification";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { apiFetch, apiFetchRaw, ApiError } from "../../lib/api";
-import { initializeAds, showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown, isAdsSupported } from "../../lib/ads";
+import { initializeAds, isRewardedAdReady, getRewardedAdCooldown, isAdsSupported } from "../../lib/ads";
 const MIN_BET = 5000; 
 const DYN_FACTOR = 0.5; // 50% du cash comme plafond dynamique côté client (indicatif) 
 const AUTO_ROLL_MIN_DELAY_MS = 2500; // Délai minimum entre deux lancers auto
@@ -44,6 +45,7 @@ export default function PariPage() {
   const [adReady, setAdReady] = useState(false);
   const [adCooldown, setAdCooldown] = useState(0);
   const [adLoading, setAdLoading] = useState(false);
+  const pendingReward = usePendingReward(gameId, 'pari-token');
   const [adMessage, setAdMessage] = useState<string | null>(null);
   const [adErrorMessage, setAdErrorMessage] = useState<string | null>(null);
   const [adsSupported, setAdsSupported] = useState<boolean>(false);
@@ -118,13 +120,14 @@ export default function PariPage() {
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
+  const adCoolingDown = adCooldown > 0;
   useEffect(() => {
-    if (adCooldown <= 0) return;
+    if (!adCoolingDown) return;
     const timer = setInterval(() => {
       setAdCooldown(prev => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
-  }, [adCooldown > 0]);
+  }, [adCoolingDown]);
 
   function clearAutoTimers() {
     if (autoTimerRef.current) {
@@ -298,7 +301,7 @@ export default function PariPage() {
 
     try {
       const ready = await isRewardedAdReady();
-      if (!ready) {
+      if (!pendingReward && !ready) {
         const pluginCooldown = getRewardedAdCooldown();
         if (pluginCooldown > 0) {
           setAdCooldown(prev => Math.max(prev, pluginCooldown));
@@ -306,8 +309,8 @@ export default function PariPage() {
         throw new Error("La publicité n'est pas prête. Réessayez dans quelques instants.");
       }
 
-      const displayed = await showRewardedAdForReward();
-      if (!displayed) {
+      const rewardIntentId = await watchVerifiedReward(gameId, 'pari-token');
+      if (!rewardIntentId) {
         throw new Error("Impossible d'afficher la publicité pour le moment.");
       }
 
@@ -316,10 +319,11 @@ export default function PariPage() {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Player-ID': playerId },
-          body: JSON.stringify({ type: 'pari' }),
+          body: JSON.stringify({ type: 'pari', rewardIntentId }),
         }
       );
 
+      finishReward(gameId, 'pari-token', rewardIntentId);
       const added = Number(res?.added ?? 0);
       if (typeof res?.tokens === 'number') {
         setPariTokens(res.tokens);
@@ -357,7 +361,7 @@ export default function PariPage() {
         void isRewardedAdReady().then(ready => setAdReady(ready));
       }, 500);
     }
-  }, [gameId, playerId, adLoading, refreshPariStatus]);
+  }, [gameId, playerId, adLoading, pendingReward, refreshPariStatus]);
 
   async function play() {
     if (!gameId || !playerId) {
@@ -486,11 +490,13 @@ export default function PariPage() {
               <button
                 type="button"
                 onClick={handleWatchAd}
-                disabled={adLoading || adCooldown > 0 || !adReady || pariTokens >= 100}
-                className={`w-full py-2 rounded-lg font-semibold transition ${adLoading || adCooldown > 0 || !adReady || pariTokens >= 100 ? 'bg-white/10 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-400 to-green-500 text-black hover:from-emerald-300 hover:to-green-400'}`}
+                disabled={adLoading || (!pendingReward && (adCooldown > 0 || !adReady || pariTokens >= 100))}
+                className={`w-full py-2 rounded-lg font-semibold transition ${adLoading || (!pendingReward && (adCooldown > 0 || !adReady || pariTokens >= 100)) ? 'bg-white/10 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-400 to-green-500 text-black hover:from-emerald-300 hover:to-green-400'}`}
               >
                 {adLoading
                   ? 'Lecture en cours…'
+                  : pendingReward
+                    ? 'Récupérer la récompense'
                   : adCooldown > 0
                     ? `Disponible dans ${formatCooldown(adCooldown)}`
                     : pariTokens >= 100

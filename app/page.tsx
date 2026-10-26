@@ -1,4 +1,5 @@
 "use client";
+import { finishReward, usePendingReward, watchVerifiedReward } from "../lib/reward-verification";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -7,7 +8,7 @@ import OnboardingHome from "../components/OnboardingHome";
 import CollapsibleSection from "../components/CollapsibleSection";
 import { apiFetch, clearAuthSession } from "../lib/api";
 import { formatMoney } from "../lib/format";
-import { showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown } from "../lib/ads";
+import { isRewardedAdReady, getRewardedAdCooldown } from "../lib/ads";
 import { canLaunchNativeDrag, launchNativeDrag, DRAG_WEB_URL } from "../lib/drag";
 
 
@@ -82,6 +83,7 @@ export default function DashboardPage() {
   const [bonusCooldown, setBonusCooldown] = useState(0);
   const [bonusReady, setBonusReady] = useState(false);
   const [bonusLoading, setBonusLoading] = useState(false);
+  const pendingBonus = usePendingReward(gameId, 'bonus');
   const [bonusMessage, setBonusMessage] = useState<string | null>(null);
   const [bonusError, setBonusError] = useState<string | null>(null);
   const [adReady, setAdReady] = useState(false);
@@ -234,10 +236,8 @@ export default function DashboardPage() {
     setBonusMessage(null);
 
     try {
-      const displayed = await showRewardedAdForReward((amount, type) => {
-        console.log(`[Bonus] Reward callback ${amount} ${type}`);
-      });
-      if (!displayed) {
+      const rewardIntentId = await watchVerifiedReward(gameId, 'bonus');
+      if (!rewardIntentId) {
         setBonusError("La publicité n'est pas prête. Réessayez dans quelques instants.");
         return;
       }
@@ -245,9 +245,10 @@ export default function DashboardPage() {
       const result = await apiFetch<{ rewardAmount?: number; secondsUntilNext?: number }>(`/api/games/${gameId}/bonus/redeem`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ rewardIntentId }),
       });
 
+      finishReward(gameId, 'bonus', rewardIntentId);
       const awarded = Number(result?.rewardAmount ?? bonusRewardAmount);
       setBonusRewardAmount(awarded);
       setBonusMessage(`+${formatMoney(awarded)}`);
@@ -649,10 +650,11 @@ export default function DashboardPage() {
       .sort((a, b) => b.netWorth - a.netWorth);
   }, [leaderboard, players]);
 
-  const bonusButtonDisabled = !gameId || !playerId || bonusLoading || bonusCooldown > 0 || !adReady;
+  const bonusButtonDisabled = !gameId || !playerId || bonusLoading || (!pendingBonus && (bonusCooldown > 0 || !adReady));
   const bonusButtonLabel = (() => {
     if (!gameId || !playerId) return "Connexion en cours...";
     if (bonusLoading) return "Chargement de la publicité...";
+    if (pendingBonus) return "Récupérer la récompense";
     if (bonusCooldown > 0) return `Disponible dans ${formatBonusCooldown(bonusCooldown)}`;
     if (!adReady) return isNativeEnv ? "Chargement de la publicité..." : "Disponible dans l'app mobile";
     return `Regarder la publicité pour ${formatMoney(bonusRewardAmount)}`;

@@ -1,8 +1,9 @@
 'use client';
 
+import { finishReward, usePendingReward, watchVerifiedReward } from "../../lib/reward-verification";
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { showRewardedAdForReward, isRewardedAdReady, getRewardedAdCooldown } from '../../lib/ads';
+import { isRewardedAdReady, getRewardedAdCooldown } from '../../lib/ads';
 import { loadSession } from '../../lib/session';
 import { apiFetch } from '../../lib/api';
 import { formatMoney } from '../../lib/format';
@@ -13,6 +14,7 @@ export default function BonusPage() {
   const [serverAvailable, setServerAvailable] = useState(false);
   const [adReady, setAdReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const pendingBonus = usePendingReward(gameId, 'bonus');
   const [cooldown, setCooldown] = useState(0);
   const [reward, setReward] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -101,18 +103,16 @@ export default function BonusPage() {
       setError("Rejoignez la partie mondiale pour débloquer ce bonus.");
       return;
     }
-    if (isLoading || cooldown > 0 || !serverAvailable || !adReady) return;
+    if (isLoading || (!pendingBonus && (cooldown > 0 || !serverAvailable || !adReady))) return;
 
     setIsLoading(true);
     setError(null);
     setReward(null);
 
     try {
-      const displayed = await showRewardedAdForReward((amount: number, type: string) => {
-        console.log(`Récompense AdMob gagnée: ${amount} ${type}`);
-      });
+      const rewardIntentId = await watchVerifiedReward(gameId, 'bonus');
 
-      if (!displayed) {
+      if (!rewardIntentId) {
         setError("La pub n'a pas pu être affichée. Réessayez dans quelques instants.");
         return;
       }
@@ -120,9 +120,10 @@ export default function BonusPage() {
       const response = await apiFetch<{ rewardAmount?: number; secondsUntilNext?: number }>(`/api/games/${gameId}/bonus/redeem`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ rewardIntentId }),
       });
 
+      finishReward(gameId, 'bonus', rewardIntentId);
       const awarded = Number(response?.rewardAmount ?? rewardAmount);
       setReward(awarded);
       setRewardAmount(awarded);
@@ -157,7 +158,7 @@ export default function BonusPage() {
     return `${secs}s`;
   };
 
-  const isDisabled = !gameId || !playerId || isLoading || cooldown > 0 || !serverAvailable || !adReady;
+  const isDisabled = !gameId || !playerId || isLoading || (!pendingBonus && (cooldown > 0 || !serverAvailable || !adReady));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white p-4">
@@ -241,6 +242,8 @@ export default function BonusPage() {
               </span>
             ) : !gameId || !playerId ? (
               <span>Connexion en cours...</span>
+            ) : pendingBonus ? (
+              <span>Récupérer la récompense</span>
             ) : cooldown > 0 ? (
               <span>⏱️ Disponible dans {formatCooldown(cooldown)}</span>
             ) : !serverAvailable ? (

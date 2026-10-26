@@ -228,24 +228,37 @@ async function handleAuthRoute(path: string, init: RequestInit): Promise<Respons
 }
 
 export function getApiUrl(path: string): string {
-  if (/^https?:\/\//i.test(path)) return path;
-  return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+  // This helper sends the user's access token. Restrict it to this API, including
+  // the function path: another function on the same Supabase host is not trusted.
+  const base = new URL(`${API_BASE}/`);
+  let target: URL;
+  try {
+    target = new URL(/^[a-z][a-z\d+.-]*:/i.test(path) || path.startsWith("//")
+      ? path
+      : `${API_BASE}/${path.replace(/^\//, "")}`);
+  } catch {
+    throw new ApiError(400, "Adresse API invalide.");
+  }
+  if (target.origin !== base.origin || !target.pathname.startsWith(base.pathname) ||
+      target.username || target.password || target.hash) {
+    throw new ApiError(400, "Cette adresse ne fait pas partie de l’API du jeu.");
+  }
+  return target.href;
 }
 
 async function requestApi(path: string, init: RequestInit = {}, retry = true): Promise<Response> {
+  const target = getApiUrl(path);
   const authResponse = await handleAuthRoute(path, init);
   if (authResponse) return authResponse;
 
   const token = await getValidAccessToken();
-  const headers: Record<string, string> = {
-    apikey: SUPABASE_PUBLISHABLE_KEY,
-    ...(init.headers as Record<string, string> | undefined),
-  };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const headers = new Headers(init.headers);
+  headers.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
   const playerId = getPlayerId();
-  if (playerId && !headers["X-Player-ID"] && !headers["x-player-id"]) headers["X-Player-ID"] = playerId;
+  if (playerId && !headers.has("X-Player-ID")) headers.set("X-Player-ID", playerId);
 
-  const response = await fetch(getApiUrl(path), { ...init, headers });
+  const response = await fetch(target, { ...init, headers, redirect: "error" });
   if (response.status === 401 && retry && readStorage(REFRESH_TOKEN_KEY)) {
     const refreshed = await refreshSession();
     if (refreshed) return requestApi(path, init, false);
@@ -257,6 +270,7 @@ export async function apiFetchRaw(path: string, init: RequestInit = {}): Promise
   try {
     return await requestApi(path, init);
   } catch (error) {
+    if (error instanceof ApiError) throw error;
     throw new ApiError(0, `Erreur réseau : ${error instanceof Error ? error.message : "connexion impossible"}`);
   }
 }
